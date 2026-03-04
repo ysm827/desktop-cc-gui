@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { OpenAppTarget } from "../../../types";
-import { FileTreePanel } from "./FileTreePanel";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -44,6 +43,12 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   confirm: vi.fn(async () => true),
 }));
+
+let FileTreePanel: typeof import("./FileTreePanel").FileTreePanel;
+
+beforeAll(async () => {
+  ({ FileTreePanel } = await import("./FileTreePanel"));
+});
 
 afterEach(() => {
   cleanup();
@@ -208,6 +213,35 @@ describe("FileTreePanel run action isolation", () => {
     const runButton = screen.getByRole("button", { name: "files.openRunConsole" });
     fireEvent.click(runButton);
     expect(onToggleRuntimeConsole).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders spec hub icon button and triggers toggle when handler is provided", () => {
+    const onOpenSpecHub = vi.fn();
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={[]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        onOpenSpecHub={onOpenSpecHub}
+        isSpecHubActive
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    const specHubButton = screen.getByRole("button", { name: "sidebar.specHub" });
+    expect(specHubButton.className).toContain("is-active");
+    fireEvent.click(specHubButton);
+    expect(onOpenSpecHub).toHaveBeenCalledTimes(1);
   });
 
   it("keeps file open interactions available after clicking run toggle", () => {

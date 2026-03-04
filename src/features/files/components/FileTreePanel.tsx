@@ -18,6 +18,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 import Construction from "lucide-react/dist/esm/icons/construction";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Search from "lucide-react/dist/esm/icons/search";
 import FileIcon from "../../../components/FileIcon";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
@@ -49,6 +50,8 @@ type FileTreePanelProps = {
   onSelectOpenAppId: (id: string) => void;
   onToggleRuntimeConsole?: () => void;
   isRuntimeConsoleVisible?: boolean;
+  onOpenSpecHub?: () => void;
+  isSpecHubActive?: boolean;
   gitStatusFiles?: GitFileStatus[];
   gitignoredFiles?: Set<string>;
   gitignoredDirectories?: Set<string>;
@@ -61,6 +64,8 @@ type FileTreeBuildNode = {
   type: "file" | "folder";
   children: Map<string, FileTreeBuildNode>;
 };
+
+const EMPTY_DIRECTORIES: string[] = [];
 
 function buildTree(
   files: string[],
@@ -199,7 +204,7 @@ export function FileTreePanel({
   workspaceId,
   workspacePath,
   files,
-  directories = [],
+  directories,
   isLoading,
   filePanelMode,
   onFilePanelModeChange,
@@ -211,11 +216,14 @@ export function FileTreePanel({
   onSelectOpenAppId,
   onToggleRuntimeConsole,
   isRuntimeConsoleVisible = false,
+  onOpenSpecHub,
+  isSpecHubActive = false,
   gitStatusFiles,
   gitignoredFiles,
   gitignoredDirectories,
   onRefreshFiles,
 }: FileTreePanelProps) {
+  const directoryEntries = directories ?? EMPTY_DIRECTORIES;
   const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -271,17 +279,17 @@ export function FileTreePanel({
 
   const filteredDirectories = useMemo(() => {
     if (!normalizedQuery) {
-      return directories;
+      return directoryEntries;
     }
-    return directories.filter((path) => path.toLowerCase().includes(normalizedQuery));
-  }, [directories, normalizedQuery]);
+    return directoryEntries.filter((path) => path.toLowerCase().includes(normalizedQuery));
+  }, [directoryEntries, normalizedQuery]);
 
   const { nodes, folderPaths } = useMemo(
     () => buildTree(
       normalizedQuery ? filteredFiles : files,
-      normalizedQuery ? filteredDirectories : directories,
+      normalizedQuery ? filteredDirectories : directoryEntries,
     ),
-    [directories, files, filteredDirectories, filteredFiles, normalizedQuery],
+    [directoryEntries, files, filteredDirectories, filteredFiles, normalizedQuery],
   );
 
   const folderGitStatusMap = useMemo(() => {
@@ -902,6 +910,17 @@ export function FileTreePanel({
               title={t("files.openRunConsole")}
             >
               <Construction aria-hidden />
+            </button>
+          ) : null}
+          {onOpenSpecHub ? (
+            <button
+              type="button"
+              className={`ghost icon-button file-tree-toggle file-tree-toggle-spec-hub${isSpecHubActive ? " is-active" : ""}`}
+              onClick={onOpenSpecHub}
+              aria-label={t("sidebar.specHub")}
+              title={t("sidebar.specHub")}
+            >
+              <LayoutDashboard aria-hidden />
             </button>
           ) : null}
           {hasFolders ? (

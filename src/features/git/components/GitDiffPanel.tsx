@@ -15,7 +15,6 @@ import History from "lucide-react/dist/esm/icons/history";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import Minus from "lucide-react/dist/esm/icons/minus";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Undo2 from "lucide-react/dist/esm/icons/undo-2";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import X from "lucide-react/dist/esm/icons/x";

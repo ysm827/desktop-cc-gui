@@ -1030,6 +1030,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onSelectOpenAppId={options.onSelectOpenAppId}
         onToggleRuntimeConsole={options.onToggleRuntimeConsole}
         isRuntimeConsoleVisible={options.runtimeConsoleVisible}
+        onOpenSpecHub={options.onOpenSpecHub}
+        isSpecHubActive={options.activeTab === "spec"}
         gitStatusFiles={options.gitStatus.files}
         gitignoredFiles={options.gitignoredFiles}
         gitignoredDirectories={options.gitignoredDirectories}
