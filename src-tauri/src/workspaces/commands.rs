@@ -10,7 +10,7 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use super::files::{
-    copy_workspace_item_inner, list_external_spec_tree_inner,
+    copy_workspace_item_inner, create_workspace_directory_inner, list_external_spec_tree_inner,
     list_workspace_directory_children_inner, list_workspace_files_inner,
     read_external_spec_file_inner, read_workspace_file_inner, trash_workspace_item_inner,
     write_external_spec_file_inner, write_workspace_file_inner, ExternalSpecFileResponse,
@@ -342,6 +342,26 @@ pub(crate) async fn write_workspace_file(
         &path,
         &content,
         |root, rel_path, data| write_workspace_file_inner(root, rel_path, data),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn create_workspace_directory(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+    _app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return Err("create_workspace_directory is not supported in remote mode yet.".to_string());
+    }
+
+    workspaces_core::create_workspace_directory_core(
+        &state.workspaces,
+        &workspace_id,
+        &path,
+        |root, rel_path| create_workspace_directory_inner(root, rel_path),
     )
     .await
 }

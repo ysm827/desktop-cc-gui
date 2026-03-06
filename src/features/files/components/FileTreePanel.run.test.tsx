@@ -3,6 +3,16 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { OpenAppTarget } from "../../../types";
 
+const menuPopupMock = vi.fn(async () => undefined);
+const menuNewMock = vi.fn(async ({ items }: { items: any[] }) => ({
+  append: vi.fn(async () => undefined),
+  popup: menuPopupMock,
+  close: vi.fn(async () => undefined),
+  items,
+}));
+const menuItemNewMock = vi.fn(async (options: any) => options);
+const revealItemInDirMock = vi.fn(async () => undefined);
+
 const invokeMock = vi.fn(async (...args: any[]) => {
   const command = args[0];
   if (command === "list_workspace_directory_children") {
@@ -32,14 +42,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@tauri-apps/api/menu", () => ({
   Menu: {
-    new: vi.fn(async () => ({
-      append: vi.fn(async () => undefined),
-      popup: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
-    })),
+    new: menuNewMock,
   },
   MenuItem: {
-    new: vi.fn(async () => ({})),
+    new: menuItemNewMock,
   },
 }));
 
@@ -54,7 +60,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
-  revealItemInDir: vi.fn(async () => undefined),
+  revealItemInDir: revealItemInDirMock,
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -70,9 +76,202 @@ beforeAll(async () => {
 afterEach(() => {
   cleanup();
   invokeMock.mockClear();
+  menuNewMock.mockClear();
+  menuItemNewMock.mockClear();
+  menuPopupMock.mockClear();
+  revealItemInDirMock.mockClear();
 });
 
 describe("FileTreePanel run action isolation", () => {
+  it("renders a single workspace root node and keeps it expanded by default", () => {
+    const { container } = render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["src/index.ts", "README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /workspace/ })).toBeTruthy();
+    expect(container.querySelectorAll(".file-tree-row.is-root")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /src/ })).toBeTruthy();
+  });
+
+  it("restores child expansion state after collapsing and re-expanding workspace root", () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["src/index.ts"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
+    expect(screen.getByText("index.ts")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /workspace/ }));
+    expect(screen.queryByText("index.ts")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /workspace/ }));
+    expect(screen.getByText("index.ts")).toBeTruthy();
+  });
+
+  it("places search and actions in header row while keeping workspace root on its own row", () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        onToggleRuntimeConsole={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    const filterInput = screen.getByRole("searchbox", {
+      name: "files.filterPlaceholder",
+    });
+    const toolRow = filterInput.closest(".file-tree-tool-row");
+    expect(toolRow).toBeTruthy();
+    expect(toolRow?.querySelector(".file-tree-count")).toBeTruthy();
+    expect(toolRow?.querySelector(".file-tree-toggle-runtime")).toBeTruthy();
+    expect(toolRow?.querySelector(".file-tree-row.is-root")).toBeNull();
+
+    const rootButton = screen.getByRole("button", { name: /workspace/ });
+    const rootRow = rootButton.closest(".file-tree-root-row");
+    expect(rootRow).toBeTruthy();
+    expect(rootRow?.querySelectorAll(".file-tree-row.is-root")).toHaveLength(1);
+  });
+
+  it("keeps opened-file contract when running non-open action from root context menu", async () => {
+    const onOpenFile = vi.fn();
+    const writeTextMock = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: writeTextMock },
+    });
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={onOpenFile}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: /workspace/ }));
+    await waitFor(() => {
+      expect(menuItemNewMock).toHaveBeenCalled();
+      expect(menuNewMock).toHaveBeenCalled();
+      expect(menuPopupMock).toHaveBeenCalled();
+    });
+
+    const copyPathItem = menuItemNewMock.mock.calls
+      .map((call) => call[0])
+      .find((item) => item.text === "files.copyPath");
+    expect(copyPathItem).toBeTruthy();
+    await copyPathItem.action();
+    expect(writeTextMock).toHaveBeenCalledWith("/tmp/workspace/");
+    expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it("opens file preview read flow when onOpenFile handler is not provided", async () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "README.md" }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("read_workspace_file", {
+        workspaceId: "workspace-1",
+        path: "README.md",
+      });
+    });
+  });
+
+  it("keeps sticky-top and scroll-list containers separated in DOM structure", () => {
+    const { container } = render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    const topZone = container.querySelector(".file-tree-top-zone");
+    const listZone = container.querySelector(".file-tree-list");
+    expect(topZone).toBeTruthy();
+    expect(listZone).toBeTruthy();
+    expect(topZone?.contains(listZone as Node)).toBe(false);
+  });
+
   it("filters files by search input", () => {
     render(
       <FileTreePanel
@@ -444,6 +643,155 @@ describe("FileTreePanel run action isolation", () => {
     expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
       workspaceId: "workspace-1",
       path: "node_modules/@babel/core",
+    });
+  });
+
+  it("shows root action buttons and trashes selected node from root row", async () => {
+    const onRefreshFiles = vi.fn();
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        onRefreshFiles={onRefreshFiles}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    const deleteButton = screen.getByRole("button", { name: "files.deleteItem" }) as HTMLButtonElement;
+    expect(screen.getByRole("button", { name: "files.newFile" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "files.newFolder" })).toBeTruthy();
+    expect(deleteButton).toBeTruthy();
+    expect(deleteButton.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "README.md" }));
+    expect(deleteButton.disabled).toBe(false);
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("trash_workspace_item", {
+        workspaceId: "workspace-1",
+        path: "README.md",
+      });
+    });
+    expect(onRefreshFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates new folder from root action", async () => {
+    const onRefreshFiles = vi.fn();
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        onRefreshFiles={onRefreshFiles}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "files.newFolder" }));
+    const folderInput = screen.getByPlaceholderText("files.newFolderNamePlaceholder");
+    fireEvent.change(folderInput, { target: { value: "docs" } });
+    fireEvent.keyDown(folderInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_workspace_directory", {
+        workspaceId: "workspace-1",
+        path: "docs",
+      });
+    });
+    expect(onRefreshFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates new folder under selected folder from root action", async () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["src/index.ts"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: "files.newFolder" }));
+    const folderInput = screen.getByPlaceholderText("files.newFolderNamePlaceholder");
+    fireEvent.change(folderInput, { target: { value: "docs" } });
+    fireEvent.keyDown(folderInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_workspace_directory", {
+        workspaceId: "workspace-1",
+        path: "src/docs",
+      });
+    });
+  });
+
+  it("creates new file under selected file parent from root action", async () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["src/index.ts"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: "index.ts" }));
+    fireEvent.click(screen.getByRole("button", { name: "files.newFile" }));
+    const fileInput = screen.getByPlaceholderText("files.newFileNamePlaceholder");
+    fireEvent.change(fileInput, { target: { value: "utils.ts" } });
+    fireEvent.keyDown(fileInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("write_workspace_file", {
+        workspaceId: "workspace-1",
+        path: "src/utils.ts",
+        content: "",
+      });
     });
   });
 

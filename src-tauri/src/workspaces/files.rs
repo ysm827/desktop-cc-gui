@@ -80,11 +80,11 @@ fn normalized_relative_to_pathbuf(normalized: &str) -> PathBuf {
     path
 }
 
-fn normalize_workspace_relative_directory_path(path: &str) -> Result<String, String> {
+fn normalize_workspace_relative_path(path: &str) -> Result<String, String> {
     let normalized = path.trim().replace('\\', "/");
     let trimmed = normalized.trim_matches('/');
     if trimmed.is_empty() {
-        return Err("Directory path cannot be empty.".to_string());
+        return Err("Path cannot be empty.".to_string());
     }
     let relative = Path::new(trimmed);
     for component in relative.components() {
@@ -93,7 +93,7 @@ fn normalize_workspace_relative_directory_path(path: &str) -> Result<String, Str
             | Component::RootDir
             | Component::Prefix(_)
             | Component::CurDir => {
-                return Err("Invalid directory path.".to_string());
+                return Err("Invalid path.".to_string());
             }
             Component::Normal(_) => {}
         }
@@ -309,7 +309,7 @@ pub(crate) fn list_workspace_directory_children_inner(
     directory_path: &str,
     max_entries: usize,
 ) -> Result<WorkspaceFilesResponse, String> {
-    let normalized_path = normalize_workspace_relative_directory_path(directory_path)?;
+    let normalized_path = normalize_workspace_relative_path(directory_path)?;
     let canonical_root = root
         .canonicalize()
         .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
@@ -682,29 +682,54 @@ pub(crate) fn write_workspace_file_inner(
     Ok(())
 }
 
+pub(crate) fn create_workspace_directory_inner(
+    root: &PathBuf,
+    relative_path: &str,
+) -> Result<(), String> {
+    let normalized_path = normalize_workspace_relative_path(relative_path)?;
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
+    let candidate = canonical_root.join(normalized_relative_to_pathbuf(&normalized_path));
+
+    // Ensure the parent directory exists and resolves inside workspace root.
+    if let Some(parent) = candidate.parent() {
+        let canonical_parent = parent
+            .canonicalize()
+            .map_err(|err| format!("Failed to resolve parent directory: {err}"))?;
+        if !canonical_parent.starts_with(&canonical_root) {
+            return Err("Invalid directory path".to_string());
+        }
+    }
+
+    if candidate.exists() {
+        let metadata = std::fs::metadata(&candidate)
+            .map_err(|err| format!("Failed to read path metadata: {err}"))?;
+        if metadata.is_dir() {
+            return Ok(());
+        }
+        return Err("Path already exists and is not a directory.".to_string());
+    }
+
+    std::fs::create_dir(&candidate).map_err(|err| format!("Failed to create directory: {err}"))?;
+    Ok(())
+}
+
 pub(crate) fn trash_workspace_item_inner(
     root: &PathBuf,
     relative_path: &str,
 ) -> Result<(), String> {
+    let normalized_path = normalize_workspace_relative_path(relative_path)?;
     let canonical_root = root
         .canonicalize()
         .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
-    let candidate = canonical_root.join(relative_path);
+    let candidate = canonical_root.join(normalized_relative_to_pathbuf(&normalized_path));
     let canonical_path = candidate
         .canonicalize()
         .map_err(|err| format!("Failed to resolve path: {err}"))?;
 
     if !canonical_path.starts_with(&canonical_root) {
         return Err("Invalid file path".to_string());
-    }
-
-    let normalized = relative_path.replace('\\', "/");
-    if normalized == ".git"
-        || normalized.starts_with(".git/")
-        || normalized.contains("/.git/")
-        || normalized.contains("/.git")
-    {
-        return Err("Cannot delete items in .git directory".to_string());
     }
 
     if !canonical_path.exists() {
@@ -722,25 +747,17 @@ pub(crate) fn copy_workspace_item_inner(
     root: &PathBuf,
     relative_path: &str,
 ) -> Result<String, String> {
+    let normalized_path = normalize_workspace_relative_path(relative_path)?;
     let canonical_root = root
         .canonicalize()
         .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
-    let candidate = canonical_root.join(relative_path);
+    let candidate = canonical_root.join(normalized_relative_to_pathbuf(&normalized_path));
     let canonical_path = candidate
         .canonicalize()
         .map_err(|err| format!("Failed to resolve path: {err}"))?;
 
     if !canonical_path.starts_with(&canonical_root) {
         return Err("Invalid file path".to_string());
-    }
-
-    let normalized = relative_path.replace('\\', "/");
-    if normalized == ".git"
-        || normalized.starts_with(".git/")
-        || normalized.contains("/.git/")
-        || normalized.contains("/.git")
-    {
-        return Err("Cannot copy items in .git directory".to_string());
     }
 
     if !canonical_path.exists() {
@@ -815,7 +832,11 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use super::is_special_directory_path;
+    use super::{
+        create_workspace_directory_inner, is_special_directory_path, normalize_workspace_relative_path,
+    };
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn special_directory_path_detection_supports_dependency_dirs() {
@@ -840,5 +861,37 @@ mod tests {
         assert!(!is_special_directory_path("src"));
         assert!(!is_special_directory_path("docs"));
         assert!(!is_special_directory_path("apps/web/src"));
+    }
+
+    #[test]
+    fn normalize_workspace_relative_path_rejects_empty_or_escaped_inputs() {
+        assert!(normalize_workspace_relative_path("").is_err());
+        assert!(normalize_workspace_relative_path("/").is_err());
+        assert!(normalize_workspace_relative_path("../outside").is_err());
+        assert!(normalize_workspace_relative_path("./local").is_err());
+        assert!(normalize_workspace_relative_path(".git/config").is_err());
+    }
+
+    #[test]
+    fn normalize_workspace_relative_path_accepts_regular_relative_path() {
+        assert_eq!(
+            normalize_workspace_relative_path("src/main.ts").expect("valid relative path"),
+            "src/main.ts".to_string()
+        );
+    }
+
+    #[test]
+    fn create_workspace_directory_creates_relative_directory() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock moved backwards")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mossx-dir-create-{suffix}"));
+        std::fs::create_dir_all(&root).expect("create root");
+
+        create_workspace_directory_inner(&PathBuf::from(&root), "docs").expect("create docs");
+        assert!(root.join("docs").is_dir());
+
+        std::fs::remove_dir_all(&root).expect("cleanup root");
     }
 }

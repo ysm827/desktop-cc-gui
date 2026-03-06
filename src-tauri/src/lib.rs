@@ -265,6 +265,7 @@ pub fn run() {
             workspaces::read_workspace_file,
             workspaces::read_external_spec_file,
             workspaces::write_workspace_file,
+            workspaces::create_workspace_directory,
             workspaces::write_external_spec_file,
             workspaces::trash_workspace_item,
             workspaces::copy_workspace_item,

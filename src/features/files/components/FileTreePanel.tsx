@@ -15,14 +15,19 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { confirm } from "@tauri-apps/plugin-dialog";
+import FilePlus from "lucide-react/dist/esm/icons/file-plus";
+import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
+import SquareMinus from "lucide-react/dist/esm/icons/square-minus";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import TreePine from "lucide-react/dist/esm/icons/tree-pine";
 import Construction from "lucide-react/dist/esm/icons/construction";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Search from "lucide-react/dist/esm/icons/search";
 import FileIcon from "../../../components/FileIcon";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 import {
+  createWorkspaceDirectory,
   copyWorkspaceItem,
   getWorkspaceDirectoryChildren,
   readWorkspaceFile,
@@ -43,6 +48,7 @@ type FileTreeNode = {
 
 type FileTreePanelProps = {
   workspaceId: string;
+  workspaceName?: string;
   workspacePath: string;
   files: string[];
   directories?: string[];
@@ -274,8 +280,19 @@ function isImagePath(path: string) {
   return imageExtensions.has(ext);
 }
 
+function resolveWorkspaceRootLabel(workspacePath: string, workspaceName?: string) {
+  const fromName = workspaceName?.trim();
+  if (fromName) {
+    return fromName;
+  }
+  const normalizedPath = workspacePath.replace(/[\\/]+$/, "");
+  const segments = normalizedPath.split(/[\\/]/).filter(Boolean);
+  return segments.at(-1) || normalizedPath || "workspace";
+}
+
 export function FileTreePanel({
   workspaceId,
+  workspaceName,
   workspacePath,
   files,
   directories,
@@ -302,6 +319,7 @@ export function FileTreePanel({
   const ignoredDirectoryEntries = gitignoredDirectories ?? EMPTY_SET;
   const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [rootExpanded, setRootExpanded] = useState(true);
   const [query, setQuery] = useState("");
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [previewAnchor, setPreviewAnchor] = useState<{
@@ -327,6 +345,9 @@ export function FileTreePanel({
   const [newFileParent, setNewFileParent] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
   const newFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const newFolderInputRef = useRef<HTMLInputElement | null>(null);
   const [lazyFiles, setLazyFiles] = useState<Set<string>>(new Set());
   const [lazyDirectories, setLazyDirectories] = useState<Set<string>>(new Set());
   const [lazyGitignoredFiles, setLazyGitignoredFiles] = useState<Set<string>>(new Set());
@@ -342,6 +363,10 @@ export function FileTreePanel({
 
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
+  const workspaceRootLabel = useMemo(
+    () => resolveWorkspaceRootLabel(workspacePath, workspaceName),
+    [workspaceName, workspacePath],
+  );
   const previewKind = useMemo(
     () => (previewPath && isImagePath(previewPath) ? "image" : "text"),
     [previewPath],
@@ -456,6 +481,7 @@ export function FileTreePanel({
   const hasFolders = visibleFolderPaths.size > 0;
   const allVisibleExpanded =
     hasFolders && Array.from(visibleFolderPaths).every((path) => expandedFolders.has(path));
+  const isRootVisibleExpanded = rootExpanded || normalizedQuery.length > 0;
 
   useEffect(() => {
     setExpandedFolders((prev) => {
@@ -500,6 +526,11 @@ export function FileTreePanel({
     setLoadedLazyDirectories(new Set());
     setLoadingLazyDirectories(new Set());
     setLazyDirectoryLoadErrors(new Map());
+    setNewFileParent(null);
+    setNewFileName("");
+    setNewFolderParent(null);
+    setNewFolderName("");
+    setRootExpanded(true);
     loadedLazyDirectoriesRef.current = new Set();
     loadingLazyDirectoriesRef.current = new Set();
   }, [workspaceId]);
@@ -921,22 +952,79 @@ export function FileTreePanel({
     setNewFileName("");
   }, []);
 
+  const openNewFolderPrompt = useCallback(
+    (parentFolder: string) => {
+      setNewFolderParent(parentFolder);
+      setNewFolderName("");
+      requestAnimationFrame(() => {
+        newFolderInputRef.current?.focus();
+      });
+    },
+    [],
+  );
+
+  const confirmNewFolder = useCallback(async () => {
+    const name = newFolderName.trim();
+    if (!name || newFolderParent === null) {
+      setNewFolderParent(null);
+      setNewFolderName("");
+      return;
+    }
+    const relativePath = newFolderParent ? `${newFolderParent}/${name}` : name;
+    try {
+      await createWorkspaceDirectory(workspaceId, relativePath);
+      onRefreshFiles?.();
+    } catch {
+      // create folder failed
+    }
+    setNewFolderParent(null);
+    setNewFolderName("");
+  }, [newFolderName, newFolderParent, workspaceId, onRefreshFiles]);
+
+  const cancelNewFolder = useCallback(() => {
+    setNewFolderParent(null);
+    setNewFolderName("");
+  }, []);
+
+  const resolveParentFolderForNode = useCallback(
+    (relativePath: string | null, nodeType: "file" | "folder" | null) => {
+      if (!relativePath) {
+        return "";
+      }
+      if (nodeType === "folder") {
+        return relativePath;
+      }
+      const separatorIndex = relativePath.lastIndexOf("/");
+      return separatorIndex >= 0 ? relativePath.slice(0, separatorIndex) : "";
+    },
+    [],
+  );
+
+  const selectedParentFolder = useMemo(
+    () => resolveParentFolderForNode(selectedNodePath, selectedNodeType),
+    [resolveParentFolderForNode, selectedNodePath, selectedNodeType],
+  );
+  const canTrashSelectedNode =
+    selectedNodeType !== null && selectedNodePath !== null && selectedNodePath.length > 0;
+
   const showContextMenu = useCallback(
     async (event: MouseEvent<HTMLButtonElement>, relativePath: string, isFolder: boolean) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const parentFolder = isFolder
-        ? relativePath
-        : relativePath.includes("/")
-          ? relativePath.substring(0, relativePath.lastIndexOf("/"))
-          : "";
+      const parentFolder = resolveParentFolderForNode(relativePath, isFolder ? "folder" : "file");
 
       const menuItems = [
         await MenuItem.new({
           text: t("files.newFile"),
           action: () => {
             openNewFilePrompt(parentFolder);
+          },
+        }),
+        await MenuItem.new({
+          text: t("files.newFolder"),
+          action: () => {
+            openNewFolderPrompt(parentFolder);
           },
         }),
         await MenuItem.new({
@@ -986,7 +1074,16 @@ export function FileTreePanel({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [resolvePath, copyPath, trashItem, duplicateItem, openNewFilePrompt, t],
+    [
+      resolvePath,
+      copyPath,
+      trashItem,
+      duplicateItem,
+      openNewFilePrompt,
+      openNewFolderPrompt,
+      resolveParentFolderForNode,
+      t,
+    ],
   );
 
   useEffect(() => {
@@ -1140,63 +1237,130 @@ export function FileTreePanel({
 
   return (
     <aside className="diff-panel file-tree-panel" ref={panelRef}>
-      <div className="git-panel-header">
-        <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
-        <div className="file-tree-meta">
-          <div className="file-tree-count">
-          {filteredFiles.length
-            ? normalizedQuery
-              ? t("files.matchCount", { count: filteredFiles.length })
-              : t("files.fileCount", { count: filteredFiles.length })
-            : showLoading
-              ? t("files.loadingFiles")
-              : t("files.noFiles")}
+      <div className="file-tree-top-zone">
+        <div className="file-tree-tool-row">
+          <div className="file-tree-tabs-wrap">
+            <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
+          </div>
+          <div className="file-tree-search file-tree-search-inline">
+            <Search className="file-tree-search-icon" aria-hidden />
+            <input
+              className="file-tree-search-input"
+              type="search"
+              placeholder={t("files.filterPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              aria-label={t("files.filterPlaceholder")}
+            />
+          </div>
+          <div className="file-tree-meta">
+            <div className="file-tree-count">
+              {filteredFiles.length
+                ? normalizedQuery
+                  ? t("files.matchCount", { count: filteredFiles.length })
+                  : t("files.fileCount", { count: filteredFiles.length })
+                : showLoading
+                  ? t("files.loadingFiles")
+                  : t("files.noFiles")}
+            </div>
+            {onToggleRuntimeConsole ? (
+              <button
+                type="button"
+                className={`ghost icon-button file-tree-toggle file-tree-toggle-runtime${isRuntimeConsoleVisible ? " is-active" : ""}`}
+                onClick={onToggleRuntimeConsole}
+                aria-label={t("files.openRunConsole")}
+                title={t("files.openRunConsole")}
+              >
+                <Construction aria-hidden />
+              </button>
+            ) : null}
+            {onOpenSpecHub ? (
+              <button
+                type="button"
+                className={`ghost icon-button file-tree-toggle file-tree-toggle-spec-hub${isSpecHubActive ? " is-active" : ""}`}
+                onClick={onOpenSpecHub}
+                aria-label={t("sidebar.specHub")}
+                title={t("sidebar.specHub")}
+              >
+                <LayoutDashboard aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
-          {onToggleRuntimeConsole ? (
+        <div className="file-tree-root-row">
+          <div className="file-tree-root-wrap">
             <button
               type="button"
-              className={`ghost icon-button file-tree-toggle file-tree-toggle-runtime${isRuntimeConsoleVisible ? " is-active" : ""}`}
-              onClick={onToggleRuntimeConsole}
-              aria-label={t("files.openRunConsole")}
-              title={t("files.openRunConsole")}
+              className={`file-tree-row is-folder is-root${selectedNodePath === "" ? " is-selected" : ""}`}
+              onClick={() => {
+                setSelectedNodePath("");
+                setSelectedNodeType("folder");
+                if (normalizedQuery) {
+                  return;
+                }
+                setRootExpanded((prev) => !prev);
+              }}
+              onContextMenu={(event) => {
+                setSelectedNodePath("");
+                setSelectedNodeType("folder");
+                void showContextMenu(event, "", true);
+              }}
             >
-              <Construction aria-hidden />
+              <span className={`file-tree-chevron${isRootVisibleExpanded ? " is-open" : ""}`}>
+                ›
+              </span>
+              <span className="file-tree-icon file-tree-icon-root-special" aria-hidden>
+                <TreePine size={13} />
+              </span>
+              <span className="file-tree-name">{workspaceRootLabel}</span>
             </button>
-          ) : null}
-          {onOpenSpecHub ? (
+          </div>
+          <div className="file-tree-root-actions">
             <button
               type="button"
-              className={`ghost icon-button file-tree-toggle file-tree-toggle-spec-hub${isSpecHubActive ? " is-active" : ""}`}
-              onClick={onOpenSpecHub}
-              aria-label={t("sidebar.specHub")}
-              title={t("sidebar.specHub")}
+              className="ghost icon-button file-tree-root-action"
+              onClick={() => openNewFilePrompt(selectedParentFolder)}
+              aria-label={t("files.newFile")}
+              title={t("files.newFile")}
             >
-              <LayoutDashboard aria-hidden />
+              <FilePlus aria-hidden />
             </button>
-          ) : null}
-          {hasFolders ? (
             <button
               type="button"
-              className="ghost icon-button file-tree-toggle"
+              className="ghost icon-button file-tree-root-action"
+              onClick={() => openNewFolderPrompt(selectedParentFolder)}
+              aria-label={t("files.newFolder")}
+              title={t("files.newFolder")}
+            >
+              <FolderPlus aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ghost icon-button file-tree-root-action"
               onClick={toggleAllFolders}
+              disabled={!hasFolders}
               aria-label={allVisibleExpanded ? t("files.collapseAllFolders") : t("files.expandAllFolders")}
               title={allVisibleExpanded ? t("files.collapseAllFolders") : t("files.expandAllFolders")}
             >
-              <ChevronsUpDown aria-hidden />
+              <SquareMinus aria-hidden />
             </button>
-          ) : null}
+            <button
+              type="button"
+              className="ghost icon-button file-tree-root-action file-tree-root-action-danger"
+              onClick={() => {
+                if (!canTrashSelectedNode || !selectedNodePath || !selectedNodeType) {
+                  return;
+                }
+                void trashItem(selectedNodePath, selectedNodeType === "folder");
+              }}
+              disabled={!canTrashSelectedNode}
+              aria-label={t("files.deleteItem")}
+              title={t("files.deleteItem")}
+            >
+              <Trash2 aria-hidden />
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="file-tree-search">
-        <Search className="file-tree-search-icon" aria-hidden />
-        <input
-          className="file-tree-search-input"
-          type="search"
-          placeholder={t("files.filterPlaceholder")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label={t("files.filterPlaceholder")}
-        />
       </div>
       <div className="file-tree-list">
         {showLoading ? (
@@ -1209,12 +1373,12 @@ export function FileTreePanel({
               />
             ))}
           </div>
-        ) : nodes.length === 0 ? (
+        ) : !isRootVisibleExpanded ? null : nodes.length === 0 ? (
           <div className="file-tree-empty">
             {normalizedQuery ? t("files.noMatchesFound") : t("files.noFilesAvailable")}
           </div>
         ) : (
-          nodes.map((node) => renderNode(node, 0))
+          nodes.map((node) => renderNode(node, 1))
         )}
       </div>
       {previewPath && previewAnchor
@@ -1290,6 +1454,48 @@ export function FileTreePanel({
                 onClick={() => void confirmNewFile()}
               >
                 {t("files.newFile")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {newFolderParent !== null && (
+        <div className="new-file-prompt" role="dialog" aria-modal="true">
+          <div className="new-file-prompt-backdrop" onClick={cancelNewFolder} />
+          <div className="new-file-prompt-card">
+            <div className="new-file-prompt-title">{t("files.newFolder")}</div>
+            {newFolderParent && (
+              <div className="new-file-prompt-path">{newFolderParent}/</div>
+            )}
+            <input
+              id="new-folder-name"
+              ref={newFolderInputRef}
+              className="new-file-prompt-input"
+              placeholder={t("files.newFolderNamePlaceholder")}
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelNewFolder();
+                }
+                if (e.key === "Enter" && newFolderName.trim()) {
+                  e.preventDefault();
+                  void confirmNewFolder();
+                }
+              }}
+            />
+            <div className="new-file-prompt-actions">
+              <button type="button" className="ghost" onClick={cancelNewFolder}>
+                {t("files.cancel")}
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!newFolderName.trim()}
+                onClick={() => void confirmNewFolder()}
+              >
+                {t("files.newFolder")}
               </button>
             </div>
           </div>

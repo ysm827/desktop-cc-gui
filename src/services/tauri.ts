@@ -1206,6 +1206,13 @@ export async function writeWorkspaceFile(
   return invoke("write_workspace_file", { workspaceId, path, content });
 }
 
+export async function createWorkspaceDirectory(
+  workspaceId: string,
+  path: string,
+): Promise<void> {
+  return invoke("create_workspace_directory", { workspaceId, path });
+}
+
 export async function writeExternalSpecFile(
   workspaceId: string,
   specRoot: string,

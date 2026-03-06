@@ -1,5 +1,73 @@
 .file-tree-panel {
+  gap: 0;
+  overflow: hidden;
+}
+
+.file-tree-top-zone {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  background: color-mix(in srgb, var(--surface-right-panel, transparent) 84%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.app.reduced-transparency .file-tree-top-zone {
+  backdrop-filter: none;
+  background: transparent;
+}
+
+.file-tree-tool-row {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  min-height: 28px;
+  min-width: 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.file-tree-tabs-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.file-tree-root-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.file-tree-root-wrap {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.file-tree-root-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.file-tree-root-action {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.file-tree-root-action-danger {
+  color: var(--text-danger, #f87171);
+}
+
+.file-tree-root-action-danger:hover:not(:disabled),
+.file-tree-root-action-danger:focus-visible {
+  color: var(--text-danger-hover, #ef4444);
 }
 
 .app.reduced-transparency .file-tree-panel {
@@ -16,6 +84,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  min-width: fit-content;
 }
 
 .file-tree-toggle {
@@ -36,14 +107,18 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 10px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+  border: none;
   color: var(--text-faint);
 }
 
+.file-tree-search-inline {
+  flex: 1 1 180px;
+  min-width: 140px;
+}
+
 .file-tree-search:focus-within {
-  border-color: var(--border-strong);
   color: var(--text-emphasis);
 }
 
@@ -106,6 +181,7 @@
   overflow-y: auto;
   flex: 1;
   padding-right: 2px;
+  padding-top: 2px;
   min-height: 0;
 }
 
@@ -171,6 +247,26 @@
 
 .file-tree-row.is-folder {
   font-weight: 600;
+}
+
+.file-tree-row.is-root {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.file-tree-row.is-root .file-tree-name {
+  color: var(--text-strong);
+}
+
+.file-tree-icon-root-special {
+  color: color-mix(in srgb, var(--accent-500) 65%, var(--text-strong) 35%);
 }
 
 .file-tree-chevron {
