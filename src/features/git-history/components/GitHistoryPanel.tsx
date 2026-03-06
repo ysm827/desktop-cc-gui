@@ -436,6 +436,17 @@ function splitGitHubRepo(value: string): { owner: string; repo: string } {
   };
 }
 
+function scrollElementToTop(element: HTMLDivElement | null): void {
+  if (!element) {
+    return;
+  }
+  if (typeof element.scrollTo === "function") {
+    element.scrollTo({ top: 0 });
+    return;
+  }
+  element.scrollTop = 0;
+}
+
 function uniqueNonEmpty(values: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -3271,7 +3282,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({
     if (!pullTargetBranchMenuOpen) {
       return;
     }
-    pullTargetBranchMenuRef.current?.scrollTo({ top: 0 });
+    scrollElementToTop(pullTargetBranchMenuRef.current);
   }, [pullTargetBranchActiveScopeTab, pullTargetBranchMenuOpen]);
 
   useEffect(() => {
@@ -3356,7 +3367,7 @@ export const GitHistoryPanel = memo(function GitHistoryPanel({
     if (!pushTargetBranchMenuOpen) {
       return;
     }
-    pushTargetBranchMenuRef.current?.scrollTo({ top: 0 });
+    scrollElementToTop(pushTargetBranchMenuRef.current);
   }, [pushTargetBranchActiveScopeTab, pushTargetBranchMenuOpen]);
 
   useEffect(() => {
