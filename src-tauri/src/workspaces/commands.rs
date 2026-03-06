@@ -10,7 +10,8 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use super::files::{
-    copy_workspace_item_inner, list_external_spec_tree_inner, list_workspace_files_inner,
+    copy_workspace_item_inner, list_external_spec_tree_inner,
+    list_workspace_directory_children_inner, list_workspace_files_inner,
     read_external_spec_file_inner, read_workspace_file_inner, trash_workspace_item_inner,
     write_external_spec_file_inner, write_workspace_file_inner, ExternalSpecFileResponse,
     WorkspaceFileResponse, WorkspaceFilesResponse,
@@ -1393,7 +1394,7 @@ pub(crate) async fn list_workspace_files(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceFilesResponse, String> {
-    const MAX_WORKSPACE_FILE_ENTRIES: usize = 20_000;
+    const MAX_WORKSPACE_FILE_ENTRIES: usize = 100_000;
     if remote_backend::is_remote_mode(&*state).await {
         let response = remote_backend::call_remote(
             &*state,
@@ -1408,6 +1409,40 @@ pub(crate) async fn list_workspace_files(
     workspaces_core::list_workspace_files_core(&state.workspaces, &workspace_id, |root| {
         list_workspace_files_inner(root, MAX_WORKSPACE_FILE_ENTRIES)
     })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_workspace_directory_children(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceFilesResponse, String> {
+    const MAX_WORKSPACE_DIRECTORY_CHILDREN: usize = 100_000;
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "list_workspace_directory_children",
+            json!({ "workspaceId": workspace_id, "path": path }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    workspaces_core::read_workspace_file_core(
+        &state.workspaces,
+        &workspace_id,
+        &path,
+        |root, rel_path| {
+            list_workspace_directory_children_inner(
+                root,
+                rel_path,
+                MAX_WORKSPACE_DIRECTORY_CHILDREN,
+            )
+        },
+    )
     .await
 }
 

@@ -77,6 +77,7 @@ type ThreadActivityStatus = {
   isProcessing: boolean;
   hasUnread: boolean;
   isReviewing: boolean;
+  isContextCompacting?: boolean;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   heartbeatPulse?: number;
@@ -417,6 +418,7 @@ type LayoutNodesOptions = {
   onReviewPromptUpdateCustomInstructions: (value: string) => void;
   onReviewPromptConfirmCustom: () => Promise<void>;
   activeTokenUsage: ThreadTokenUsage | null;
+  contextDualViewEnabled?: boolean;
   activeQueue: QueuedMessage[];
   draftText: string;
   onDraftChange: (next: string) => void;
@@ -812,6 +814,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       canStop={options.canStop}
       disabled={options.isReviewing}
       contextUsage={options.activeTokenUsage}
+      contextDualViewEnabled={options.contextDualViewEnabled}
+      isContextCompacting={activeThreadStatus?.isContextCompacting ?? false}
       accountRateLimits={options.activeRateLimits}
       usageShowRemaining={options.usageShowRemaining}
       onRefreshAccountRateLimits={options.onRefreshAccountRateLimits}

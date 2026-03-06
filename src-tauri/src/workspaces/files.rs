@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use git2::Repository;
 use ignore::WalkBuilder;
@@ -10,6 +12,116 @@ use crate::utils::normalize_git_path;
 
 fn should_always_skip(name: &str) -> bool {
     name == ".git"
+}
+
+fn is_special_dependency_dir_name(name: &str) -> bool {
+    matches!(
+        name,
+        "node_modules"
+            | ".pnpm-store"
+            | ".yarn"
+            | "bower_components"
+            | "vendor"
+            | ".venv"
+            | "venv"
+            | "env"
+            | "__pypackages__"
+            | "Pods"
+            | "Carthage"
+            | ".m2"
+            | ".ivy2"
+            | ".cargo"
+    )
+}
+
+fn is_special_build_artifact_dir_name(name: &str) -> bool {
+    matches!(
+        name,
+        "target"
+            | "dist"
+            | "build"
+            | "out"
+            | "coverage"
+            | ".next"
+            | ".nuxt"
+            | ".svelte-kit"
+            | ".angular"
+            | ".parcel-cache"
+            | ".turbo"
+            | ".cache"
+            | ".gradle"
+            | "CMakeFiles"
+            | "bin"
+            | "obj"
+            | "__pycache__"
+            | ".pytest_cache"
+            | ".mypy_cache"
+            | ".tox"
+            | ".dart_tool"
+    ) || name.starts_with("cmake-build-")
+}
+
+fn is_special_directory_path(path: &str) -> bool {
+    path.rsplit('/')
+        .next()
+        .map(|name| {
+            is_special_dependency_dir_name(name) || is_special_build_artifact_dir_name(name)
+        })
+        .unwrap_or(false)
+}
+
+fn normalized_relative_to_pathbuf(normalized: &str) -> PathBuf {
+    let mut path = PathBuf::new();
+    for segment in normalized.split('/') {
+        if !segment.is_empty() {
+            path.push(segment);
+        }
+    }
+    path
+}
+
+fn normalize_workspace_relative_directory_path(path: &str) -> Result<String, String> {
+    let normalized = path.trim().replace('\\', "/");
+    let trimmed = normalized.trim_matches('/');
+    if trimmed.is_empty() {
+        return Err("Directory path cannot be empty.".to_string());
+    }
+    let relative = Path::new(trimmed);
+    for component in relative.components() {
+        match component {
+            Component::ParentDir
+            | Component::RootDir
+            | Component::Prefix(_)
+            | Component::CurDir => {
+                return Err("Invalid directory path.".to_string());
+            }
+            Component::Normal(_) => {}
+        }
+    }
+    if trimmed == ".git"
+        || trimmed.starts_with(".git/")
+        || trimmed.contains("/.git/")
+        || trimmed.ends_with("/.git")
+    {
+        return Err("Cannot access .git directory.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn sort_and_dedup_workspace_lists(
+    files: &mut Vec<String>,
+    directories: &mut Vec<String>,
+    gitignored_files: &mut Vec<String>,
+    gitignored_directories: &mut Vec<String>,
+) {
+    files.sort();
+    files.dedup();
+    directories.sort();
+    directories.dedup();
+    gitignored_files.sort();
+    gitignored_files.dedup();
+    gitignored_directories.sort();
+    gitignored_directories.dedup();
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -30,6 +142,8 @@ pub(crate) fn list_workspace_files_inner(
     let mut directories = Vec::new();
     let mut gitignored_files = Vec::new();
     let mut gitignored_directories = Vec::new();
+    let pruned_special_directories: Arc<Mutex<HashSet<String>>> =
+        Arc::new(Mutex::new(HashSet::new()));
 
     // Always open the repo so we can tag gitignored files for dimmed styling.
     let repo = Repository::open(root).ok();
@@ -79,10 +193,12 @@ pub(crate) fn list_workspace_files_inner(
                     gitignored_files.push(normalized);
                 }
                 if files.len() >= max_files {
-                    files.sort();
-                    directories.sort();
-                    gitignored_files.sort();
-                    gitignored_directories.sort();
+                    sort_and_dedup_workspace_lists(
+                        &mut files,
+                        &mut directories,
+                        &mut gitignored_files,
+                        &mut gitignored_directories,
+                    );
                     return WorkspaceFilesResponse {
                         files,
                         directories,
@@ -94,18 +210,32 @@ pub(crate) fn list_workspace_files_inner(
         }
     }
 
+    let root_for_filter = root.clone();
+    let pruned_special_directories_for_filter = Arc::clone(&pruned_special_directories);
     let walker = WalkBuilder::new(root)
         .hidden(false)
         .follow_links(false)
         .require_git(false)
         .git_ignore(false)
-        .filter_entry(|entry| {
+        .filter_entry(move |entry| {
             if entry.depth() == 0 {
                 return true;
             }
             let name = entry.file_name().to_string_lossy();
             if entry.file_type().is_some_and(|ft| ft.is_dir()) {
-                return !should_always_skip(&name);
+                if should_always_skip(&name) {
+                    return false;
+                }
+                if let Ok(rel_path) = entry.path().strip_prefix(&root_for_filter) {
+                    let normalized = normalize_git_path(&rel_path.to_string_lossy());
+                    if !normalized.is_empty() && is_special_directory_path(&normalized) {
+                        if let Ok(mut special_dirs) = pruned_special_directories_for_filter.lock() {
+                            special_dirs.insert(normalized);
+                        }
+                        return false;
+                    }
+                }
+                return true;
             }
             // Skip OS metadata files
             name != ".DS_Store"
@@ -146,16 +276,126 @@ pub(crate) fn list_workspace_files_inner(
         }
     }
 
-    files.sort();
-    directories.sort();
-    gitignored_files.sort();
-    gitignored_directories.sort();
+    if let Ok(special_dirs) = pruned_special_directories.lock() {
+        for normalized in special_dirs.iter() {
+            directories.push(normalized.clone());
+            let relative_path = normalized_relative_to_pathbuf(normalized);
+            let is_ignored = repo
+                .as_ref()
+                .and_then(|r| r.status_should_ignore(&relative_path).ok())
+                .unwrap_or(false);
+            if is_ignored {
+                gitignored_directories.push(normalized.clone());
+            }
+        }
+    }
+
+    sort_and_dedup_workspace_lists(
+        &mut files,
+        &mut directories,
+        &mut gitignored_files,
+        &mut gitignored_directories,
+    );
     WorkspaceFilesResponse {
         files,
         directories,
         gitignored_files,
         gitignored_directories,
     }
+}
+
+pub(crate) fn list_workspace_directory_children_inner(
+    root: &PathBuf,
+    directory_path: &str,
+    max_entries: usize,
+) -> Result<WorkspaceFilesResponse, String> {
+    let normalized_path = normalize_workspace_relative_directory_path(directory_path)?;
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
+    let candidate = canonical_root.join(normalized_relative_to_pathbuf(&normalized_path));
+    let canonical_path = candidate
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve directory path: {err}"))?;
+    if !canonical_path.starts_with(&canonical_root) {
+        return Err("Invalid directory path.".to_string());
+    }
+    let metadata = std::fs::metadata(&canonical_path)
+        .map_err(|err| format!("Failed to read directory metadata: {err}"))?;
+    if !metadata.is_dir() {
+        return Err("Path is not a directory.".to_string());
+    }
+
+    let repo = Repository::open(&canonical_root).ok();
+    let mut files = Vec::new();
+    let mut directories = Vec::new();
+    let mut gitignored_files = Vec::new();
+    let mut gitignored_directories = Vec::new();
+
+    let entries = std::fs::read_dir(&canonical_path)
+        .map_err(|err| format!("Failed to read directory: {err}"))?;
+    let mut sorted_entries = entries.filter_map(|entry| entry.ok()).collect::<Vec<_>>();
+    sorted_entries.sort_by(|a, b| {
+        a.file_name()
+            .to_string_lossy()
+            .cmp(&b.file_name().to_string_lossy())
+    });
+
+    for entry in sorted_entries {
+        let path = entry.path();
+        let rel_path = match path.strip_prefix(&canonical_root) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        let normalized = normalize_git_path(&rel_path.to_string_lossy());
+        if normalized.is_empty() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let file_type = match entry.file_type() {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        let is_ignored = repo
+            .as_ref()
+            .and_then(|r| r.status_should_ignore(rel_path).ok())
+            .unwrap_or(false);
+
+        if file_type.is_dir() {
+            if should_always_skip(&name) {
+                continue;
+            }
+            directories.push(normalized.clone());
+            if is_ignored {
+                gitignored_directories.push(normalized);
+            }
+        } else if file_type.is_file() {
+            if name == ".DS_Store" {
+                continue;
+            }
+            files.push(normalized.clone());
+            if is_ignored {
+                gitignored_files.push(normalized);
+            }
+        }
+
+        if files.len() + directories.len() >= max_entries {
+            break;
+        }
+    }
+
+    sort_and_dedup_workspace_lists(
+        &mut files,
+        &mut directories,
+        &mut gitignored_files,
+        &mut gitignored_directories,
+    );
+    Ok(WorkspaceFilesResponse {
+        files,
+        directories,
+        gitignored_files,
+        gitignored_directories,
+    })
 }
 
 const MAX_WORKSPACE_FILE_BYTES: u64 = 400_000;
@@ -571,4 +811,34 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_special_directory_path;
+
+    #[test]
+    fn special_directory_path_detection_supports_dependency_dirs() {
+        assert!(is_special_directory_path("node_modules"));
+        assert!(is_special_directory_path("apps/web/node_modules"));
+        assert!(is_special_directory_path("tools/.pnpm-store"));
+        assert!(is_special_directory_path("sdk/.m2"));
+        assert!(is_special_directory_path("rust/.cargo"));
+    }
+
+    #[test]
+    fn special_directory_path_detection_supports_build_dirs() {
+        assert!(is_special_directory_path("target"));
+        assert!(is_special_directory_path("packages/ui/dist"));
+        assert!(is_special_directory_path("service/build"));
+        assert!(is_special_directory_path("native/cmake-build-debug"));
+        assert!(is_special_directory_path("cache/.turbo"));
+    }
+
+    #[test]
+    fn special_directory_path_detection_does_not_match_source_or_docs() {
+        assert!(!is_special_directory_path("src"));
+        assert!(!is_special_directory_path("docs"));
+        assert!(!is_special_directory_path("apps/web/src"));
+    }
 }

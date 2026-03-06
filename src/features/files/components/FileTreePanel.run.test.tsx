@@ -1,7 +1,23 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { OpenAppTarget } from "../../../types";
+
+const invokeMock = vi.fn(async (...args: any[]) => {
+  const command = args[0];
+  if (command === "list_workspace_directory_children") {
+    return {
+      files: [] as string[],
+      directories: [] as string[],
+      gitignored_files: [] as string[],
+      gitignored_directories: [] as string[],
+    };
+  }
+  if (command === "read_workspace_file") {
+    return { content: "", truncated: false };
+  }
+  return null;
+});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -11,6 +27,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: (value: string) => value,
+  invoke: (...args: any[]) => invokeMock(...args),
 }));
 
 vi.mock("@tauri-apps/api/menu", () => ({
@@ -52,6 +69,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   cleanup();
+  invokeMock.mockClear();
 });
 
 describe("FileTreePanel run action isolation", () => {
@@ -299,6 +317,173 @@ describe("FileTreePanel run action isolation", () => {
     fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.getByText("index.ts")).toBeTruthy();
     expect(onOpenFile).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "list_workspace_directory_children",
+      expect.any(Object),
+    );
+  });
+
+  it("loads special directory children lazily when expanded", async () => {
+    invokeMock.mockImplementation(async (...args: any[]) => {
+      const command = args[0];
+      if (command === "list_workspace_directory_children") {
+        return {
+          files: ["node_modules/package.json"],
+          directories: [] as string[],
+          gitignored_files: [] as string[],
+          gitignored_directories: [] as string[],
+        };
+      }
+      return null;
+    });
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={[]}
+        directories={["node_modules"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
+    expect(await screen.findByText("package.json")).toBeTruthy();
+    expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
+      workspaceId: "workspace-1",
+      path: "node_modules",
+    });
+  });
+
+  it("loads nested directories lazily under special directory", async () => {
+    invokeMock.mockImplementation(async (...args: any[]) => {
+      const command = args[0];
+      const payload = args[1];
+      if (command !== "list_workspace_directory_children") {
+        return null;
+      }
+      if (payload.path === "node_modules") {
+        return {
+          files: [] as string[],
+          directories: ["node_modules/@babel"],
+          gitignored_files: [] as string[],
+          gitignored_directories: [] as string[],
+        };
+      }
+      if (payload.path === "node_modules/@babel") {
+        return {
+          files: [] as string[],
+          directories: ["node_modules/@babel/core"],
+          gitignored_files: [] as string[],
+          gitignored_directories: [] as string[],
+        };
+      }
+      if (payload.path === "node_modules/@babel/core") {
+        return {
+          files: ["node_modules/@babel/core/index.js"],
+          directories: [] as string[],
+          gitignored_files: [] as string[],
+          gitignored_directories: [] as string[],
+        };
+      }
+      return {
+        files: [] as string[],
+        directories: [] as string[],
+        gitignored_files: [] as string[],
+        gitignored_directories: [] as string[],
+      };
+    });
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={[]}
+        directories={["node_modules"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
+    expect(await screen.findByRole("button", { name: /@babel/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /@babel/ }));
+    expect(await screen.findByRole("button", { name: /core/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /core/ }));
+    expect(await screen.findByText("index.js")).toBeTruthy();
+
+    expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
+      workspaceId: "workspace-1",
+      path: "node_modules",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
+      workspaceId: "workspace-1",
+      path: "node_modules/@babel",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
+      workspaceId: "workspace-1",
+      path: "node_modules/@babel/core",
+    });
+  });
+
+  it("shows retry action when special directory lazy load fails", async () => {
+    invokeMock
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({
+        files: ["node_modules/package-lock.json"],
+        directories: [] as string[],
+        gitignored_files: [] as string[],
+        gitignored_directories: [] as string[],
+      });
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={[]}
+        directories={["node_modules"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
+    expect(await screen.findByRole("button", { name: "加载失败，点击重试" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "加载失败，点击重试" }));
+    await waitFor(() => {
+      expect(screen.getByText("package-lock.json")).toBeTruthy();
+    });
   });
 
   it("mentions file using Windows-style absolute path when workspace path uses backslashes", () => {

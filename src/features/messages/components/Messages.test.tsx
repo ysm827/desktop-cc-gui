@@ -106,6 +106,41 @@ describe("Messages", () => {
     expect(userText?.textContent ?? "").toContain("Literal [image] token");
   });
 
+  it("routes file-change row clicks to onOpenDiffPath", () => {
+    const onOpenDiffPath = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "tool-file-change-1",
+        kind: "tool",
+        toolType: "fileChange",
+        title: "File changes",
+        detail: "",
+        status: "completed",
+        changes: [{ path: "src/App.tsx", kind: "modified", diff: "@@ -1 +1 @@\n-old\n+new" }],
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onOpenDiffPath={onOpenDiffPath}
+      />,
+    );
+
+    const header = container.querySelector(".task-header");
+    expect(header).toBeTruthy();
+    if (header) {
+      fireEvent.click(header);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "App.tsx" }));
+    expect(onOpenDiffPath).toHaveBeenCalledWith("src/App.tsx");
+  });
+
   it("shows only user input for assembled prompt payload in user bubble", () => {
     const items: ConversationItem[] = [
       {
@@ -191,14 +226,14 @@ describe("Messages", () => {
       />,
     );
 
-    const markdown = container.querySelector(".markdown");
+    const userText = container.querySelector(".user-collapsible-text-content");
     const bubble = container.querySelector(
       '.message-bubble[data-collab-mode="plan"]',
     );
     const badge = container.querySelector(
       '.message-bubble[data-collab-mode="plan"] .message-mode-badge.is-plan',
     );
-    expect(markdown?.textContent ?? "").toBe("先给我计划");
+    expect(userText?.textContent ?? "").toBe("先给我计划");
     expect(bubble).toBeTruthy();
     expect(badge).toBeTruthy();
     expect((badge?.textContent ?? "").trim()).toBe("");

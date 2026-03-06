@@ -1926,6 +1926,7 @@ export const Messages = memo(function Messages({
           onToggle={toggleExpanded}
           onRequestAutoScroll={requestAutoScroll}
           activeCollaborationModeId={activeCollaborationModeId}
+          onOpenDiffPath={onOpenDiffPath}
         />
       );
     }

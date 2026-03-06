@@ -319,6 +319,13 @@ export async function interruptTurn(
   return invoke("turn_interrupt", { workspaceId, threadId, turnId });
 }
 
+export async function compactThreadContext(
+  workspaceId: string,
+  threadId: string,
+) {
+  return invoke("thread_compact", { workspaceId, threadId });
+}
+
 export async function startReview(
   workspaceId: string,
   threadId: string,
@@ -1153,6 +1160,16 @@ export type ExternalSpecFileResponse = {
 
 export async function getWorkspaceFiles(workspaceId: string) {
   return invoke<WorkspaceFilesResponse>("list_workspace_files", { workspaceId });
+}
+
+export async function getWorkspaceDirectoryChildren(
+  workspaceId: string,
+  path: string,
+) {
+  return invoke<WorkspaceFilesResponse>("list_workspace_directory_children", {
+    workspaceId,
+    path,
+  });
 }
 
 export async function listExternalSpecTree(workspaceId: string, specRoot: string) {

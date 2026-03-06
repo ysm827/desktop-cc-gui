@@ -244,6 +244,29 @@
   pointer-events: auto;
 }
 
+.file-tree-lazy-state {
+  padding: 3px 6px 3px 26px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.file-tree-lazy-retry {
+  width: calc(100% - 20px);
+  margin-left: 20px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--status-error);
+  font-size: 10px;
+  text-align: left;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.file-tree-lazy-retry:hover {
+  background: var(--surface-hover);
+}
+
 .file-preview-popover {
   border-radius: 12px;
   padding: 12px;
