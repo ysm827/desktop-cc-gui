@@ -260,6 +260,28 @@ describe("useAppServerEvents", () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
+          method: "approval/request",
+          params: {
+            request_id: 912,
+            scope: "workspace",
+          },
+        },
+      });
+    });
+    expect(handlers.onApprovalRequest).toHaveBeenCalledWith({
+      workspace_id: "ws-1",
+      request_id: 912,
+      method: "approval/request",
+      params: {
+        request_id: 912,
+        scope: "workspace",
+      },
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
           method: "collaboration/modeBlocked",
           params: {
             threadId: "thread-1",

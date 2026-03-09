@@ -360,22 +360,28 @@ export function useAppServerEvents(
         return;
       }
 
-      const requestId = message.id;
-      const hasRequestId =
-        typeof requestId === "number" || typeof requestId === "string";
+      const params = (message.params as Record<string, unknown>) ?? {};
+      const requestIdValue = message.id ?? params.requestId ?? params.request_id;
+      const requestId =
+        typeof requestIdValue === "number" || typeof requestIdValue === "string"
+          ? requestIdValue
+          : null;
+      const hasRequestId = requestId !== null;
 
-      if (method.includes("requestApproval") && hasRequestId) {
+      if (
+        (method.includes("requestApproval") || method === "approval/request") &&
+        hasRequestId
+      ) {
         handlers.onApprovalRequest?.({
           workspace_id,
           request_id: requestId,
           method,
-          params: (message.params as Record<string, unknown>) ?? {},
+          params,
         });
         return;
       }
 
       if (method === "collaboration/modeBlocked") {
-        const params = (message.params as Record<string, unknown>) ?? {};
         const requestIdValue = params.requestId ?? params.request_id;
         const requestId =
           typeof requestIdValue === "number" || typeof requestIdValue === "string"
