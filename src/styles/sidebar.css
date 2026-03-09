@@ -504,8 +504,8 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition:
@@ -514,7 +514,7 @@
 }
 
 .sidebar-primary-nav-mode-item {
-  font-size: 12px;
+  font-size: 14px;
   min-height: 30px;
 }
 
