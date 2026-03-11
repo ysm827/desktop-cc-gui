@@ -36,6 +36,12 @@ const planSample: TurnPlan = {
   ],
 };
 
+const inProgressPlan: TurnPlan = {
+  turnId: "turn-2",
+  explanation: "plan",
+  steps: [{ step: "step in progress", status: "inProgress" }],
+};
+
 describe("StatusPanel", () => {
   afterEach(() => {
     cleanup();
@@ -198,5 +204,22 @@ describe("StatusPanel", () => {
     expect(screen.getAllByText("0/0").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("statusPanel.tabAgents")).toBeTruthy();
     expect(screen.getByText("statusPanel.tabEdits")).toBeTruthy();
+  });
+
+  it("downgrades codex in-progress plan steps when thread is idle", () => {
+    const { container } = render(
+      <StatusPanel
+        items={[]}
+        isProcessing={false}
+        plan={inProgressPlan}
+        isPlanMode={false}
+        isCodexEngine
+      />,
+    );
+
+    fireEvent.click(screen.getByText("statusPanel.tabTodos"));
+    expect(screen.getByText("step in progress")).toBeTruthy();
+    expect(container.querySelector(".sp-todo-in_progress")).toBeNull();
+    expect(container.querySelector(".sp-todo-pending")).toBeTruthy();
   });
 });

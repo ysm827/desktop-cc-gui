@@ -147,8 +147,13 @@ export function useThreadEventHandlers({
       // so we should stop the spinning "processing" state immediately.
       markProcessing(threadId, false);
       setActiveTurnId(threadId, null);
+      dispatch({
+        type: "settleThreadPlanInProgress",
+        threadId,
+        targetStatus: "pending",
+      });
     },
-    [enqueueUserInputRequest, markProcessing, setActiveTurnId],
+    [dispatch, enqueueUserInputRequest, markProcessing, setActiveTurnId],
   );
   const onModeBlocked = useCallback(
     (event: CollaborationModeBlockedRequest) => {
@@ -226,6 +231,7 @@ export function useThreadEventHandlers({
     recordThreadActivity,
     applyCollabThreadLinks,
     interruptedThreadsRef,
+    onDebug,
     onAgentMessageCompletedExternal,
   });
 
@@ -259,6 +265,7 @@ export function useThreadEventHandlers({
     renameThreadTitleMapping,
     resolvePendingThreadForSession,
     renamePendingMemoryCaptureKey,
+    onDebug,
   });
 
   const onBackgroundThreadAction = useCallback(

@@ -8,6 +8,7 @@ import type { ConversationItem } from "../../../types";
 import type { TurnPlan } from "../../../types";
 import type { TabType } from "../types";
 import { useStatusPanelData } from "../hooks/useStatusPanelData";
+import { resolvePlanStepStatusForDisplay } from "../../threads/utils/threadNormalize";
 import { TodoList } from "./TodoList";
 import { SubagentList } from "./SubagentList";
 import { FileChangesList } from "./FileChangesList";
@@ -56,18 +57,21 @@ export const StatusPanel = memo(function StatusPanel({
   const showInlinePlanTab = showPlanTab && !isCodexEngine;
   const codexTaskItems = useMemo(() => {
     if (isCodexEngine && plan && plan.steps.length > 0) {
-      return plan.steps.map((step) => ({
-        content: step.step,
-        status:
-          step.status === "completed"
-            ? ("completed" as const)
-            : step.status === "inProgress"
-              ? ("in_progress" as const)
-              : ("pending" as const),
-      }));
+      return plan.steps.map((step) => {
+        const statusForDisplay = resolvePlanStepStatusForDisplay(step.status, isProcessing);
+        return {
+          content: step.step,
+          status:
+            statusForDisplay === "completed"
+              ? ("completed" as const)
+              : statusForDisplay === "inProgress"
+                ? ("in_progress" as const)
+                : ("pending" as const),
+        };
+      });
     }
     return todos;
-  }, [isCodexEngine, plan, todos]);
+  }, [isCodexEngine, isProcessing, plan, todos]);
   const codexTaskCompleted = useMemo(
     () => codexTaskItems.filter((item) => item.status === "completed").length,
     [codexTaskItems],

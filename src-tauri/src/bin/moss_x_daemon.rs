@@ -23,6 +23,8 @@ mod rules;
 mod shared;
 #[path = "../storage.rs"]
 mod storage;
+#[path = "../text_encoding.rs"]
+mod text_encoding;
 #[allow(dead_code)]
 #[path = "../types.rs"]
 mod types;
@@ -71,6 +73,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::time::{Duration, Instant};
 
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -84,6 +87,7 @@ use shared::{
     worktree_core,
 };
 use storage::{read_settings, read_workspaces};
+use text_encoding::decode_text_bytes;
 use types::{AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus};
 use workspace_settings::apply_workspace_settings_update;
 
@@ -506,7 +510,7 @@ impl DaemonState {
         workspace_id: String,
     ) -> Result<WorkspaceFilesResponse, String> {
         workspaces_core::list_workspace_files_core(&self.workspaces, &workspace_id, |root| {
-            list_workspace_files_inner(root, 100000)
+            list_workspace_files_inner(root, 12_000)
         })
         .await
     }
@@ -520,7 +524,7 @@ impl DaemonState {
             &self.workspaces,
             &workspace_id,
             &path,
-            |root, rel_path| list_workspace_directory_children_inner(root, rel_path, 100000),
+            |root, rel_path| list_workspace_directory_children_inner(root, rel_path, 2_000),
         )
         .await
     }
@@ -1127,6 +1131,22 @@ fn sort_and_dedup_workspace_lists(
     gitignored_directories.dedup();
 }
 
+fn sort_and_truncate_named_entries<T>(entries: &mut Vec<(String, T)>, max_entries: usize) {
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    if entries.len() > max_entries {
+        entries.truncate(max_entries);
+    }
+}
+
+const WORKSPACE_SCAN_ENTRY_BUDGET: usize = 30_000;
+const WORKSPACE_SCAN_TIME_BUDGET: Duration = Duration::from_millis(1_200);
+const WORKSPACE_DIRECTORY_SCAN_BUDGET_MULTIPLIER: usize = 8;
+
+fn workspace_scan_budget_reached(started_at: Instant, scanned_entries: usize) -> bool {
+    scanned_entries >= WORKSPACE_SCAN_ENTRY_BUDGET
+        || started_at.elapsed() >= WORKSPACE_SCAN_TIME_BUDGET
+}
+
 fn normalize_external_spec_root(spec_root: &str) -> Result<PathBuf, String> {
     let trimmed = spec_root.trim();
     if trimmed.is_empty() {
@@ -1234,6 +1254,9 @@ fn list_external_spec_tree_inner(
 }
 
 fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> WorkspaceFilesResponse {
+    let scan_started_at = Instant::now();
+    let mut scanned_entries = 0usize;
+    let max_directories = max_files.saturating_mul(2).max(1_000);
     let mut files = Vec::new();
     let mut directories = Vec::new();
     let mut gitignored_files = Vec::new();
@@ -1244,13 +1267,24 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> WorkspaceFile
     let repo = git2::Repository::open(root).ok();
 
     if let Ok(entries) = std::fs::read_dir(root) {
-        let mut root_entries = entries.filter_map(|entry| entry.ok()).collect::<Vec<_>>();
+        let mut root_entries = entries
+            .filter_map(|entry| {
+                if workspace_scan_budget_reached(scan_started_at, scanned_entries) {
+                    return None;
+                }
+                scanned_entries += 1;
+                entry.ok()
+            })
+            .collect::<Vec<_>>();
         root_entries.sort_by(|a, b| {
             a.file_name()
                 .to_string_lossy()
                 .cmp(&b.file_name().to_string_lossy())
         });
         for entry in root_entries {
+            if workspace_scan_budget_reached(scan_started_at, scanned_entries) {
+                break;
+            }
             let path = entry.path();
             let rel_path = match path.strip_prefix(root) {
                 Ok(path) => path,
@@ -1271,6 +1305,9 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> WorkspaceFile
                 .unwrap_or(false);
             if file_type.is_dir() {
                 if should_always_skip(&name) {
+                    continue;
+                }
+                if directories.len() >= max_directories {
                     continue;
                 }
                 directories.push(normalized.clone());
@@ -1336,6 +1373,10 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> WorkspaceFile
         .build();
 
     for entry in walker {
+        if workspace_scan_budget_reached(scan_started_at, scanned_entries) {
+            break;
+        }
+        scanned_entries += 1;
         let entry = match entry {
             Ok(entry) => entry,
             Err(_) => continue,
@@ -1353,6 +1394,9 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> WorkspaceFile
                 .and_then(|r| r.status_should_ignore(rel_path).ok())
                 .unwrap_or(false);
             if entry.file_type().is_some_and(|ft| ft.is_dir()) {
+                if directories.len() >= max_directories {
+                    continue;
+                }
                 directories.push(normalized.clone());
                 if is_ignored {
                     gitignored_directories.push(normalized);
@@ -1427,14 +1471,25 @@ fn list_workspace_directory_children_inner(
 
     let entries = std::fs::read_dir(&canonical_path)
         .map_err(|err| format!("Failed to read directory: {err}"))?;
-    let mut sorted_entries = entries.filter_map(|entry| entry.ok()).collect::<Vec<_>>();
-    sorted_entries.sort_by(|a, b| {
-        a.file_name()
-            .to_string_lossy()
-            .cmp(&b.file_name().to_string_lossy())
-    });
+    let scan_started_at = Instant::now();
+    let max_scanned_entries = max_entries
+        .saturating_mul(WORKSPACE_DIRECTORY_SCAN_BUDGET_MULTIPLIER)
+        .max(max_entries);
+    let mut sorted_entries = Vec::new();
+    for entry in entries {
+        if scan_started_at.elapsed() >= WORKSPACE_SCAN_TIME_BUDGET {
+            break;
+        }
+        if sorted_entries.len() >= max_scanned_entries {
+            break;
+        }
+        if let Ok(entry) = entry {
+            sorted_entries.push((entry.file_name().to_string_lossy().to_string(), entry));
+        }
+    }
+    sort_and_truncate_named_entries(&mut sorted_entries, max_scanned_entries);
 
-    for entry in sorted_entries {
+    for (_, entry) in sorted_entries {
         let path = entry.path();
         let rel_path = match path.strip_prefix(&canonical_root) {
             Ok(value) => value,
@@ -1534,8 +1589,7 @@ fn read_external_spec_file_inner(
     if truncated {
         buffer.truncate(MAX_WORKSPACE_FILE_BYTES as usize);
     }
-    let content = String::from_utf8(buffer)
-        .map_err(|_| "External spec file is not valid UTF-8".to_string())?;
+    let content = decode_text_bytes(&buffer, "External spec file")?;
     Ok(ExternalSpecFileResponse {
         exists: true,
         content,
@@ -1615,7 +1669,7 @@ fn read_workspace_file_inner(
         buffer.truncate(MAX_WORKSPACE_FILE_BYTES as usize);
     }
 
-    let content = String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
+    let content = decode_text_bytes(&buffer, "File")?;
     Ok(WorkspaceFileResponse { content, truncated })
 }
 

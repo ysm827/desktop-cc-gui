@@ -387,19 +387,22 @@ export function resolvePendingThreadIdForSession({
       ? activePendingId
       : null;
   };
-  const hasPendingActivity = (threadId: string) =>
-    Boolean(threadStatusById[threadId]?.isProcessing) ||
-    (activeTurnIdByThread[threadId] ?? null) !== null ||
-    (itemsByThread[threadId]?.length ?? 0) > 0;
+  const hasObservedItems = (threadId: string) => (itemsByThread[threadId]?.length ?? 0) > 0;
+  const hasPendingAnchor = (threadId: string) => {
+    const hasActiveTurn = (activeTurnIdByThread[threadId] ?? null) !== null;
+    if (hasActiveTurn) {
+      return true;
+    }
+    const isProcessing = Boolean(threadStatusById[threadId]?.isProcessing);
+    return isProcessing && hasObservedItems(threadId);
+  };
 
-  const processingPending = pendingThreads.filter((thread) =>
-    Boolean(threadStatusById[thread.id]?.isProcessing),
-  );
-  if (processingPending.length === 1) {
-    return processingPending[0].id;
-  }
-  if (processingPending.length > 1) {
-    return pickActivePending(processingPending);
+  // Boundary guard: pending->session reconciliation requires a concrete anchor
+  // (active turn or observed items). Processing state alone is not sufficient,
+  // otherwise old in-flight streams can be rebound into unrelated new sessions.
+  const activePending = pickActivePending(pendingThreads);
+  if (activePending && hasPendingAnchor(activePending)) {
+    return activePending;
   }
 
   const turnBoundPending = pendingThreads.filter(
@@ -413,7 +416,9 @@ export function resolvePendingThreadIdForSession({
   }
 
   const contentBoundPending = pendingThreads.filter(
-    (thread) => (itemsByThread[thread.id]?.length ?? 0) > 0,
+    (thread) =>
+      Boolean(threadStatusById[thread.id]?.isProcessing)
+      && hasObservedItems(thread.id),
   );
   if (contentBoundPending.length === 1) {
     return contentBoundPending[0].id;
@@ -424,12 +429,7 @@ export function resolvePendingThreadIdForSession({
 
   if (pendingThreads.length === 1) {
     const onlyPendingId = pendingThreads[0].id;
-    return hasPendingActivity(onlyPendingId) ? onlyPendingId : null;
-  }
-
-  const activePending = pickActivePending(pendingThreads);
-  if (activePending && hasPendingActivity(activePending)) {
-    return activePending;
+    return hasPendingAnchor(onlyPendingId) ? onlyPendingId : null;
   }
 
   return null;
@@ -578,7 +578,7 @@ export function useThreads({
       workspaceId: string,
       engine: "claude" | "opencode",
     ): string | null => {
-      return resolvePendingThreadIdForSession({
+      const resolved = resolvePendingThreadIdForSession({
         workspaceId,
         engine,
         threadsByWorkspace: state.threadsByWorkspace,
@@ -587,8 +587,33 @@ export function useThreads({
         activeTurnIdByThread: state.activeTurnIdByThread,
         itemsByThread: state.itemsByThread,
       });
+      const pendingPrefix = `${engine}-pending-`;
+      const pendingCandidates = (state.threadsByWorkspace[workspaceId] ?? [])
+        .map((thread) => thread.id)
+        .filter((threadId) => threadId.startsWith(pendingPrefix));
+      onDebug?.({
+        id: `${Date.now()}-thread-session-resolve`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "thread/session:resolve-pending",
+        payload: {
+          workspaceId,
+          engine,
+          activeThreadId: state.activeThreadIdByWorkspace[workspaceId] ?? null,
+          pendingCandidates,
+          resolved,
+          anchors: pendingCandidates.map((threadId) => ({
+            threadId,
+            hasTurn: (state.activeTurnIdByThread[threadId] ?? null) !== null,
+            itemCount: state.itemsByThread[threadId]?.length ?? 0,
+            isProcessing: Boolean(state.threadStatusById[threadId]?.isProcessing),
+          })),
+        },
+      });
+      return resolved;
     },
     [
+      onDebug,
       state.activeThreadIdByWorkspace,
       state.activeTurnIdByThread,
       state.itemsByThread,

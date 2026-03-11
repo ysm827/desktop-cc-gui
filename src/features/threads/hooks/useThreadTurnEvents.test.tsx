@@ -315,6 +315,11 @@ describe("useThreadTurnEvents", () => {
       threadId: "thread-1",
       status: "completed",
     });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "thread-1",
+      targetStatus: "completed",
+    });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
     expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
@@ -343,9 +348,19 @@ describe("useThreadTurnEvents", () => {
       status: "completed",
     });
     expect(dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "opencode:session-1",
+      targetStatus: "completed",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
       type: "finalizePendingToolStatuses",
       threadId: "opencode-pending-abc",
       status: "completed",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "opencode-pending-abc",
+      targetStatus: "completed",
     });
     expect(markProcessing).toHaveBeenCalledWith("opencode:session-1", false);
     expect(markProcessing).toHaveBeenCalledWith("opencode-pending-abc", false);
@@ -438,7 +453,7 @@ describe("useThreadTurnEvents", () => {
     );
   });
 
-  it("falls back to active pending thread when session update arrives on non-pending id", () => {
+  it("does not fallback to pending when event thread id is same-engine finalized", () => {
     const {
       result,
       dispatch,
@@ -458,30 +473,51 @@ describe("useThreadTurnEvents", () => {
     });
 
     expect(resolvePendingThreadForSession).toHaveBeenCalledWith("ws-1", "opencode");
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "renameThreadId",
-      workspaceId: "ws-1",
-      oldThreadId: "opencode-pending-active",
-      newThreadId: "opencode:session-xyz",
-    });
-    expect(renameCustomNameKey).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode-pending-active",
-      "opencode:session-xyz",
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "renameThreadId",
+      }),
     );
-    expect(renameAutoTitlePendingKey).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode-pending-active",
-      "opencode:session-xyz",
-    );
-    expect(renameThreadTitleMapping).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode-pending-active",
-      "opencode:session-xyz",
-    );
+    expect(renameCustomNameKey).not.toHaveBeenCalled();
+    expect(renameAutoTitlePendingKey).not.toHaveBeenCalled();
+    expect(renameThreadTitleMapping).not.toHaveBeenCalled();
   });
 
-  it("renames opencode thread in-place when session id changes without pending mapping", () => {
+  it("does not remap pending thread when event thread id is already finalized", () => {
+    const {
+      result,
+      dispatch,
+      renameCustomNameKey,
+      renameAutoTitlePendingKey,
+      renameThreadTitleMapping,
+      resolvePendingThreadForSession,
+      renamePendingMemoryCaptureKey,
+    } = makeOptions();
+    resolvePendingThreadForSession.mockImplementation(
+      (_workspaceId: string, engine: "claude" | "opencode") =>
+        engine === "claude" ? "claude-pending-active" : null,
+    );
+
+    act(() => {
+      result.current.onThreadSessionIdUpdated(
+        "ws-1",
+        "claude:session-xyz",
+        "session-xyz",
+      );
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "renameThreadId",
+      }),
+    );
+    expect(renameCustomNameKey).not.toHaveBeenCalled();
+    expect(renameAutoTitlePendingKey).not.toHaveBeenCalled();
+    expect(renamePendingMemoryCaptureKey).not.toHaveBeenCalled();
+    expect(renameThreadTitleMapping).not.toHaveBeenCalled();
+  });
+
+  it("does not rename finalized opencode thread when no pending mapping exists", () => {
     const {
       result,
       dispatch,
@@ -501,30 +537,17 @@ describe("useThreadTurnEvents", () => {
     });
 
     expect(resolvePendingThreadForSession).toHaveBeenCalledWith("ws-1", "opencode");
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "renameThreadId",
-      workspaceId: "ws-1",
-      oldThreadId: "opencode:session-old",
-      newThreadId: "opencode:session-new",
-    });
-    expect(renameCustomNameKey).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode:session-old",
-      "opencode:session-new",
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "renameThreadId",
+      }),
     );
-    expect(renameAutoTitlePendingKey).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode:session-old",
-      "opencode:session-new",
-    );
-    expect(renameThreadTitleMapping).toHaveBeenCalledWith(
-      "ws-1",
-      "opencode:session-old",
-      "opencode:session-new",
-    );
+    expect(renameCustomNameKey).not.toHaveBeenCalled();
+    expect(renameAutoTitlePendingKey).not.toHaveBeenCalled();
+    expect(renameThreadTitleMapping).not.toHaveBeenCalled();
   });
 
-  it("renames claude thread in-place when session id changes without pending mapping", () => {
+  it("does not rename finalized claude thread when no pending mapping exists", () => {
     const {
       result,
       dispatch,
@@ -544,27 +567,14 @@ describe("useThreadTurnEvents", () => {
     });
 
     expect(resolvePendingThreadForSession).toHaveBeenCalledWith("ws-1", "claude");
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "renameThreadId",
-      workspaceId: "ws-1",
-      oldThreadId: "claude:session-old",
-      newThreadId: "claude:session-new",
-    });
-    expect(renameCustomNameKey).toHaveBeenCalledWith(
-      "ws-1",
-      "claude:session-old",
-      "claude:session-new",
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "renameThreadId",
+      }),
     );
-    expect(renameAutoTitlePendingKey).toHaveBeenCalledWith(
-      "ws-1",
-      "claude:session-old",
-      "claude:session-new",
-    );
-    expect(renameThreadTitleMapping).toHaveBeenCalledWith(
-      "ws-1",
-      "claude:session-old",
-      "claude:session-new",
-    );
+    expect(renameCustomNameKey).not.toHaveBeenCalled();
+    expect(renameAutoTitlePendingKey).not.toHaveBeenCalled();
+    expect(renameThreadTitleMapping).not.toHaveBeenCalled();
   });
 
   it("infers engine from pending threads when session update thread id has no engine prefix", () => {
@@ -644,7 +654,7 @@ describe("useThreadTurnEvents", () => {
     expect(renameThreadTitleMapping).not.toHaveBeenCalled();
   });
 
-  it("uses engine hint to reconcile non-prefixed source thread id", () => {
+  it("does not rename non-prefixed source thread id when no pending mapping exists", () => {
     const {
       result,
       dispatch,
@@ -664,27 +674,14 @@ describe("useThreadTurnEvents", () => {
       );
     });
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "renameThreadId",
-      workspaceId: "ws-1",
-      oldThreadId: "2112",
-      newThreadId: "opencode:ses_abc",
-    });
-    expect(renameCustomNameKey).toHaveBeenCalledWith(
-      "ws-1",
-      "2112",
-      "opencode:ses_abc",
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "renameThreadId",
+      }),
     );
-    expect(renameAutoTitlePendingKey).toHaveBeenCalledWith(
-      "ws-1",
-      "2112",
-      "opencode:ses_abc",
-    );
-    expect(renameThreadTitleMapping).toHaveBeenCalledWith(
-      "ws-1",
-      "2112",
-      "opencode:ses_abc",
-    );
+    expect(renameCustomNameKey).not.toHaveBeenCalled();
+    expect(renameAutoTitlePendingKey).not.toHaveBeenCalled();
+    expect(renameThreadTitleMapping).not.toHaveBeenCalled();
   });
 
   it("dispatches normalized plan updates", () => {
@@ -783,6 +780,11 @@ describe("useThreadTurnEvents", () => {
       type: "finalizePendingToolStatuses",
       threadId: "thread-1",
       status: "failed",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "thread-1",
+      targetStatus: "pending",
     });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
     expect(markReviewing).toHaveBeenCalledWith("thread-1", false);
@@ -899,6 +901,11 @@ describe("useThreadTurnEvents", () => {
       type: "finalizePendingToolStatuses",
       threadId: "thread-1",
       status: "failed",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "thread-1",
+      targetStatus: "pending",
     });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
     expect(markReviewing).toHaveBeenCalledWith("thread-1", false);

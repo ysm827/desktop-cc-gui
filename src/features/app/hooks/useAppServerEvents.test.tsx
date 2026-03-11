@@ -228,6 +228,25 @@ describe("useAppServerEvents", () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
+          method: "codex/parseError",
+          params: {
+            threadId: "thread-2",
+            error: "EOF while parsing value",
+            raw: "{\"id\":1,\"method\":\"turn/completed\"",
+          },
+        },
+      });
+    });
+    expect(handlers.onTurnError).toHaveBeenCalledWith("ws-1", "thread-2", "", {
+      message:
+        "Codex stream parse error: EOF while parsing value\n{\"id\":1,\"method\":\"turn/completed\"",
+      willRetry: false,
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
           method: "codex/backgroundThread",
           params: { threadId: "thread-2", action: "hide" },
         },
@@ -473,6 +492,70 @@ describe("useAppServerEvents", () => {
           },
         ],
       },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes agent delta when threadId is nested in turn and payload uses text field", async () => {
+    const handlers: Handlers = {
+      onAgentMessageDelta: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/agentMessage/delta",
+          params: {
+            turn: { threadId: "claude:session-1", id: "turn-1" },
+            itemId: "item-1",
+            text: "chunk-from-text-field",
+          },
+        },
+      });
+    });
+
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      threadId: "claude:session-1",
+      itemId: "item-1",
+      delta: "chunk-from-text-field",
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes item/agentMessage/textDelta alias in legacy event path", async () => {
+    const handlers: Handlers = {
+      onAgentMessageDelta: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/agentMessage/textDelta",
+          params: {
+            threadId: "claude:session-2",
+            itemId: "item-2",
+            delta: "alias-delta",
+          },
+        },
+      });
+    });
+
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      threadId: "claude:session-2",
+      itemId: "item-2",
+      delta: "alias-delta",
     });
 
     await act(async () => {

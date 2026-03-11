@@ -43,6 +43,7 @@ mod skills;
 mod state;
 mod storage;
 mod terminal;
+mod text_encoding;
 mod types;
 mod utils;
 mod vendors;

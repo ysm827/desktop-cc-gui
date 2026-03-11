@@ -473,7 +473,7 @@ describe("useThreadActions", () => {
       plan: {
         turnId: "turn-1",
         explanation: "Plan first",
-        steps: [{ step: "Inspect", status: "inProgress" }],
+        steps: [{ step: "Inspect", status: "pending" }],
       },
     });
   });
@@ -1027,6 +1027,43 @@ describe("useThreadActions", () => {
       "old-thread",
       "new-thread",
     );
+  });
+
+  it("skips claude history reload while turn is processing and local items exist", async () => {
+    const { result } = renderActions({
+      itemsByThread: {
+        "claude:session-1": [
+          {
+            id: "reasoning-live-1",
+            kind: "reasoning",
+            summary: "正在分析",
+            content: "正在分析",
+          },
+        ],
+      },
+      threadStatusById: {
+        "claude:session-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+    });
+
+    let resumed: string | null = null;
+    await act(async () => {
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "claude:session-1",
+      );
+    });
+
+    expect(resumed).toBe("claude:session-1");
+    expect(loadClaudeSession).not.toHaveBeenCalled();
+    expect(resumeThread).not.toHaveBeenCalled();
   });
 
   it("maps Claude tool_result to terminal status", async () => {

@@ -247,7 +247,7 @@ describe("realtime/history parity", () => {
     expect(realtimeTool).toEqual(historyTool);
     expect(realtimeReasoning).toEqual(historyReasoning);
     expect(historyState.plan?.steps).toEqual([
-      { step: "Inspect", status: "inProgress" },
+      { step: "Inspect", status: "pending" },
     ]);
     expect(historyState.userInputQueue).toHaveLength(1);
   });
