@@ -156,6 +156,8 @@ export type AppSettings = {
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
+  systemProxyEnabled: boolean;
+  systemProxyUrl: string | null;
   defaultAccessMode: AccessMode;
   composerModelShortcut: string | null;
   composerAccessShortcut: string | null;

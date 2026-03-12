@@ -8,6 +8,7 @@ import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import X from "lucide-react/dist/esm/icons/x";
+import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import type {
   ConversationItem,
   OpenAppTarget,
@@ -48,6 +49,8 @@ type MessagesProps = {
   threadId: string | null;
   workspaceId?: string | null;
   isThinking: boolean;
+  proxyEnabled?: boolean;
+  proxyUrl?: string | null;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   heartbeatPulse?: number;
@@ -75,6 +78,8 @@ type MessagesProps = {
 
 type WorkingIndicatorProps = {
   isThinking: boolean;
+  proxyEnabled?: boolean;
+  proxyUrl?: string | null;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   heartbeatPulse?: number;
@@ -1051,6 +1056,8 @@ function shouldDisplayWorkingActivityLabel(
 
 const WorkingIndicator = memo(function WorkingIndicator({
   isThinking,
+  proxyEnabled = false,
+  proxyUrl = null,
   processingStartedAt = null,
   lastDurationMs = null,
   heartbeatPulse = 0,
@@ -1142,6 +1149,15 @@ const WorkingIndicator = memo(function WorkingIndicator({
     <>
       {isThinking && (
         <div className="working">
+          {proxyEnabled && (
+            <ProxyStatusBadge
+              proxyUrl={proxyUrl}
+              label={t("messages.proxyBadge")}
+              variant="prominent"
+              animated
+              className="working-proxy-badge"
+            />
+          )}
           <span className="working-spinner" aria-hidden />
           <div className="working-timer">
             <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
@@ -1469,6 +1485,8 @@ export const Messages = memo(function Messages({
   threadId: legacyThreadId,
   workspaceId: legacyWorkspaceId = null,
   isThinking: legacyIsThinking,
+  proxyEnabled = false,
+  proxyUrl = null,
   processingStartedAt = null,
   lastDurationMs = null,
   heartbeatPulse: legacyHeartbeatPulse = 0,
@@ -2405,6 +2423,8 @@ export const Messages = memo(function Messages({
           {userInputNode}
           <WorkingIndicator
             isThinking={isThinking}
+            proxyEnabled={proxyEnabled}
+            proxyUrl={proxyUrl}
             processingStartedAt={processingStartedAt}
             lastDurationMs={lastDurationMs}
             heartbeatPulse={heartbeatPulse}

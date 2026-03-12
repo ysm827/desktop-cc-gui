@@ -1283,6 +1283,28 @@ describe("Messages", () => {
     expect(container.querySelector(".thinking-title")).toBeTruthy();
   });
 
+  it("shows a prominent proxy badge in the working indicator when proxy is enabled", () => {
+    const { container } = render(
+      <Messages
+        items={[]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking
+        proxyEnabled
+        proxyUrl="http://127.0.0.1:7890"
+        processingStartedAt={Date.now() - 1_000}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const badge = container.querySelector(".working .working-proxy-badge");
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent ?? "").toBe("");
+    expect(badge?.classList.contains("proxy-status-badge--animated")).toBe(true);
+    expect(badge?.getAttribute("aria-label") ?? "").toContain("127.0.0.1:7890");
+  });
+
   it("updates codex reasoning row when streamed body arrives", async () => {
     const initialItems: ConversationItem[] = [
       {

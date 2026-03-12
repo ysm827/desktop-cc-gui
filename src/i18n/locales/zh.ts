@@ -404,6 +404,19 @@ const zh = {
     // 行为设置
     behaviorStreaming: "流式输出",
     behaviorStreamingDesc: "启用后响应将逐字显示。禁用则等待完整响应后一次性展示。",
+    behaviorProxyTitle: "网络代理",
+    behaviorProxyDesc: "启用后，MossX 及其启动的联网子进程将优先使用该代理。",
+    behaviorProxyEnabled: "启用网络代理",
+    behaviorProxyEnabledDesc: "用于 Codex、OpenCode、Git 远程操作等联网链路。",
+    behaviorProxyAddress: "代理地址",
+    behaviorProxyAddressPlaceholder: "http://127.0.0.1:7890",
+    behaviorProxyHint:
+      "支持 http(s)/socks5。切换开关会立即应用到新请求并自动重连当前 Codex 会话；修改地址后可点保存生效。",
+    behaviorProxySave: "保存代理设置",
+    behaviorProxyRequired: "启用代理时必须填写代理地址。",
+    behaviorProxySaved: "代理设置已保存并生效。",
+    behaviorProxyEnabledSuccess: "网络代理已启用并生效。",
+    behaviorProxyDisabledSuccess: "网络代理已关闭，新请求将不再走代理。",
     behaviorAutoOpenFile: "自动打开文件",
     behaviorAutoOpenFileDesc: "选中文件时自动在编辑器中打开。",
     behaviorDiffExpanded: "Diff 默认展开",
@@ -1076,6 +1089,7 @@ const zh = {
     emptyThread: "今天想构建什么？向AI提问吧",
     generatingResponse: "正在生成响应...",
     nonStreamingHint: "该模型可能非流式返回，或网络暂不可达，请稍候...",
+    proxyBadge: "代理",
     opencodeHeartbeatPulse: "心跳 {{pulse}}：{{hint}}",
     opencodeHeartbeatHint1: "正在读取工具输出并整理上下文。",
     opencodeHeartbeatHint2: "模型仍在推理，正在等待下一段有效结果。",
@@ -1944,6 +1958,7 @@ const zh = {
     networkProxyHint:
       "网络连接异常。请检查网络与代理配置（HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY）后重试。",
     networkConnectionHint: "网络连接异常。请确认网络可达后重试。",
+    proxyBadge: "代理",
     requestTimeoutHint:
       "请求在收到响应前已超时。可能是网络抖动或上游服务繁忙导致，请稍后重试。",
     contextCompactionFailed: "上下文压缩失败。",
