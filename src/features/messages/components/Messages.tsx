@@ -236,17 +236,17 @@ function isMessagesPerfDebugEnabled(): boolean {
 
 function shouldHideClaudeReasoningModule(): boolean {
   if (typeof window === "undefined") {
-    return true;
+    return false;
   }
   try {
     const value = window.localStorage.getItem(CLAUDE_HIDE_REASONING_MODULE_FLAG_KEY);
     if (!value) {
-      return true;
+      return false;
     }
     const normalized = value.trim().toLowerCase();
     return !(normalized === "0" || normalized === "false" || normalized === "off");
   } catch {
-    return true;
+    return false;
   }
 }
 

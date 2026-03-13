@@ -191,7 +191,18 @@ export function useThreadItemEvents({
   );
 
   const handleToolOutputDelta = useCallback(
-    (threadId: string, itemId: string, delta: string) => {
+    (
+      workspaceId: string,
+      threadId: string,
+      itemId: string,
+      delta: string,
+    ) => {
+      dispatch({
+        type: "ensureThread",
+        workspaceId,
+        threadId,
+        engine: inferEngineFromThreadId(threadId),
+      });
       markProcessing(threadId, true);
       dispatch({ type: "appendToolOutput", threadId, itemId, delta });
       safeMessageActivity();
@@ -200,13 +211,18 @@ export function useThreadItemEvents({
   );
 
   const handleTerminalInteraction = useCallback(
-    (threadId: string, itemId: string, stdin: string) => {
+    (workspaceId: string, threadId: string, itemId: string, stdin: string) => {
       if (!stdin) {
         return;
       }
       const normalized = stdin.replace(/\r\n/g, "\n");
       const suffix = normalized.endsWith("\n") ? "" : "\n";
-      handleToolOutputDelta(threadId, itemId, `\n[stdin]\n${normalized}${suffix}`);
+      handleToolOutputDelta(
+        workspaceId,
+        threadId,
+        itemId,
+        `\n[stdin]\n${normalized}${suffix}`,
+      );
     },
     [handleToolOutputDelta],
   );
@@ -354,22 +370,22 @@ export function useThreadItemEvents({
   );
 
   const onCommandOutputDelta = useCallback(
-    (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      handleToolOutputDelta(threadId, itemId, delta);
+    (workspaceId: string, threadId: string, itemId: string, delta: string) => {
+      handleToolOutputDelta(workspaceId, threadId, itemId, delta);
     },
     [handleToolOutputDelta],
   );
 
   const onTerminalInteraction = useCallback(
-    (_workspaceId: string, threadId: string, itemId: string, stdin: string) => {
-      handleTerminalInteraction(threadId, itemId, stdin);
+    (workspaceId: string, threadId: string, itemId: string, stdin: string) => {
+      handleTerminalInteraction(workspaceId, threadId, itemId, stdin);
     },
     [handleTerminalInteraction],
   );
 
   const onFileChangeOutputDelta = useCallback(
-    (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      handleToolOutputDelta(threadId, itemId, delta);
+    (workspaceId: string, threadId: string, itemId: string, delta: string) => {
+      handleToolOutputDelta(workspaceId, threadId, itemId, delta);
     },
     [handleToolOutputDelta],
   );

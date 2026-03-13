@@ -22,6 +22,32 @@ function upsertItem(items: ConversationItem[], next: ConversationItem): Conversa
   return copy;
 }
 
+function mergeToolSnapshot(
+  existing: Extract<ConversationItem, { kind: "tool" }>,
+  incoming: Extract<ConversationItem, { kind: "tool" }>,
+): Extract<ConversationItem, { kind: "tool" }> {
+  const incomingOutput = incoming.output ?? "";
+  const incomingDetail = incoming.detail ?? "";
+  const incomingTitle = incoming.title ?? "";
+  const incomingChanges = incoming.changes ?? [];
+  return {
+    ...existing,
+    ...incoming,
+    title: incomingTitle || existing.title,
+    detail: incomingDetail || existing.detail,
+    output: incomingOutput || existing.output,
+    changes: incomingChanges.length > 0 ? incomingChanges : existing.changes,
+  };
+}
+
+function upsertSnapshotItem(items: ConversationItem[], next: ConversationItem): ConversationItem[] {
+  const existing = items.find((item) => item.id === next.id);
+  if (!existing || existing.kind !== "tool" || next.kind !== "tool") {
+    return upsertItem(items, next);
+  }
+  return upsertItem(items, mergeToolSnapshot(existing, next));
+}
+
 function compactComparableAssistantText(value: string): string {
   return value
     .replace(/\s+/g, "")
@@ -212,7 +238,7 @@ export function appendEvent(
     case "itemStarted":
     case "itemUpdated":
     case "itemCompleted":
-      items = upsertItem(items, event.item);
+      items = upsertSnapshotItem(items, event.item);
       break;
     case "appendAgentMessageDelta":
       items = appendMessageDelta(items, event);

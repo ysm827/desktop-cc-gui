@@ -5,8 +5,11 @@ import { FileViewPanel } from "./FileViewPanel";
 import {
   getCodeIntelDefinition,
   getCodeIntelReferences,
+  getGitFileFullDiff,
   readWorkspaceFile,
 } from "../../../services/tauri";
+
+const mockCodeMirrorDispatch = vi.fn();
 
 function createDoc(text: string) {
   const lines = text.split("\n");
@@ -49,14 +52,19 @@ vi.mock("@uiw/react-codemirror", async () => {
   const React = await import("react");
   const MockCodeMirror = React.forwardRef<
     { view: any },
-    { value?: string; onChange?: (value: string) => void; theme?: string }
+    {
+      value?: string;
+      onChange?: (value: string) => void;
+      onCreateEditor?: (view: any, state: any) => void;
+      theme?: string;
+    }
   >((props, ref) => {
     const viewRef = React.useRef<any>({
       state: {
         doc: createDoc(props.value ?? ""),
         selection: { main: { head: 0 } },
       },
-      dispatch: vi.fn((transaction: any) => {
+      dispatch: mockCodeMirrorDispatch.mockImplementation((transaction: any) => {
         const anchor = transaction?.selection?.anchor;
         if (typeof anchor === "number") {
           viewRef.current.state.selection.main.head = anchor;
@@ -69,6 +77,10 @@ vi.mock("@uiw/react-codemirror", async () => {
     React.useEffect(() => {
       viewRef.current.state.doc = createDoc(props.value ?? "");
     }, [props.value]);
+
+    React.useEffect(() => {
+      props.onCreateEditor?.(viewRef.current, viewRef.current.state);
+    }, [props]);
 
     React.useImperativeHandle(ref, () => ({ view: viewRef.current }), []);
 
@@ -131,6 +143,7 @@ describe("FileViewPanel navigation", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mockCodeMirrorDispatch.mockReset();
   });
 
   it("navigates directly when definition has a single target", async () => {
@@ -283,6 +296,130 @@ describe("FileViewPanel navigation", () => {
     });
     fireEvent.click(maximizeButton);
     expect(onToggleEditorFileMaximized).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers provided highlight markers over workspace git diff fetch", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "line 1\nline 2\nline 3",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-highlight"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        gitStatusFiles={[
+          { path: "src/Main.java", status: "M", additions: 1, deletions: 1 },
+        ]}
+        highlightMarkers={{ added: [2], modified: [3] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    expect(mockCodeMirrorDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        effects: expect.anything(),
+      }),
+    );
+  });
+
+  it("falls back to workspace git diff fetch when provided highlight markers are empty", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "line 1\nline 2\nline 3",
+      truncated: false,
+    });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -1,0 +1,3 @@\n+line 1\n+line 2\n+line 3");
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-highlight-empty"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        gitStatusFiles={[
+          { path: "src/Main.java", status: "M", additions: 3, deletions: 0 },
+        ]}
+        highlightMarkers={{ added: [], modified: [] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-highlight-empty", "src/Main.java");
+  });
+
+  it("normalizes absolute file paths before reading and fetching git diff", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}\n",
+      truncated: false,
+    });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -1,1 +1,2 @@\n class Main {}\n+// changed");
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-absolute-path"
+        workspacePath="/repo"
+        filePath="/repo/src/Main.java"
+        gitStatusFiles={[
+          { path: "src/Main.java", status: "M", additions: 1, deletions: 0 },
+        ]}
+        highlightMarkers={{ added: [], modified: [] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    expect(readWorkspaceFile).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+  });
+
+  it("normalizes Windows absolute file paths case-insensitively before reading and fetching git diff", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}\n",
+      truncated: false,
+    });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -1,1 +1,2 @@\n class Main {}\n+// changed");
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-windows-absolute-path"
+        workspacePath="C:/Users/Chen/Project"
+        filePath="c:/users/chen/project/src/Main.java"
+        gitStatusFiles={[
+          { path: "src/Main.java", status: "M", additions: 1, deletions: 0 },
+        ]}
+        highlightMarkers={{ added: [], modified: [] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    expect(readWorkspaceFile).toHaveBeenCalledWith(
+      "ws-windows-absolute-path",
+      "src/Main.java",
+    );
+    expect(getGitFileFullDiff).toHaveBeenCalledWith(
+      "ws-windows-absolute-path",
+      "src/Main.java",
+    );
   });
 });
 

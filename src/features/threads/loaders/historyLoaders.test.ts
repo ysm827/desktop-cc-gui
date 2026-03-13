@@ -120,6 +120,37 @@ describe("history loaders", () => {
     }
   });
 
+  it("merges Claude tool result by tool_use_id and avoids duplicate tool rows", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        id: "toolu_123",
+        kind: "tool",
+        tool_name: "read",
+        text: '{"file_path":"README.md"}',
+      },
+      {
+        id: "result_456",
+        kind: "tool",
+        toolType: "result",
+        tool_use_id: "toolu_123",
+        text: "ok",
+      },
+    ]);
+
+    const toolItems = items.filter(
+      (item): item is Extract<(typeof items)[number], { kind: "tool" }> =>
+        item.kind === "tool",
+    );
+    expect(toolItems).toHaveLength(1);
+    expect(toolItems[0]).toEqual(
+      expect.objectContaining({
+        id: "toolu_123",
+        status: "completed",
+        output: "ok",
+      }),
+    );
+  });
+
   it("collapses repeated claude reasoning snapshots with different ids", () => {
     const items = parseClaudeHistoryMessages([
       {

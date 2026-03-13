@@ -45,6 +45,138 @@ function preferLongerReasoningText(previous: string, incoming: string) {
   return incomingCompactLength >= previousCompactLength ? incoming : previous;
 }
 
+function getClaudeToolName(message: Record<string, unknown>) {
+  return asString(message.tool_name ?? message.toolName ?? message.title ?? "Tool");
+}
+
+function getClaudeToolInputText(message: Record<string, unknown>) {
+  const toolInput =
+    message.tool_input && typeof message.tool_input === "object"
+      ? (message.tool_input as Record<string, unknown>)
+      : null;
+  const command = asString(
+    toolInput?.command ??
+      toolInput?.cmd ??
+      toolInput?.script ??
+      toolInput?.bash ??
+      "",
+  );
+  const description = asString(
+    toolInput?.description ?? toolInput?.summary ?? toolInput?.label ?? "",
+  );
+  if (command && description) {
+    return JSON.stringify({ command, description });
+  }
+  if (command) {
+    return JSON.stringify({ command });
+  }
+  if (description) {
+    return description;
+  }
+  if (toolInput && Object.keys(toolInput).length > 0) {
+    return JSON.stringify(toolInput);
+  }
+  return "";
+}
+
+function getClaudeToolOutputText(message: Record<string, unknown>) {
+  const toolOutput =
+    message.tool_output && typeof message.tool_output === "object"
+      ? (message.tool_output as Record<string, unknown>)
+      : null;
+  return asString(
+    toolOutput?.output ??
+      toolOutput?.stdout ??
+      toolOutput?.stderr ??
+      message.text ??
+      "",
+  );
+}
+
+function getClaudeSourceToolId(message: Record<string, unknown>) {
+  const directCandidates = [
+    message.source_tool_id,
+    message.sourceToolId,
+    message.source_tool_call_id,
+    message.sourceToolCallId,
+    message.tool_use_id,
+    message.toolUseId,
+    message.call_id,
+    message.callId,
+    message.parent_tool_id,
+    message.parentToolId,
+    message.parent_id,
+    message.parentId,
+  ];
+  for (const candidate of directCandidates) {
+    const resolved = asString(candidate).trim();
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  const nestedSources = [
+    message.tool_output,
+    message.output,
+    message.result,
+    message.meta,
+    message.metadata,
+  ];
+  for (const source of nestedSources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const record = source as Record<string, unknown>;
+    const nestedCandidates = [
+      record.source_tool_id,
+      record.sourceToolId,
+      record.source_tool_call_id,
+      record.sourceToolCallId,
+      record.tool_use_id,
+      record.toolUseId,
+      record.call_id,
+      record.callId,
+      record.parent_tool_id,
+      record.parentToolId,
+      record.parent_id,
+      record.parentId,
+    ];
+    for (const candidate of nestedCandidates) {
+      const resolved = asString(candidate).trim();
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  const toolId = asString(message.id ?? "").trim();
+  if (!toolId) {
+    return "";
+  }
+
+  const suffixes = ["-result", ":result", "_result", ".result", "/result"];
+  for (const suffix of suffixes) {
+    if (toolId.endsWith(suffix) && toolId.length > suffix.length) {
+      return toolId.slice(0, -suffix.length);
+    }
+  }
+  return "";
+}
+
+function findLatestPendingToolIndex(items: ConversationItem[]) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const entry = items[index];
+    if (entry?.kind !== "tool") {
+      continue;
+    }
+    if (entry.status === "completed" || entry.status === "failed") {
+      continue;
+    }
+    return index;
+  }
+  return -1;
+}
+
 function mergeReasoningSnapshot(
   items: ConversationItem[],
   id: string,
@@ -127,34 +259,48 @@ export function parseClaudeHistoryMessages(messagesData: unknown): ConversationI
     }
 
     const toolId = asString(message.id ?? "");
-    const toolType = asString(message.toolType ?? "unknown");
+    const toolType = asString(message.toolType ?? message.tool_name ?? "unknown");
     const isToolResult = toolType === "result" || toolType === "error";
     const status = toolType === "error" ? "failed" : "completed";
     if (isToolResult) {
-      const sourceToolId = toolId.endsWith("-result")
-        ? toolId.slice(0, -"-result".length)
-        : "";
-      const sourceIndex = sourceToolId ? toolIndexById.get(sourceToolId) : undefined;
+      const sourceToolId = getClaudeSourceToolId(message);
+      const sourceIndex = sourceToolId
+        ? toolIndexById.get(sourceToolId)
+        : toolId
+          ? toolIndexById.get(toolId)
+          : undefined;
       if (sourceIndex !== undefined) {
         const existing = items[sourceIndex];
         if (existing?.kind === "tool") {
           items[sourceIndex] = {
             ...existing,
             status,
-            output: asString(message.text ?? existing.output ?? ""),
+            output: getClaudeToolOutputText(message) || existing.output,
           };
         }
         continue;
+      }
+      const pendingToolIndex = findLatestPendingToolIndex(items);
+      if (pendingToolIndex >= 0) {
+        const existing = items[pendingToolIndex];
+        if (existing?.kind === "tool") {
+          items[pendingToolIndex] = {
+            ...existing,
+            status,
+            output: getClaudeToolOutputText(message) || existing.output,
+          };
+          continue;
+        }
       }
       const fallbackId = sourceToolId || toolId || `claude-tool-${items.length + 1}`;
       items.push({
         id: fallbackId,
         kind: "tool",
         toolType,
-        title: asString(message.title ?? "Tool"),
+        title: getClaudeToolName(message),
         detail: "",
         status,
-        output: asString(message.text ?? ""),
+        output: getClaudeToolOutputText(message),
       });
       continue;
     }
@@ -163,8 +309,8 @@ export function parseClaudeHistoryMessages(messagesData: unknown): ConversationI
       id: toolId || `claude-tool-${items.length + 1}`,
       kind: "tool",
       toolType,
-      title: asString(message.title ?? "Tool"),
-      detail: asString(message.text ?? ""),
+      title: getClaudeToolName(message),
+      detail: getClaudeToolInputText(message) || asString(message.text ?? ""),
       status: "started",
     });
     if (toolId) {

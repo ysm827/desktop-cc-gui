@@ -291,6 +291,29 @@ describe("useThreadItemEvents", () => {
     });
   });
 
+  it("anchors the thread before appending command output deltas", () => {
+    const { result, dispatch, markProcessing, safeMessageActivity } = makeOptions();
+
+    act(() => {
+      result.current.onCommandOutputDelta("ws-1", "claude:session-1", "cmd-1", "partial output");
+    });
+
+    expect(dispatch).toHaveBeenNthCalledWith(1, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "claude:session-1",
+      engine: "claude",
+    });
+    expect(dispatch).toHaveBeenNthCalledWith(2, {
+      type: "appendToolOutput",
+      threadId: "claude:session-1",
+      itemId: "cmd-1",
+      delta: "partial output",
+    });
+    expect(markProcessing).toHaveBeenCalledWith("claude:session-1", true);
+    expect(safeMessageActivity).toHaveBeenCalled();
+  });
+
   it("skips agent message deltas for interrupted threads", () => {
     const { result, dispatch, markProcessing, interruptedThreadsRef } = makeOptions();
     interruptedThreadsRef.current.add("thread-1");

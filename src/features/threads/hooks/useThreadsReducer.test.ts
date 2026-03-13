@@ -175,6 +175,116 @@ describe("threadReducer", () => {
     }
   });
 
+  it("preserves trailing optimistic user bubble when processing snapshot has not caught up", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "assistant-1",
+            kind: "message",
+            role: "assistant",
+            text: "旧回复",
+          },
+          {
+            id: "optimistic-user-1",
+            kind: "message",
+            role: "user",
+            text: "新增日志 CRUD",
+          },
+        ],
+      },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        {
+          id: "assistant-1",
+          kind: "message",
+          role: "assistant",
+          text: "旧回复",
+        },
+      ],
+    });
+
+    expect(next.itemsByThread["thread-1"]).toEqual([
+      {
+        id: "assistant-1",
+        kind: "message",
+        role: "assistant",
+        text: "旧回复",
+      },
+      {
+        id: "optimistic-user-1",
+        kind: "message",
+        role: "user",
+        text: "新增日志 CRUD",
+      },
+    ]);
+  });
+
+  it("drops preserved optimistic user bubble once snapshot includes the real user message", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "optimistic-user-1",
+            kind: "message",
+            role: "user",
+            text: "新增日志 CRUD",
+          },
+        ],
+      },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        {
+          id: "user-1",
+          kind: "message",
+          role: "user",
+          text: "新增日志 CRUD",
+        },
+      ],
+    });
+
+    expect(next.itemsByThread["thread-1"]).toEqual([
+      {
+        id: "user-1",
+        kind: "message",
+        role: "user",
+        text: "新增日志 CRUD",
+      },
+    ]);
+  });
+
   it("renames auto-generated thread from assistant output when no user message", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1 },
@@ -1657,6 +1767,35 @@ describe("threadReducer", () => {
     expect(tools.find((item) => item.id === "tool-2")?.status).toBe("completed");
     expect(tools.find((item) => item.id === "tool-3")?.status).toBe("completed");
     expect(tools.find((item) => item.id === "tool-4")?.status).toBe("failed");
+  });
+
+  it("creates a placeholder tool when output delta arrives before the tool snapshot", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [],
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "appendToolOutput",
+      threadId: "thread-1",
+      itemId: "tool-1",
+      delta: "partial output",
+    });
+
+    const tool = (next.itemsByThread["thread-1"] ?? []).find(
+      (item): item is Extract<ConversationItem, { kind: "tool" }> =>
+        item.kind === "tool" && item.id === "tool-1",
+    );
+
+    expect(tool).toMatchObject({
+      id: "tool-1",
+      toolType: "commandExecution",
+      title: "Command",
+      status: "running",
+      output: "partial output",
+    });
   });
 
   it("finalizes pending tool statuses to failed", () => {

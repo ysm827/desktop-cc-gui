@@ -253,6 +253,98 @@ describe("Messages", () => {
     expect(container.querySelector(".message-mode-badge")).toBeNull();
   });
 
+  it("renders Claude reasoning inline by default when no legacy dock flag is set", () => {
+    window.localStorage.removeItem("mossx.claude.hideReasoningModule");
+
+    const items: ConversationItem[] = [
+      {
+        id: "msg-user-inline",
+        kind: "message",
+        role: "user",
+        text: "先分析",
+      },
+      {
+        id: "reasoning-inline",
+        kind: "reasoning",
+        summary: "思考",
+        content: "先检查 Controller 和 Service。",
+      },
+      {
+        id: "msg-assistant-inline",
+        kind: "message",
+        role: "assistant",
+        text: "我已经分析完了。",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-claude-inline"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const reasoningBlock = container.querySelector(".thinking-block");
+    const assistantMessage = container.querySelector(".message.assistant");
+    expect(reasoningBlock).toBeTruthy();
+    expect(assistantMessage).toBeTruthy();
+    expect(
+      reasoningBlock?.compareDocumentPosition(assistantMessage as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps legacy Claude docked reasoning mode when the flag is explicitly enabled", () => {
+    window.localStorage.setItem("mossx.claude.hideReasoningModule", "1");
+
+    const items: ConversationItem[] = [
+      {
+        id: "msg-user-docked",
+        kind: "message",
+        role: "user",
+        text: "先分析",
+      },
+      {
+        id: "reasoning-docked",
+        kind: "reasoning",
+        summary: "思考",
+        content: "先检查 Controller 和 Service。",
+      },
+      {
+        id: "msg-assistant-docked",
+        kind: "message",
+        role: "assistant",
+        text: "我已经分析完了。",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-claude-docked"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const reasoningBlock = container.querySelector(".thinking-block");
+    const assistantMessage = container.querySelector(".message.assistant");
+    expect(reasoningBlock).toBeTruthy();
+    expect(assistantMessage).toBeTruthy();
+    expect(
+      assistantMessage?.compareDocumentPosition(reasoningBlock as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("does not backfill historical user message badge from active mode", () => {
     const items: ConversationItem[] = [
       {

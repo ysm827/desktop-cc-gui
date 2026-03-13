@@ -95,6 +95,54 @@ function dropMatchingOptimisticUserMessage(
   return [...list.slice(0, targetIndex), ...list.slice(targetIndex + 1)];
 }
 
+function findMatchingRealUserMessage(
+  list: ConversationItem[],
+  candidate: UserMessageItem,
+) {
+  const candidateText = normalizeComparableUserText(candidate.text);
+  const candidateImages = normalizeUserImages(candidate.images);
+  return list.some((item) => {
+    if (!isUserMessageItem(item)) {
+      return false;
+    }
+    if (item.id.startsWith(OPTIMISTIC_USER_ITEM_PREFIX)) {
+      return false;
+    }
+    return (
+      normalizeComparableUserText(item.text) === candidateText &&
+      areSameUserImages(normalizeUserImages(item.images), candidateImages)
+    );
+  });
+}
+
+function mergeThreadItemsPreservingOptimisticUsers(
+  localItems: ConversationItem[],
+  incomingItems: ConversationItem[],
+  isProcessing: boolean,
+) {
+  if (!isProcessing || localItems.length === 0) {
+    return incomingItems;
+  }
+  const trailingOptimisticUsers: UserMessageItem[] = [];
+  for (let index = localItems.length - 1; index >= 0; index -= 1) {
+    const item = localItems[index];
+    if (!isOptimisticUserMessage(item)) {
+      break;
+    }
+    trailingOptimisticUsers.unshift(item);
+  }
+  if (trailingOptimisticUsers.length === 0) {
+    return incomingItems;
+  }
+  const preservedOptimisticUsers = trailingOptimisticUsers.filter(
+    (item) => !findMatchingRealUserMessage(incomingItems, item),
+  );
+  if (preservedOptimisticUsers.length === 0) {
+    return incomingItems;
+  }
+  return [...incomingItems, ...preservedOptimisticUsers];
+}
+
 function getAssistantTextForRename(
   items: ConversationItem[],
   itemId?: string,
@@ -2077,14 +2125,21 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadsByWorkspace: nextThreadsByWorkspace,
       };
     }
-    case "setThreadItems":
+    case "setThreadItems": {
+      const localItems = state.itemsByThread[action.threadId] ?? [];
+      const mergedItems = mergeThreadItemsPreservingOptimisticUsers(
+        localItems,
+        action.items,
+        Boolean(state.threadStatusById[action.threadId]?.isProcessing),
+      );
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(action.items),
+          [action.threadId]: prepareThreadItems(mergedItems),
         },
       };
+    }
     case "setLastAgentMessage":
       if (
         state.lastAgentMessageByThread[action.threadId]?.timestamp >= action.timestamp
@@ -2420,7 +2475,25 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
     case "appendToolOutput": {
       const list = state.itemsByThread[action.threadId] ?? [];
       const index = list.findIndex((entry) => entry.id === action.itemId);
-      if (index < 0 || list[index].kind !== "tool") {
+      if (index < 0) {
+        const placeholder: ConversationItem = {
+          id: action.itemId,
+          kind: "tool",
+          toolType: "commandExecution",
+          title: "Command",
+          detail: "",
+          status: "running",
+          output: action.delta,
+        };
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: prepareThreadItems([...list, placeholder]),
+          },
+        };
+      }
+      if (list[index].kind !== "tool") {
         return state;
       }
       const existing = list[index];

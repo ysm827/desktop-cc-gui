@@ -1408,11 +1408,29 @@
 }
 
 .fvp-cm .cm-line.cm-git-added-line {
+  background: color-mix(in srgb, #3fb950 12%, transparent);
   box-shadow: inset 3px 0 0 color-mix(in srgb, #3fb950 88%, var(--text-strong));
 }
 
 .fvp-cm .cm-line.cm-git-modified-line {
+  background: color-mix(in srgb, #6bb3f0 14%, transparent);
   box-shadow: inset 3px 0 0 color-mix(in srgb, #6bb3f0 88%, var(--text-strong));
+}
+
+.fvp-cm .cm-line.cm-activeLine.cm-git-added-line {
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, #3fb950 12%, transparent) 72%,
+    var(--surface-active) 28%
+  );
+}
+
+.fvp-cm .cm-line.cm-activeLine.cm-git-modified-line {
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, #6bb3f0 14%, transparent) 72%,
+    var(--surface-active) 28%
+  );
 }
 
 /* ── Split pane (Markdown edit) ── */

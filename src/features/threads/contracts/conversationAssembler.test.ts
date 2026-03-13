@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ConversationItem } from "../../../types";
 import type { ConversationState, NormalizedThreadEvent } from "./conversationCurtainContracts";
 import {
   appendEvent,
@@ -102,6 +103,81 @@ describe("conversationAssembler", () => {
       expect(onlyItem.status).toBe("completed");
       expect(onlyItem.output).toContain("running...");
     }
+  });
+
+  it("preserves command output when tool snapshots omit output fields", () => {
+    let state = createState();
+    state = appendEvent(
+      state,
+      createEvent({
+        itemKind: "tool",
+        operation: "itemStarted",
+        item: {
+          id: "tool-output-1",
+          kind: "tool",
+          toolType: "commandExecution",
+          title: "Command",
+          detail: "ls -la",
+          status: "started",
+        },
+      }),
+    );
+    state = appendEvent(
+      state,
+      createEvent({
+        itemKind: "tool",
+        operation: "appendToolOutputDelta",
+        item: {
+          id: "tool-output-1",
+          kind: "tool",
+          toolType: "commandExecution",
+          title: "Command",
+          detail: "",
+          output: "",
+          status: "started",
+        },
+        delta: "line 1\n",
+      }),
+    );
+    state = appendEvent(
+      state,
+      createEvent({
+        itemKind: "tool",
+        operation: "itemUpdated",
+        item: {
+          id: "tool-output-1",
+          kind: "tool",
+          toolType: "commandExecution",
+          title: "Command",
+          detail: "ls -la",
+          output: "",
+          status: "running",
+        },
+      }),
+    );
+    state = appendEvent(
+      state,
+      createEvent({
+        itemKind: "tool",
+        operation: "itemCompleted",
+        item: {
+          id: "tool-output-1",
+          kind: "tool",
+          toolType: "commandExecution",
+          title: "Command",
+          detail: "ls -la",
+          output: "",
+          status: "completed",
+        },
+      }),
+    );
+
+    const tool = state.items.find(
+      (item): item is Extract<ConversationItem, { kind: "tool" }> =>
+        item.kind === "tool" && item.id === "tool-output-1",
+    );
+    expect(tool?.status).toBe("completed");
+    expect(tool?.output).toBe("line 1\n");
   });
 
   it("appends message/reasoning deltas and updates active turn id", () => {
