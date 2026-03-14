@@ -33,6 +33,7 @@ export type SessionActivityEvent = {
   summary: string;
   status: SessionActivityEventStatus;
   jumpTarget?: SessionActivityJumpTarget;
+  fileChangeStatusLetter?: "A" | "D" | "R" | "M";
   additions?: number;
   deletions?: number;
   filePath?: string;

@@ -38,6 +38,29 @@ type BuildWorkspaceSessionActivityOptions = {
   threadStatusById: Record<string, ThreadStatusSnapshot | undefined>;
 };
 
+export type WorkspaceSessionActivityThreadContext = {
+  thread: ThreadSummary;
+  rootThreadId: string;
+  relationshipSource: SessionActivityRelationshipSource;
+  threadIsProcessing: boolean;
+};
+
+export type WorkspaceSessionActivityContext = {
+  rootThreadId: string;
+  rootThreadName: string;
+  relevantThreads: WorkspaceSessionActivityThreadContext[];
+};
+
+export type WorkspaceSessionActivityThreadSnapshot = {
+  threadId: string;
+  threadName: string;
+  sessionRole: SessionActivitySessionSummary["sessionRole"];
+  relationshipSource: SessionActivityRelationshipSource;
+  isProcessing: boolean;
+  eventCount: number;
+  events: SessionActivityEvent[];
+};
+
 const PARAGRAPH_BREAK_SPLIT_REGEX = /\n{2,}/;
 
 function resolveEventStatus(
@@ -1009,13 +1032,9 @@ function resolveRelationshipSource(
   return "directParent";
 }
 
-function buildThreadEvents(args: {
-  thread: ThreadSummary;
-  rootThreadId: string;
+export function buildThreadActivity(args: WorkspaceSessionActivityThreadContext & {
   items: ConversationItem[];
-  relationshipSource: SessionActivityRelationshipSource;
-  threadIsProcessing: boolean;
-}) {
+}): WorkspaceSessionActivityThreadSnapshot {
   const events: SessionActivityEvent[] = [];
   const occurredBase = getThreadTimestamp(args.thread) || 0;
   const shouldMergeClaudeReasoningIntoFirstNode =
@@ -1314,6 +1333,7 @@ function buildThreadEvents(args: {
               markers,
             }
           : undefined,
+        fileChangeStatusLetter: fileChangeSummary.statusLetter,
         filePath: fileChangeSummary.filePath,
         fileCount: fileChangeSummary.fileCount,
         additions: fileChangeSummary.additions,
@@ -1321,26 +1341,40 @@ function buildThreadEvents(args: {
       });
     }
   });
-  return events;
+  const sessionRole: SessionActivitySessionSummary["sessionRole"] =
+    args.thread.id === args.rootThreadId ? "root" : "child";
+  return {
+    threadId: args.thread.id,
+    threadName: args.thread.name || args.thread.id,
+    sessionRole,
+    relationshipSource: args.relationshipSource,
+    isProcessing: args.threadIsProcessing,
+    eventCount: events.length,
+    events,
+  };
 }
 
-export function buildWorkspaceSessionActivity({
+function createEmptyWorkspaceSessionActivityViewModel(): WorkspaceSessionActivityViewModel {
+  return {
+    rootThreadId: null,
+    rootThreadName: null,
+    relevantThreadIds: [],
+    timeline: [],
+    sessionSummaries: [],
+    isProcessing: false,
+    emptyState: "idle",
+  };
+}
+
+export function resolveWorkspaceSessionActivityContext({
   activeThreadId,
   threads,
   itemsByThread,
   threadParentById,
   threadStatusById,
-}: BuildWorkspaceSessionActivityOptions): WorkspaceSessionActivityViewModel {
+}: BuildWorkspaceSessionActivityOptions): WorkspaceSessionActivityContext | null {
   if (!activeThreadId) {
-    return {
-      rootThreadId: null,
-      rootThreadName: null,
-      relevantThreadIds: [],
-      timeline: [],
-      sessionSummaries: [],
-      isProcessing: false,
-      emptyState: "idle",
-    };
+    return null;
   }
 
   const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
@@ -1370,42 +1404,43 @@ export function buildWorkspaceSessionActivity({
     new Map(relevantThreads.map((thread) => [thread.id, thread])).values(),
   );
 
-  const timeline = uniqueRelevantThreads
-    .flatMap((thread) =>
-      buildThreadEvents({
-        thread,
-        rootThreadId,
-        items: itemsByThread[thread.id] ?? [],
-        relationshipSource: resolveRelationshipSource(
-          thread.id,
-          rootThreadId,
-          threadParentById,
-          fallbackParentById,
-        ),
-        threadIsProcessing: Boolean(threadStatusById[thread.id]?.isProcessing),
-      }),
-    )
-    .sort((left, right) => right.occurredAt - left.occurredAt);
+  const rootThread = threadMap.get(rootThreadId) ?? null;
 
-  const sessionSummaries: SessionActivitySessionSummary[] = uniqueRelevantThreads
-    .map((thread) => {
-      const relationshipSource = resolveRelationshipSource(
+  return {
+    rootThreadId,
+    rootThreadName: rootThread?.name ?? rootThreadId,
+    relevantThreads: uniqueRelevantThreads.map((thread) => ({
+      thread,
+      rootThreadId,
+      relationshipSource: resolveRelationshipSource(
         thread.id,
         rootThreadId,
         threadParentById,
         fallbackParentById,
-      );
-      const sessionRole: SessionActivitySessionSummary["sessionRole"] =
-        thread.id === rootThreadId ? "root" : "child";
-      return {
-        threadId: thread.id,
-        threadName: thread.name || thread.id,
-        sessionRole,
-        relationshipSource,
-        eventCount: timeline.filter((event) => event.threadId === thread.id).length,
-        isProcessing: Boolean(threadStatusById[thread.id]?.isProcessing),
-      };
-    })
+      ),
+      threadIsProcessing: Boolean(threadStatusById[thread.id]?.isProcessing),
+    })),
+  };
+}
+
+export function composeWorkspaceSessionActivityViewModel(args: {
+  rootThreadId: string;
+  rootThreadName: string;
+  threadSnapshots: WorkspaceSessionActivityThreadSnapshot[];
+}): WorkspaceSessionActivityViewModel {
+  const timeline = args.threadSnapshots
+    .flatMap((snapshot) => snapshot.events)
+    .sort((left, right) => right.occurredAt - left.occurredAt);
+
+  const sessionSummaries: SessionActivitySessionSummary[] = args.threadSnapshots
+    .map((snapshot) => ({
+      threadId: snapshot.threadId,
+      threadName: snapshot.threadName,
+      sessionRole: snapshot.sessionRole,
+      relationshipSource: snapshot.relationshipSource,
+      eventCount: snapshot.eventCount,
+      isProcessing: snapshot.isProcessing,
+    }))
     .sort((left, right) => {
       if (left.sessionRole !== right.sessionRole) {
         return left.sessionRole === "root" ? -1 : 1;
@@ -1413,20 +1448,49 @@ export function buildWorkspaceSessionActivity({
       return right.eventCount - left.eventCount;
     });
 
-  const rootThread = threadMap.get(rootThreadId) ?? null;
-  const isProcessing = uniqueRelevantThreads.some((thread) =>
-    Boolean(threadStatusById[thread.id]?.isProcessing),
-  );
+  const isProcessing = args.threadSnapshots.some((snapshot) => snapshot.isProcessing);
   const emptyState =
     timeline.length > 0 ? (isProcessing ? "running" : "completed") : isProcessing ? "running" : "idle";
 
   return {
-    rootThreadId,
-    rootThreadName: rootThread?.name ?? rootThreadId,
-    relevantThreadIds: uniqueRelevantThreads.map((thread) => thread.id),
+    rootThreadId: args.rootThreadId,
+    rootThreadName: args.rootThreadName,
+    relevantThreadIds: args.threadSnapshots.map((snapshot) => snapshot.threadId),
     timeline,
     sessionSummaries,
     isProcessing,
     emptyState,
   };
+}
+
+export function buildWorkspaceSessionActivity({
+  activeThreadId,
+  threads,
+  itemsByThread,
+  threadParentById,
+  threadStatusById,
+}: BuildWorkspaceSessionActivityOptions): WorkspaceSessionActivityViewModel {
+  const context = resolveWorkspaceSessionActivityContext({
+    activeThreadId,
+    threads,
+    itemsByThread,
+    threadParentById,
+    threadStatusById,
+  });
+  if (!context) {
+    return createEmptyWorkspaceSessionActivityViewModel();
+  }
+
+  const threadSnapshots = context.relevantThreads.map((threadContext) =>
+    buildThreadActivity({
+      ...threadContext,
+      items: itemsByThread[threadContext.thread.id] ?? [],
+    }),
+  );
+
+  return composeWorkspaceSessionActivityViewModel({
+    rootThreadId: context.rootThreadId,
+    rootThreadName: context.rootThreadName,
+    threadSnapshots,
+  });
 }

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { ConversationItem, ThreadSummary } from "../../../types";
-import { buildWorkspaceSessionActivity } from "../adapters/buildWorkspaceSessionActivity";
+import * as workspaceSessionActivityAdapter from "../adapters/buildWorkspaceSessionActivity";
+import type { WorkspaceSessionActivityThreadSnapshot } from "../adapters/buildWorkspaceSessionActivity";
 
 type ThreadStatusSnapshot = {
   isProcessing?: boolean;
@@ -23,16 +24,110 @@ export function useWorkspaceSessionActivity({
 }: UseWorkspaceSessionActivityOptions) {
   const eventOccurredAtRef = useRef<Record<string, number>>({});
   const eventSequenceRef = useRef(0);
+  const cachedThreadSnapshotsRef = useRef<Record<string, WorkspaceSessionActivityThreadSnapshot>>({});
+  const cachedThreadSignaturesRef = useRef<Record<string, string>>({});
 
   return useMemo(
     () => {
-      const nextViewModel = buildWorkspaceSessionActivity({
+      const context = workspaceSessionActivityAdapter.resolveWorkspaceSessionActivityContext({
         activeThreadId,
         threads,
         itemsByThread,
         threadParentById,
         threadStatusById,
       });
+      const nextViewModel = context
+        ? (() => {
+            const nextThreadSnapshotsById: Record<string, WorkspaceSessionActivityThreadSnapshot> = {};
+            const nextThreadSignaturesById: Record<string, string> = {};
+
+            const fingerprintItem = (item: ConversationItem | undefined) => {
+              if (!item) {
+                return "";
+              }
+              if (item.kind === "tool") {
+                return [
+                  item.id,
+                  item.kind,
+                  item.toolType,
+                  item.status ?? "",
+                  item.title ?? "",
+                  item.output?.length ?? 0,
+                  item.changes?.length ?? 0,
+                ].join(":");
+              }
+              if (item.kind === "reasoning") {
+                return [
+                  item.id,
+                  item.kind,
+                  item.summary.length,
+                  item.content.length,
+                ].join(":");
+              }
+              if (item.kind === "explore") {
+                return [
+                  item.id,
+                  item.kind,
+                  item.status ?? "",
+                  Array.isArray(item.entries) ? item.entries.length : 0,
+                ].join(":");
+              }
+              if (item.kind === "message") {
+                return [item.id, item.kind, item.role, item.text.length].join(":");
+              }
+              return [item.id, item.kind].join(":");
+            };
+
+            for (const threadContext of context.relevantThreads) {
+              const threadId = threadContext.thread.id;
+              const items = itemsByThread[threadId] ?? [];
+              const lastItem = items[items.length - 1];
+              const previousItem = items[items.length - 2];
+              const signature = [
+                threadId,
+                threadContext.thread.name ?? "",
+                String(threadContext.thread.updatedAt ?? 0),
+                String(threadContext.threadIsProcessing),
+                threadContext.relationshipSource,
+                String(items.length),
+                fingerprintItem(items[0]),
+                fingerprintItem(previousItem),
+                fingerprintItem(lastItem),
+              ].join("|");
+
+              nextThreadSignaturesById[threadId] = signature;
+
+              const previousSignature = cachedThreadSignaturesRef.current[threadId];
+              const cachedSnapshot = cachedThreadSnapshotsRef.current[threadId];
+              if (previousSignature === signature && cachedSnapshot) {
+                nextThreadSnapshotsById[threadId] = cachedSnapshot;
+                continue;
+              }
+
+              nextThreadSnapshotsById[threadId] = workspaceSessionActivityAdapter.buildThreadActivity({
+                ...threadContext,
+                items,
+              });
+            }
+
+            cachedThreadSnapshotsRef.current = nextThreadSnapshotsById;
+            cachedThreadSignaturesRef.current = nextThreadSignaturesById;
+
+            return workspaceSessionActivityAdapter.composeWorkspaceSessionActivityViewModel({
+              rootThreadId: context.rootThreadId,
+              rootThreadName: context.rootThreadName,
+              threadSnapshots: context.relevantThreads.map(
+                (threadContext) => nextThreadSnapshotsById[threadContext.thread.id],
+              ),
+            });
+          })()
+        : workspaceSessionActivityAdapter.buildWorkspaceSessionActivity({
+            activeThreadId,
+            threads,
+            itemsByThread,
+            threadParentById,
+            threadStatusById,
+          });
       const seenEventIds = new Set<string>();
       const normalizedTimeline = nextViewModel.timeline.map((event) => {
         if (!seenEventIds.has(event.eventId)) {

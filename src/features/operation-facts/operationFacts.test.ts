@@ -78,6 +78,28 @@ describe("operationFacts", () => {
       fileCount: 3,
       additions: 3,
       deletions: 2,
+      statusLetter: "M",
+    });
+  });
+
+  it("preserves delete status for file change event summaries", () => {
+    const fileItem = toolItem("file-2", {
+      toolType: "fileChange",
+      title: "File changes",
+      detail: "{}",
+      status: "completed",
+      changes: [
+        { path: "src/Old.tsx", kind: "deleted", diff: "@@ -1 +0,0 @@\n-old" },
+      ],
+    });
+
+    expect(summarizeFileChangeItem(fileItem)).toEqual({
+      summary: "File change · Old.tsx",
+      filePath: "src/Old.tsx",
+      fileCount: 1,
+      additions: 0,
+      deletions: 1,
+      statusLetter: "D",
     });
   });
 });

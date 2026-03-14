@@ -820,7 +820,17 @@ export function WorkspaceSessionActivityPanel({
               title={cardMainAriaLabel}
             >
               <span className="session-activity-card-copy">
-                <span className="session-activity-card-title">{displaySummary}</span>
+                <span className="session-activity-card-title">
+                  {event.kind === "fileChange" && event.fileChangeStatusLetter ? (
+                    <span
+                      className={`session-activity-file-kind-badge is-${event.fileChangeStatusLetter.toLowerCase()}`}
+                      aria-hidden
+                    >
+                      {event.fileChangeStatusLetter}
+                    </span>
+                  ) : null}
+                  <span>{displaySummary}</span>
+                </span>
                 <span className="session-activity-card-meta">
                   <time
                     className="session-activity-card-time"

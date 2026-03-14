@@ -58,6 +58,7 @@ function createViewModel(): WorkspaceSessionActivityViewModel {
         occurredAt: 30,
         summary: "File change · src/App.tsx",
         status: "completed",
+        fileChangeStatusLetter: "M",
         jumpTarget: {
           type: "file",
           path: "src/App.tsx",
@@ -155,6 +156,21 @@ describe("WorkspaceSessionActivityPanel", () => {
       { line: 9, column: 1 },
       { highlightMarkers: { added: [9], modified: [10] } },
     );
+  });
+
+  it("shows file status badge for file change rows", () => {
+    render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={createViewModel()}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    const badge = screen.getByText("M");
+    expect(badge.className).toContain("session-activity-file-kind-badge");
+    expect(badge.className).toContain("is-m");
   });
 
   it("routes read activity cards to file opening when jumpTarget is file", () => {

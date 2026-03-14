@@ -18,7 +18,7 @@ export type OperationCommandSummary = {
 export type OperationFileChangeSummary = {
   filePath: string;
   fileName: string;
-  status: "A" | "M";
+  status: "A" | "D" | "R" | "M";
   additions: number;
   deletions: number;
 };
@@ -29,6 +29,7 @@ export type OperationFileChangeEventSummary = {
   fileCount: number;
   additions: number;
   deletions: number;
+  statusLetter?: "A" | "D" | "R" | "M";
 };
 
 export function extractCommandSummaries(
@@ -141,10 +142,11 @@ export function summarizeFileChangeItem(
     fileCount: changes.length || 1,
     additions,
     deletions,
+    statusLetter: normalizeFileStatus(changes[0]?.kind),
   };
 }
 
-function normalizeFileStatus(kind?: string): "A" | "M" {
+function normalizeFileStatus(kind?: string): "A" | "D" | "R" | "M" {
   const normalized = (kind ?? "").toLowerCase();
   if (
     normalized.includes("add") ||
@@ -152,6 +154,12 @@ function normalizeFileStatus(kind?: string): "A" | "M" {
     normalized.includes("new")
   ) {
     return "A";
+  }
+  if (normalized.includes("delete") || normalized.includes("remove")) {
+    return "D";
+  }
+  if (normalized.includes("rename") || normalized.includes("move")) {
+    return "R";
   }
   return "M";
 }

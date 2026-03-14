@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, ThreadSummary } from "../../../types";
 import { useWorkspaceSessionActivity } from "./useWorkspaceSessionActivity";
+import * as workspaceSessionActivityAdapter from "../adapters/buildWorkspaceSessionActivity";
 
 function toolItem(
   id: string,
@@ -159,5 +160,54 @@ describe("useWorkspaceSessionActivity", () => {
     const eventIds = result.current.timeline.map((event) => event.eventId);
     expect(new Set(eventIds).size).toBe(eventIds.length);
     expect(eventIds.some((eventId) => eventId.includes("::"))).toBe(true);
+  });
+
+  it("rebuilds only the changed thread snapshot during realtime refresh", () => {
+    const threads: ThreadSummary[] = [
+      { id: "root", name: "Root", updatedAt: 1 },
+      { id: "child", name: "Child", updatedAt: 2 },
+    ];
+    const buildThreadActivitySpy = vi.spyOn(
+      workspaceSessionActivityAdapter,
+      "buildThreadActivity",
+    );
+    const rootItems = [toolItem("root-cmd-1", "completed")];
+    const childItems = [toolItem("child-cmd-1", "running")];
+    const threadStatusById = {
+      root: { isProcessing: false },
+      child: { isProcessing: true },
+    };
+    const threadParentById = { child: "root" };
+
+    const { rerender } = renderHook(
+      (props: { itemsByThread: Record<string, ConversationItem[]> }) =>
+        useWorkspaceSessionActivity({
+          activeThreadId: "child",
+          threads,
+          itemsByThread: props.itemsByThread,
+          threadParentById,
+          threadStatusById,
+        }),
+      {
+        initialProps: {
+          itemsByThread: {
+            root: rootItems,
+            child: childItems,
+          },
+        },
+      },
+    );
+
+    buildThreadActivitySpy.mockClear();
+
+    rerender({
+      itemsByThread: {
+        root: rootItems,
+        child: [toolItem("child-cmd-1", "completed"), toolItem("child-cmd-2", "running")],
+      },
+    });
+
+    expect(buildThreadActivitySpy).toHaveBeenCalledTimes(1);
+    expect(buildThreadActivitySpy.mock.calls[0]?.[0].thread.id).toBe("child");
   });
 });
