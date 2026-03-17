@@ -1678,6 +1678,7 @@ export function FileViewPanel({
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onActivateTab?.(tabPath)}
+                onDoubleClick={() => onToggleEditorFileMaximized?.()}
                 onContextMenu={openTabContextMenu}
                 title={tabPath}
               >

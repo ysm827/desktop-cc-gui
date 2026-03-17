@@ -298,6 +298,35 @@ describe("FileViewPanel navigation", () => {
     expect(onToggleEditorFileMaximized).toHaveBeenCalledTimes(1);
   });
 
+  it("double-clicking a file tab toggles maximize callback", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    const onToggleEditorFileMaximized = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-tab-max"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java"]}
+        activeTabPath="src/Main.java"
+        onToggleEditorFileMaximized={onToggleEditorFileMaximized}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    const fileTab = screen.getByRole("tab", { name: "Main.java" });
+    fireEvent.doubleClick(fileTab);
+    expect(onToggleEditorFileMaximized).toHaveBeenCalledTimes(1);
+  });
+
   it("prefers provided highlight markers over workspace git diff fetch", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "line 1\nline 2\nline 3",
