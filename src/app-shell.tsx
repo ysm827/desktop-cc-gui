@@ -68,6 +68,7 @@ import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
 import { useWorkspaceController } from "./features/app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
 import { useWorkspaceSessionActivity } from "./features/session-activity/hooks/useWorkspaceSessionActivity";
+import { useSessionRadarFeed } from "./features/session-activity/hooks/useSessionRadarFeed";
 import { useLiveEditPreview } from "./features/live-edit-preview/hooks/useLiveEditPreview";
 import { useGitHubPanelController } from "./features/app/hooks/useGitHubPanelController";
 import { useSettingsModalState } from "./features/app/hooks/useSettingsModalState";
@@ -2128,7 +2129,7 @@ export function AppShell() {
     filesLoading: false,
     files: 0,
     directories: 0,
-    filePanelMode: "git" as "git" | "files" | "search" | "prompts" | "memory" | "activity",
+    filePanelMode: "git" as "git" | "files" | "search" | "prompts" | "memory" | "activity" | "radar",
     rightPanelCollapsed: false,
     isCompact: false,
     draftLength: 0,
@@ -2340,45 +2341,15 @@ export function AppShell() {
     workspaceNameByPath,
   });
 
-  const lockLiveSessions = useMemo(() => {
-    const sessions = workspaces.flatMap((workspace) => {
-      const threads = threadsByWorkspace[workspace.id] ?? [];
-      return threads.flatMap((thread) => {
-        const status = threadStatusById[thread.id];
-        if (!status?.isProcessing) {
-          return [];
-        }
-        const lastAgent = lastAgentMessageByThread[thread.id];
-        const updatedAt = Math.max(
-          thread.updatedAt ?? 0,
-          lastAgent?.timestamp ?? 0,
-          status?.processingStartedAt ?? 0,
-        );
-        return [{
-          id: `${workspace.id}:${thread.id}`,
-          workspaceName: workspace.name,
-          threadName: thread.name?.trim() || t("threads.untitledThread"),
-          engine: (thread.engineSource || "codex").toUpperCase(),
-          preview: resolveLockLivePreview(
-            threadItemsByThread[thread.id],
-            lastAgent?.text,
-          ),
-          updatedAt,
-          isProcessing: status?.isProcessing ?? false,
-        }];
-      });
-    });
-    return sessions
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, LOCK_LIVE_SESSION_LIMIT);
-  }, [
-    lastAgentMessageByThread,
-    threadItemsByThread,
-    threadStatusById,
-    threadsByWorkspace,
-    t,
+  const sessionRadarFeed = useSessionRadarFeed({
     workspaces,
-  ]);
+    threadsByWorkspace,
+    threadStatusById,
+    threadItemsByThread,
+    lastAgentMessageByThread,
+    runningLimit: LOCK_LIVE_SESSION_LIMIT,
+  });
+  const lockLiveSessions = sessionRadarFeed.runningSessions;
 
   useEffect(() => {
     const previous = completionTrackerBySessionRef.current;
@@ -2933,6 +2904,10 @@ export function AppShell() {
     workspace, workspaceActivity, workspaceDropTargetRef, workspaceFilesPollingEnabled, workspaceGroups, workspaceHomeWorkspaceId, workspaceId, workspaceNameByPath,
     workspacePath, workspaceSearchSources, workspaces, workspacesById, workspacesByPath, worktreeApplyError, worktreeApplyLoading, worktreeApplySuccess,
     worktreeCreateResult, worktreeLabel, worktreePrompt, worktreeRename, worktreeSetupScriptState,
+    sessionRadarRunningSessions: sessionRadarFeed.runningSessions,
+    sessionRadarRecentCompletedSessions: sessionRadarFeed.recentCompletedSessions,
+    runningSessionCountByWorkspaceId: sessionRadarFeed.runningCountByWorkspaceId,
+    recentCompletedSessionCountByWorkspaceId: sessionRadarFeed.recentCountByWorkspaceId,
   };
 
   const searchAndComposerSection = useAppShellSearchAndComposerSection(

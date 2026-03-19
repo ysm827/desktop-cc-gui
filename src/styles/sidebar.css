@@ -1005,6 +1005,32 @@
   white-space: nowrap;
 }
 
+.workspace-session-signal {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-session-signal.is-running {
+  color: #065f46;
+  border: 1px solid color-mix(in srgb, #10b981 52%, transparent);
+  background: color-mix(in srgb, #10b981 20%, transparent);
+}
+
+.workspace-session-signal.is-recent {
+  color: var(--text-faint);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 86%, transparent);
+  background: color-mix(in srgb, var(--surface-control) 72%, transparent);
+}
+
 .workspace-actions {
   display: flex;
   align-items: center;
@@ -1615,6 +1641,32 @@
   text-transform: uppercase;
   color: var(--text-faint);
   opacity: 0.9;
+}
+
+.worktree-session-signal {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.worktree-session-signal.is-running {
+  color: #065f46;
+  border: 1px solid color-mix(in srgb, #10b981 50%, transparent);
+  background: color-mix(in srgb, #10b981 18%, transparent);
+}
+
+.worktree-session-signal.is-recent {
+  color: var(--text-faint);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 84%, transparent);
+  background: color-mix(in srgb, var(--surface-control) 68%, transparent);
 }
 
 .worktree-actions {

@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type ClientStoreName = "layout" | "composer" | "threads" | "app";
+export type ClientStoreName = "layout" | "composer" | "threads" | "app" | "leida";
 
-const ALL_STORES: ClientStoreName[] = ["layout", "composer", "threads", "app"];
+const ALL_STORES: ClientStoreName[] = ["layout", "composer", "threads", "app", "leida"];
 
 const cache: Partial<Record<ClientStoreName, Record<string, unknown>>> = {};
 
