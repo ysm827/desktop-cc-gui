@@ -185,7 +185,10 @@ export function useAppShellLayoutNodesSection(ctx: any) {
       resetPullRequestSelection();
       setWorkspaceHomeWorkspaceId(null);
       setCenterMode("chat");
-      selectWorkspace(workspaceId);
+      setActiveWorkspaceId(workspaceId);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
       ensureWorkspaceThreadListLoaded(workspaceId);
       setActiveThreadId(null, workspaceId);
     },
