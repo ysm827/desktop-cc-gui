@@ -544,7 +544,7 @@ describe("SettingsView Display", () => {
     expect(document.querySelector(".settings-basic-proxy-card.is-enabled")).toBeTruthy();
     expect(document.querySelector(".settings-proxy-header-badge")).toBeTruthy();
     expect(document.querySelectorAll(".settings-basic-proxy-card .proxy-status-badge")).toHaveLength(1);
-    expect(screen.getByRole("status").textContent ?? "").toContain(
+    expect((await screen.findByRole("status")).textContent ?? "").toContain(
       "settings.behaviorProxyEnabledSuccess",
     );
   });
@@ -576,7 +576,7 @@ describe("SettingsView Display", () => {
       );
     });
 
-    expect(screen.getByRole("status").textContent ?? "").toContain(
+    expect((await screen.findByRole("status")).textContent ?? "").toContain(
       "settings.behaviorProxyDisabledSuccess",
     );
   });

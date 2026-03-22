@@ -558,8 +558,18 @@ export function useAppServerEvents(
         return;
       }
 
-      if (method === "item/tool/requestUserInput" && hasRequestId) {
+      if (method === "item/tool/requestUserInput") {
         const params = (message.params as Record<string, unknown>) ?? {};
+        // Prefer explicit requestId fields for requestUserInput events.
+        // Some runtimes may use top-level message.id for transport-level ids.
+        const requestIdValue = params.requestId ?? params.request_id ?? message.id;
+        const requestId =
+          typeof requestIdValue === "number" || typeof requestIdValue === "string"
+            ? requestIdValue
+            : null;
+        if (requestId === null) {
+          return;
+        }
         const fallbackThreadId = handlers.getActiveCodexThreadId?.(workspace_id) ?? "";
         const resolvedThreadId =
           extractThreadIdFromParams(params) || fallbackThreadId;
@@ -587,6 +597,9 @@ export function useAppServerEvents(
               question: String(question.question ?? ""),
               isOther: Boolean(question.isOther ?? question.is_other),
               isSecret: Boolean(question.isSecret ?? question.is_secret),
+              ...((question.multiSelect ?? question.multi_select)
+                ? { multiSelect: true }
+                : {}),
               options: options.length ? options : undefined,
             };
           })

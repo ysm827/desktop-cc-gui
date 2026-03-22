@@ -590,18 +590,17 @@ export function WorkspaceSessionActivityPanel({
     [viewModel.timeline],
   );
 
-  const tabItems: { id: ActivityTab; label: string }[] = [
-    { id: "all", label: t("activityPanel.tabs.all") },
-    { id: "command", label: t("activityPanel.tabs.command") },
-    { id: "fileChange", label: t("activityPanel.tabs.file") },
-    { id: "task", label: t("activityPanel.tabs.task") },
-    { id: "explore", label: t("activityPanel.tabs.explore") },
-    { id: "reasoning", label: t("activityPanel.tabs.reasoning") },
-  ];
-  const visibleTabItems = useMemo(
-    () => tabItems.filter((tab) => tabCounts[tab.id] > 0),
-    [tabCounts, tabItems],
-  );
+  const visibleTabItems = useMemo(() => {
+    const tabItems: { id: ActivityTab; label: string }[] = [
+      { id: "all", label: t("activityPanel.tabs.all") },
+      { id: "command", label: t("activityPanel.tabs.command") },
+      { id: "fileChange", label: t("activityPanel.tabs.file") },
+      { id: "task", label: t("activityPanel.tabs.task") },
+      { id: "explore", label: t("activityPanel.tabs.explore") },
+      { id: "reasoning", label: t("activityPanel.tabs.reasoning") },
+    ];
+    return tabItems.filter((tab) => tabCounts[tab.id] > 0);
+  }, [tabCounts, t]);
   const relatedSessionSummaries = useMemo(
     () => viewModel.sessionSummaries.filter((session) => session.sessionRole === "child"),
     [viewModel.sessionSummaries],
@@ -696,7 +695,7 @@ export function WorkspaceSessionActivityPanel({
       return;
     }
     const dismissedMap = readSoloFollowCoachDismissedByWorkspace();
-    setShowFollowCoach(!Boolean(dismissedMap[workspaceId]));
+    setShowFollowCoach(!dismissedMap[workspaceId]);
   }, [liveEditPreviewEnabled, onToggleLiveEditPreview, soloFollowDiscoveryFlags.coach, workspaceId]);
 
   useEffect(() => {
@@ -1013,14 +1012,6 @@ export function WorkspaceSessionActivityPanel({
     }
   }, [expandedExpandableIds, viewModel.timeline]);
 
-  if (!workspaceId) {
-    return (
-      <div className="session-activity-panel">
-        <div className="session-activity-empty">{t("activityPanel.selectWorkspace")}</div>
-      </div>
-    );
-  }
-
   const handleToggleExpand = (
     eventId: string,
     options?: { isRunning?: boolean },
@@ -1214,6 +1205,22 @@ export function WorkspaceSessionActivityPanel({
     !showFollowCoachBubble;
   const shouldShowFollowBubble =
     showFollowCoachBubble || showFollowNudgeBubble || showFollowErrorBubble;
+  const showInlineFollowCopy = showFollowCoachBubble || showFollowNudgeBubble;
+  const followInlineCopyText = showFollowCoachBubble
+    ? t("activityPanel.followCoachBody")
+    : showFollowNudgeBubble
+      ? t("activityPanel.followNudgeBody")
+      : "";
+  const followPrimaryActionLabel = showFollowErrorBubble
+    ? t("activityPanel.followNudgeRetry")
+    : showFollowCoachBubble
+      ? t("activityPanel.followCoachEnable")
+      : t("activityPanel.followNudgeEnable");
+  const followSecondaryActionLabel = showFollowErrorBubble
+    ? ""
+    : showFollowCoachBubble
+      ? t("activityPanel.followCoachDismiss")
+      : t("activityPanel.followNudgeLater");
 
   useLayoutEffect(() => {
     if (!shouldShowFollowBubble || typeof window === "undefined") {
@@ -1235,7 +1242,6 @@ export function WorkspaceSessionActivityPanel({
       const viewportPadding = 12;
       const panelEdgeInset = 8;
       const preferredAnchorInset = 84;
-      const bubbleWidth = Math.min(300, Math.max(188, viewportWidth - viewportPadding * 2));
       const anchorCenterX = toggleRect.left + toggleRect.width / 2;
       const leftBoundary = Math.max(
         viewportPadding,
@@ -1244,6 +1250,19 @@ export function WorkspaceSessionActivityPanel({
       const rightBoundary = Math.min(
         viewportWidth - viewportPadding,
         boundaryRect ? boundaryRect.right - panelEdgeInset : viewportWidth - viewportPadding,
+      );
+      const boundaryWidth = Math.max(188, rightBoundary - leftBoundary);
+      const estimatedInlineWidth = showInlineFollowCopy
+        ? Math.ceil(
+            followInlineCopyText.length * 10 +
+              followPrimaryActionLabel.length * 13 +
+              followSecondaryActionLabel.length * 13 +
+              170,
+          )
+        : 300;
+      const bubbleWidth = Math.min(
+        boundaryWidth,
+        Math.max(showInlineFollowCopy ? 300 : 188, estimatedInlineWidth),
       );
       const maxLeft = Math.max(leftBoundary, rightBoundary - bubbleWidth);
       const left = Math.min(Math.max(anchorCenterX - preferredAnchorInset, leftBoundary), maxLeft);
@@ -1276,13 +1295,29 @@ export function WorkspaceSessionActivityPanel({
       window.removeEventListener("resize", updateFollowBubbleGeometry);
       window.removeEventListener("scroll", updateFollowBubbleGeometry, true);
     };
-  }, [shouldShowFollowBubble]);
+  }, [
+    followInlineCopyText,
+    followPrimaryActionLabel,
+    followSecondaryActionLabel,
+    shouldShowFollowBubble,
+    showInlineFollowCopy,
+  ]);
+
+  if (!workspaceId) {
+    return (
+      <div className="session-activity-panel">
+        <div className="session-activity-empty">{t("activityPanel.selectWorkspace")}</div>
+      </div>
+    );
+  }
 
   const followBubbleNode =
     shouldShowFollowBubble && followBubbleGeometry ? (
       <div
         className={`session-activity-follow-bubble is-floating${
           showFollowErrorBubble ? " is-error" : ""
+        }${
+          showInlineFollowCopy ? " is-inline-layout" : ""
         }`}
         style={{
           top: `${followBubbleGeometry.top}px`,
@@ -1292,20 +1327,20 @@ export function WorkspaceSessionActivityPanel({
         } as CSSProperties}
         role={showFollowErrorBubble ? "alert" : "status"}
       >
-        <div className="session-activity-follow-bubble-title">
-          {showFollowCoachBubble
-            ? t("activityPanel.followCoachTitle")
-            : showFollowErrorBubble
-              ? t("activityPanel.followNudgeErrorTitle")
-              : t("activityPanel.followNudgeTitle")}
-        </div>
-        <p className="session-activity-follow-bubble-copy">
-          {showFollowCoachBubble
-            ? t("activityPanel.followCoachBody")
-            : showFollowErrorBubble
-              ? followNudgeError
-              : t("activityPanel.followNudgeBody")}
-        </p>
+        {showInlineFollowCopy ? (
+          <p className="session-activity-follow-bubble-inline-copy">
+            <span className="session-activity-follow-bubble-inline-body">
+              {showFollowCoachBubble ? t("activityPanel.followCoachBody") : t("activityPanel.followNudgeBody")}
+            </span>
+          </p>
+        ) : (
+          <>
+            <div className="session-activity-follow-bubble-title">
+              {showFollowErrorBubble ? t("activityPanel.followNudgeErrorTitle") : t("activityPanel.followNudgeTitle")}
+            </div>
+            <p className="session-activity-follow-bubble-copy">{followNudgeError ?? t("activityPanel.followNudgeBody")}</p>
+          </>
+        )}
         <div className="session-activity-follow-bubble-actions">
           <button
             type="button"

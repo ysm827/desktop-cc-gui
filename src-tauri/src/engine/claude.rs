@@ -17,6 +17,17 @@ use tokio::sync::{broadcast, Mutex, Notify, RwLock};
 use super::claude_message_content::{build_message_content, format_ask_user_answer};
 use super::events::EngineEvent;
 use super::{EngineConfig, EngineType, SendMessageParams};
+#[path = "claude_stream_helpers.rs"]
+mod stream_helpers;
+use stream_helpers::{
+    concat_reasoning_blocks, concat_text_blocks, extract_claude_tool_input,
+    extract_claude_tool_name, extract_delta_text_from_event, extract_reasoning_fragment,
+    extract_result_text, extract_string_field, extract_tool_result_output,
+    extract_tool_result_text, is_claude_stream_control_line,
+    looks_like_claude_runtime_error, parse_claude_stream_json_line, tool_input_signature,
+};
+#[cfg(test)]
+use stream_helpers::extract_text_from_content;
 
 #[derive(Debug, Clone)]
 pub struct ClaudeTurnEvent {
@@ -66,8 +77,8 @@ pub struct ClaudeSession {
     last_emitted_text: StdMutex<String>,
     /// Stdin handles per turn for AskUserQuestion responses
     stdin_by_turn: Mutex<HashMap<String, ChildStdin>>,
-    /// Pending AskUserQuestion requests: request_id_hash -> turn_id
-    pending_user_inputs: StdMutex<HashMap<i64, String>>,
+    /// Pending AskUserQuestion requests: request_id -> turn_id
+    pending_user_inputs: StdMutex<HashMap<String, String>>,
     /// Signal to resume stdout processing after user responds to AskUserQuestion
     user_input_notify: Arc<Notify>,
     /// Stores user's formatted AskUserQuestion answer for the kill+resume mechanism
@@ -729,7 +740,7 @@ impl ClaudeSession {
                                     if tool_name == "AskUserQuestion" {
                                         if let Some(ref input_val) = input {
                                             return self.convert_ask_user_question_to_request(
-                                                &tool_id, input_val,
+                                                &tool_id, input_val, turn_id,
                                             );
                                         }
                                     }
@@ -918,7 +929,9 @@ impl ClaudeSession {
                 // Intercept AskUserQuestion tool to emit a RequestUserInput event
                 if tool_name == "AskUserQuestion" {
                     if let Some(ref input_val) = input {
-                        return self.convert_ask_user_question_to_request(&tool_id, input_val);
+                        return self.convert_ask_user_question_to_request(
+                            &tool_id, input_val, turn_id,
+                        );
                     }
                 }
 
@@ -1471,12 +1484,18 @@ impl ClaudeSession {
         &self,
         tool_id: &str,
         input: &Value,
+        turn_id: &str,
     ) -> Option<EngineEvent> {
         let raw_questions = input.get("questions").and_then(|q| q.as_array())?;
         let mut questions = Vec::new();
         for (idx, raw_q) in raw_questions.iter().enumerate() {
             let question_text = raw_q.get("question").and_then(|v| v.as_str()).unwrap_or("");
             let header = raw_q.get("header").and_then(|v| v.as_str()).unwrap_or("");
+            let multi_select = raw_q
+                .get("multiSelect")
+                .or_else(|| raw_q.get("multi_select"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             // AskUserQuestion always allows a free-text "Other" option
             let is_other = true;
             let raw_options = raw_q
@@ -1505,6 +1524,7 @@ impl ClaudeSession {
                 "question": question_text,
                 "isOther": is_other,
                 "isSecret": false,
+                "multiSelect": multi_select,
                 "options": if options.is_empty() { Value::Null } else { Value::Array(options) },
             }));
         }
@@ -1513,20 +1533,60 @@ impl ClaudeSession {
             return None;
         }
 
-        // Use a numeric request_id derived from the tool_id via DefaultHasher
-        // for better distribution and lower collision probability.
+        // Use a string request_id derived from the tool_id via DefaultHasher.
+        // A numeric i64 can lose precision when transported through JS.
         use std::hash::{Hash, Hasher};
-        let request_id: i64 = {
+        let request_id = {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             tool_id.hash(&mut hasher);
-            (hasher.finish() as i64).abs()
+            format!("ask-{:016x}", hasher.finish())
         };
+
+        if let Ok(mut pending) = self.pending_user_inputs.lock() {
+            pending.insert(request_id.clone(), turn_id.to_string());
+        }
 
         Some(EngineEvent::RequestUserInput {
             workspace_id: self.workspace_id.clone(),
-            request_id: json!(request_id),
+            request_id: Value::String(request_id),
             questions: Value::Array(questions),
         })
+    }
+
+    fn normalize_request_id_key(request_id: &Value) -> Option<String> {
+        if let Some(text) = request_id.as_str() {
+            let normalized = text.trim();
+            if !normalized.is_empty() {
+                return Some(normalized.to_string());
+            }
+        }
+        if let Some(value) = request_id.as_i64() {
+            return Some(value.to_string());
+        }
+        if let Some(value) = request_id.as_u64() {
+            return Some(value.to_string());
+        }
+        None
+    }
+
+    pub fn has_pending_user_input(&self, request_id: &Value) -> bool {
+        let request_id_key = match Self::normalize_request_id_key(request_id) {
+            Some(value) => value,
+            None => return false,
+        };
+        self.pending_user_inputs
+            .lock()
+            .ok()
+            .map(|pending| pending.contains_key(&request_id_key))
+            .unwrap_or(false)
+    }
+
+    pub fn has_any_pending_user_input(&self) -> bool {
+        self.pending_user_inputs
+            .lock()
+            .ok()
+            .map(|pending| !pending.is_empty())
+            .unwrap_or(false)
     }
 
     /// Handle the AskUserQuestion flow: wait for user response, then kill the
@@ -1648,18 +1708,45 @@ impl ClaudeSession {
         request_id: Value,
         result: Value,
     ) -> Result<(), String> {
-        let request_id_num = request_id.as_i64().unwrap_or(0);
-
-        // Remove from pending tracking
-        if let Ok(mut pending) = self.pending_user_inputs.lock() {
-            pending.remove(&request_id_num);
+        let normalized_request_id = Self::normalize_request_id_key(&request_id);
+        if normalized_request_id.is_none() && !self.has_any_pending_user_input() {
+            return Err("invalid request_id for AskUserQuestion".to_string());
         }
+
+        // Remove from pending tracking. If the provided request_id does not match but
+        // exactly one AskUserQuestion is pending, fall back to that request key.
+        let mut resolved_request_id = normalized_request_id.clone();
+        if let Ok(mut pending) = self.pending_user_inputs.lock() {
+            if let Some(request_id_key) = normalized_request_id.as_ref() {
+                if pending.remove(request_id_key).is_some() {
+                    resolved_request_id = Some(request_id_key.clone());
+                } else {
+                    resolved_request_id = None;
+                }
+            } else {
+                resolved_request_id = None;
+            }
+
+            if resolved_request_id.is_none() && pending.len() == 1 {
+                if let Some(fallback_request_id) = pending.keys().next().cloned() {
+                    log::warn!(
+                        "Claude engine: request_id mismatch for AskUserQuestion response; using fallback pending request_id={}",
+                        fallback_request_id
+                    );
+                    pending.remove(&fallback_request_id);
+                    resolved_request_id = Some(fallback_request_id);
+                }
+            }
+        }
+        let request_id_key = resolved_request_id
+            .or(normalized_request_id)
+            .unwrap_or_else(|| "<unknown>".to_string());
 
         // Format the answer and store it for the stdout loop to pick up
         let answer_text = format_ask_user_answer(&result);
         log::info!(
             "Claude engine: AskUserQuestion response (request_id={}): {}",
-            request_id_num,
+            request_id_key,
             answer_text
         );
         if let Ok(mut slot) = self.user_input_answer.lock() {
@@ -1726,286 +1813,6 @@ impl ClaudeSession {
             delta: trimmed.to_string(),
         })
     }
-}
-
-fn concat_text_blocks(blocks: &[Value]) -> Option<String> {
-    let mut combined = String::new();
-    for block in blocks {
-        let kind = block.get("type").and_then(|t| t.as_str());
-        if kind == Some("text") {
-            if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                combined = merge_text_chunks(&combined, text);
-            }
-        }
-    }
-
-    if combined.trim().is_empty() {
-        return None;
-    }
-
-    Some(combined)
-}
-
-fn extract_reasoning_fragment(block: &Value) -> Option<&str> {
-    block
-        .get("thinking")
-        .and_then(|t| t.as_str())
-        .or_else(|| block.get("reasoning").and_then(|t| t.as_str()))
-        .or_else(|| block.get("text").and_then(|t| t.as_str()))
-}
-
-fn concat_reasoning_blocks(blocks: &[Value]) -> Option<String> {
-    let mut combined = String::new();
-    for block in blocks {
-        let kind = block.get("type").and_then(|t| t.as_str());
-        if kind == Some("thinking") || kind == Some("reasoning") {
-            if let Some(text) = extract_reasoning_fragment(block) {
-                combined = merge_text_chunks(&combined, text);
-            }
-        }
-    }
-
-    if combined.trim().is_empty() {
-        return None;
-    }
-
-    Some(combined)
-}
-
-fn merge_text_chunks(existing: &str, incoming: &str) -> String {
-    if incoming.is_empty() {
-        return existing.to_string();
-    }
-    if existing.is_empty() {
-        return incoming.to_string();
-    }
-    if incoming == existing || existing.contains(incoming) {
-        return existing.to_string();
-    }
-    if incoming.starts_with(existing) || incoming.contains(existing) {
-        return incoming.to_string();
-    }
-    if existing.starts_with(incoming) {
-        return existing.to_string();
-    }
-
-    let mut boundaries: Vec<usize> = incoming.char_indices().map(|(idx, _)| idx).collect();
-    boundaries.push(incoming.len());
-    for boundary in boundaries.into_iter().rev() {
-        if boundary == 0 {
-            continue;
-        }
-        let prefix = &incoming[..boundary];
-        if existing.ends_with(prefix) {
-            return format!("{}{}", existing, &incoming[boundary..]);
-        }
-    }
-
-    format!("{}{}", existing, incoming)
-}
-
-fn parse_claude_stream_json_line(line: &str) -> Result<Value, serde_json::Error> {
-    let trimmed = line.trim();
-    if let Some(payload) = trimmed.strip_prefix("data:") {
-        return serde_json::from_str(payload.trim());
-    }
-    serde_json::from_str(trimmed)
-}
-
-fn is_claude_stream_control_line(line: &str) -> bool {
-    let trimmed = line.trim();
-    trimmed == "[DONE]"
-        || trimmed.eq_ignore_ascii_case("data: [DONE]")
-        || trimmed.starts_with("event:")
-}
-
-fn extract_delta_text_from_event(event: &Value) -> Option<String> {
-    let part = event.get("part");
-    for value in [
-        event.get("delta").and_then(|value| value.as_str()),
-        event.get("text").and_then(|value| value.as_str()),
-        part.and_then(|value| value.get("delta"))
-            .and_then(|value| value.as_str()),
-        part.and_then(|value| value.get("text"))
-            .and_then(|value| value.as_str()),
-        part.and_then(|value| value.get("content"))
-            .and_then(|value| value.as_str()),
-    ] {
-        if let Some(text) = value {
-            if !text.is_empty() {
-                return Some(text.to_string());
-            }
-        }
-    }
-    None
-}
-
-fn extract_tool_result_text(value: &Value) -> Option<String> {
-    if let Some(text) = value.as_str() {
-        let trimmed = text.trim();
-        if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
-        }
-        return None;
-    }
-    if let Some(obj) = value.as_object() {
-        for key in [
-            "output",
-            "stdout",
-            "stderr",
-            "text",
-            "preview",
-            "message",
-            "response",
-            "result",
-            "content",
-            "tool_output",
-            "file",
-            "loaded",
-            "todos",
-        ] {
-            if let Some(nested) = obj.get(key).and_then(extract_tool_result_text) {
-                return Some(nested);
-            }
-        }
-        if obj
-            .get("type")
-            .and_then(|t| t.as_str())
-            .map(|t| t == "text")
-            .unwrap_or(false)
-        {
-            if let Some(text) = obj.get("text").and_then(|t| t.as_str()) {
-                let trimmed = text.trim();
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
-            }
-        }
-        if !obj.is_empty() {
-            let rendered = serde_json::to_string_pretty(obj).ok()?;
-            if !rendered.trim().is_empty() {
-                return Some(rendered);
-            }
-        }
-    }
-    if let Some(arr) = value.as_array() {
-        let parts: Vec<String> = arr
-            .iter()
-            .filter_map(extract_tool_result_text)
-            .filter(|text| !text.trim().is_empty())
-            .collect();
-        if !parts.is_empty() {
-            return Some(parts.join("\n"));
-        }
-    }
-    None
-}
-
-fn extract_tool_result_output(block: &Value, event: &Value) -> Option<String> {
-    block
-        .get("content")
-        .or_else(|| block.get("tool_output"))
-        .or_else(|| block.get("output"))
-        .or_else(|| block.get("result"))
-        .and_then(extract_tool_result_text)
-        .or_else(|| {
-            event
-                .get("toolUseResult")
-                .and_then(extract_tool_result_text)
-        })
-        .or_else(|| {
-            event
-                .get("tool_use_result")
-                .and_then(extract_tool_result_text)
-        })
-}
-
-fn tool_input_signature(value: &Value) -> Option<String> {
-    serde_json::to_string(value).ok()
-}
-
-fn extract_claude_tool_name(value: &Value) -> Option<String> {
-    value
-        .get("name")
-        .or_else(|| value.get("tool_name"))
-        .and_then(|field| field.as_str())
-        .map(str::trim)
-        .filter(|field| !field.is_empty())
-        .map(ToString::to_string)
-}
-
-fn extract_claude_tool_input(value: &Value) -> Option<Value> {
-    value
-        .get("input")
-        .cloned()
-        .or_else(|| value.get("tool_input").cloned())
-}
-
-fn extract_string_field(value: &Value, keys: &[&str]) -> Option<String> {
-    for key in keys {
-        if let Some(raw) = value.get(*key).and_then(|v| v.as_str()) {
-            let trimmed = raw.trim();
-            if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
-            }
-        }
-    }
-    None
-}
-
-fn extract_text_from_content(value: &Value) -> Option<String> {
-    if let Some(text) = value.as_str() {
-        let trimmed = text.trim();
-        if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
-        }
-        return None;
-    }
-    if let Some(obj) = value.as_object() {
-        if obj
-            .get("type")
-            .and_then(|t| t.as_str())
-            .map(|t| t == "text")
-            .unwrap_or(false)
-        {
-            if let Some(text) = obj.get("text").and_then(|t| t.as_str()) {
-                let trimmed = text.trim();
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
-            }
-        }
-    }
-    if let Some(arr) = value.as_array() {
-        return concat_text_blocks(arr);
-    }
-    None
-}
-
-fn extract_result_text(event: &Value) -> Option<String> {
-    let content = event
-        .get("message")
-        .and_then(|m| m.get("content"))
-        .or_else(|| event.get("content"))
-        .or_else(|| {
-            event
-                .get("result")
-                .and_then(|r| r.get("message"))
-                .and_then(|m| m.get("content"))
-        })
-        .or_else(|| event.get("result").and_then(|r| r.get("content")));
-    content.and_then(extract_text_from_content)
-}
-
-fn looks_like_claude_runtime_error(line: &str) -> bool {
-    let text = line.trim();
-    if text.is_empty() {
-        return false;
-    }
-    let lower = text.to_ascii_lowercase();
-    lower.starts_with("api error:")
-        || lower.contains("unexpected end of json input")
-        || lower.starts_with("error:")
 }
 
 /// Claude session manager for all workspaces
@@ -2092,6 +1899,136 @@ mod tests {
         );
 
         assert_eq!(session.workspace_id, "test-workspace");
+    }
+
+    #[tokio::test]
+    async fn ask_user_question_registers_and_clears_pending_request() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        let input = json!({
+            "questions": [
+                {
+                    "header": "确认",
+                    "question": "继续吗？",
+                    "options": [{ "label": "继续", "description": "继续执行" }]
+                }
+            ]
+        });
+
+        let event = session
+            .convert_ask_user_question_to_request("tool-ask-1", &input, "turn-1")
+            .expect("request user input event");
+
+        let request_id = match event {
+            EngineEvent::RequestUserInput { request_id, .. } => request_id,
+            other => panic!("unexpected event: {:?}", other),
+        };
+
+        assert!(session.has_pending_user_input(&request_id));
+
+        let result = json!({
+            "answers": {
+                "q-0": {
+                    "answers": ["继续"]
+                }
+            }
+        });
+        session
+            .respond_to_user_input(request_id.clone(), result)
+            .await
+            .expect("respond success");
+
+        assert!(!session.has_pending_user_input(&request_id));
+    }
+
+    #[test]
+    fn ask_user_question_preserves_multi_select_flag() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        let input = json!({
+            "questions": [
+                {
+                    "header": "关注点",
+                    "question": "可多选",
+                    "multiSelect": true,
+                    "options": [{ "label": "性能", "description": "" }]
+                }
+            ]
+        });
+
+        let event = session
+            .convert_ask_user_question_to_request("tool-ask-multi", &input, "turn-1")
+            .expect("request user input event");
+
+        let questions = match event {
+            EngineEvent::RequestUserInput { questions, .. } => questions,
+            other => panic!("unexpected event: {:?}", other),
+        };
+        let question = questions
+            .as_array()
+            .and_then(|arr| arr.first())
+            .expect("first question");
+        assert_eq!(question["multiSelect"], json!(true));
+    }
+
+    #[test]
+    fn has_pending_user_input_accepts_numeric_id_for_backward_compat() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        if let Ok(mut pending) = session.pending_user_inputs.lock() {
+            pending.insert("42".to_string(), "turn-42".to_string());
+        }
+        assert!(session.has_pending_user_input(&json!(42)));
+        assert!(session.has_pending_user_input(&json!("42")));
+    }
+
+    #[test]
+    fn has_any_pending_user_input_reports_presence() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        assert!(!session.has_any_pending_user_input());
+        if let Ok(mut pending) = session.pending_user_inputs.lock() {
+            pending.insert("ask-1".to_string(), "turn-1".to_string());
+        }
+        assert!(session.has_any_pending_user_input());
+    }
+
+    #[tokio::test]
+    async fn respond_to_user_input_falls_back_to_single_pending_request() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        if let Ok(mut pending) = session.pending_user_inputs.lock() {
+            pending.insert("ask-fallback".to_string(), "turn-1".to_string());
+        }
+
+        let result = json!({
+            "answers": {
+                "q-0": {
+                    "answers": ["继续"]
+                }
+            }
+        });
+        session
+            .respond_to_user_input(json!(999), result)
+            .await
+            .expect("fallback respond success");
+
+        assert!(!session.has_any_pending_user_input());
     }
 
     #[test]

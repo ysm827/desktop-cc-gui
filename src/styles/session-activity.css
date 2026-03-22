@@ -257,6 +257,12 @@
   pointer-events: auto;
 }
 
+.session-activity-follow-bubble.is-inline-layout {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
 .session-activity-follow-bubble-title {
   font-size: 12px;
   font-weight: 700;
@@ -270,10 +276,24 @@
   color: var(--text-muted);
 }
 
+.session-activity-follow-bubble-inline-copy {
+  margin: 0;
+  font-size: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.session-activity-follow-bubble-inline-body {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .session-activity-follow-bubble-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .session-activity-follow-bubble-primary,
@@ -803,6 +823,22 @@
 
 .session-activity-tab-label {
   color: inherit;
+}
+
+.session-activity-tab:not(.is-active) {
+  gap: 4px;
+}
+
+.session-activity-tab:not(.is-active) .session-activity-tab-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .session-activity-tab-count {

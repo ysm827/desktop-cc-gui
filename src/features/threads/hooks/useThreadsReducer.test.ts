@@ -285,6 +285,110 @@ describe("threadReducer", () => {
     ]);
   });
 
+  it("preserves local requestUserInputSubmitted record while thread is processing", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "assistant-1",
+            kind: "message",
+            role: "assistant",
+            text: "请先回答一个问题。",
+          },
+          {
+            id: "user-input-answer-req-1",
+            kind: "tool",
+            toolType: "requestUserInputSubmitted",
+            title: "请求输入",
+            detail: "{\"schema\":\"requestUserInputSubmitted/v1\"}",
+            status: "completed",
+            output: "[用户输入已提交]\n问题A\n选项1",
+          },
+        ],
+      },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        {
+          id: "assistant-1",
+          kind: "message",
+          role: "assistant",
+          text: "请先回答一个问题。",
+        },
+      ],
+    });
+
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items.some((item) => item.id === "user-input-answer-req-1")).toBe(true);
+  });
+
+  it("does not preserve local requestUserInputSubmitted record for settled history snapshot", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "assistant-1",
+            kind: "message",
+            role: "assistant",
+            text: "请先回答一个问题。",
+          },
+          {
+            id: "user-input-answer-req-1",
+            kind: "tool",
+            toolType: "requestUserInputSubmitted",
+            title: "请求输入",
+            detail: "{\"schema\":\"requestUserInputSubmitted/v1\"}",
+            status: "completed",
+            output: "[用户输入已提交]\n问题A\n选项1",
+          },
+        ],
+      },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: false,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: null,
+          lastDurationMs: null,
+          heartbeatPulse: 0,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        {
+          id: "assistant-1",
+          kind: "message",
+          role: "assistant",
+          text: "请先回答一个问题。",
+        },
+      ],
+    });
+
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items.some((item) => item.id === "user-input-answer-req-1")).toBe(false);
+  });
+
   it("renames auto-generated thread from assistant output when no user message", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1 },

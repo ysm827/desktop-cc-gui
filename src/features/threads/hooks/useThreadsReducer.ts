@@ -120,27 +120,43 @@ function mergeThreadItemsPreservingOptimisticUsers(
   incomingItems: ConversationItem[],
   isProcessing: boolean,
 ) {
-  if (!isProcessing || localItems.length === 0) {
-    return incomingItems;
-  }
-  const trailingOptimisticUsers: UserMessageItem[] = [];
-  for (let index = localItems.length - 1; index >= 0; index -= 1) {
-    const item = localItems[index];
-    if (!isOptimisticUserMessage(item)) {
-      break;
+  let mergedItems = incomingItems;
+
+  if (isProcessing && localItems.length > 0) {
+    const trailingOptimisticUsers: UserMessageItem[] = [];
+    for (let index = localItems.length - 1; index >= 0; index -= 1) {
+      const item = localItems[index];
+      if (!isOptimisticUserMessage(item)) {
+        break;
+      }
+      trailingOptimisticUsers.unshift(item);
     }
-    trailingOptimisticUsers.unshift(item);
+    if (trailingOptimisticUsers.length > 0) {
+      const preservedOptimisticUsers = trailingOptimisticUsers.filter(
+        (item) => !findMatchingRealUserMessage(mergedItems, item),
+      );
+      if (preservedOptimisticUsers.length > 0) {
+        mergedItems = [...mergedItems, ...preservedOptimisticUsers];
+      }
+    }
   }
-  if (trailingOptimisticUsers.length === 0) {
-    return incomingItems;
+
+  if (isProcessing) {
+    // Keep locally generated requestUserInput submitted records visible while
+    // the thread is still processing and backend snapshot may lag.
+    const incomingIds = new Set(mergedItems.map((item) => item.id));
+    const preservedSubmittedItems = localItems.filter(
+      (item) =>
+        item.kind === "tool" &&
+        item.toolType === "requestUserInputSubmitted" &&
+        !incomingIds.has(item.id),
+    );
+    if (preservedSubmittedItems.length > 0) {
+      mergedItems = [...mergedItems, ...preservedSubmittedItems];
+    }
   }
-  const preservedOptimisticUsers = trailingOptimisticUsers.filter(
-    (item) => !findMatchingRealUserMessage(incomingItems, item),
-  );
-  if (preservedOptimisticUsers.length === 0) {
-    return incomingItems;
-  }
-  return [...incomingItems, ...preservedOptimisticUsers];
+
+  return mergedItems;
 }
 
 function getAssistantTextForRename(

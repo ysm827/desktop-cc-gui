@@ -1665,10 +1665,10 @@ describe("WorkspaceSessionActivityPanel", () => {
       />,
     );
 
-    expect(screen.getByText("activityPanel.followCoachTitle")).toBeTruthy();
+    expect(screen.getByText("activityPanel.followCoachBody")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "activityPanel.followCoachDismiss" }));
-    expect(screen.queryByText("activityPanel.followCoachTitle")).toBeNull();
+    expect(screen.queryByText("activityPanel.followCoachBody")).toBeNull();
 
     view.rerender(
       <WorkspaceSessionActivityPanel
@@ -1681,7 +1681,7 @@ describe("WorkspaceSessionActivityPanel", () => {
       />,
     );
 
-    expect(screen.queryByText("activityPanel.followCoachTitle")).toBeNull();
+    expect(screen.queryByText("activityPanel.followCoachBody")).toBeNull();
   });
 
   it("shows follow nudge for file-change and suppresses repeats within the same turn", () => {

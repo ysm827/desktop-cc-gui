@@ -1304,15 +1304,26 @@ pub(crate) async fn respond_to_server_request(
         return Ok(());
     }
 
-    // Route to the appropriate engine based on active engine type
-    let active_engine = state.engine_manager.get_active_engine().await;
-    if active_engine == crate::engine::EngineType::Claude {
-        if let Some(session) = state
-            .engine_manager
-            .claude_manager
-            .get_session(&workspace_id)
-            .await
-        {
+    // Prefer request-id based Claude routing so AskUserQuestion responses
+    // are delivered to the correct waiting Claude turn even when global
+    // active-engine state is stale.
+    if let Some(session) = state
+        .engine_manager
+        .claude_manager
+        .get_session(&workspace_id)
+        .await
+    {
+        if session.has_pending_user_input(&request_id) {
+            return session.respond_to_user_input(request_id, result).await;
+        }
+        let looks_like_user_input_response = result
+            .get("answers")
+            .and_then(|answers| answers.as_object())
+            .is_some();
+        if looks_like_user_input_response && session.has_any_pending_user_input() {
+            log::warn!(
+                "respond_to_server_request: request_id mismatch but Claude has pending AskUserQuestion; routing answer to Claude fallback path"
+            );
             return session.respond_to_user_input(request_id, result).await;
         }
     }

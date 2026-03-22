@@ -616,6 +616,110 @@ describe("useAppServerEvents", () => {
     });
   });
 
+  it("preserves multiSelect flag for request user input questions", async () => {
+    const handlers: Handlers = {
+      onRequestUserInput: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-multi",
+        message: {
+          method: "item/tool/requestUserInput",
+          id: "req-multi-1",
+          params: {
+            threadId: "thread-multi",
+            turnId: "turn-multi",
+            itemId: "item-multi",
+            questions: [
+              {
+                id: "q-1",
+                header: "Focus",
+                question: "Choose multiple",
+                multiSelect: true,
+                options: [{ label: "A", description: "" }],
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
+      workspace_id: "ws-multi",
+      request_id: "req-multi-1",
+      params: {
+        thread_id: "thread-multi",
+        turn_id: "turn-multi",
+        item_id: "item-multi",
+        questions: [
+          {
+            id: "q-1",
+            header: "Focus",
+            question: "Choose multiple",
+            isOther: false,
+            isSecret: false,
+            multiSelect: true,
+            options: [{ label: "A", description: "" }],
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("prefers params.request_id over transport-level message.id for requestUserInput", async () => {
+    const handlers: Handlers = {
+      onRequestUserInput: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-req-id",
+        message: {
+          method: "item/tool/requestUserInput",
+          id: 999,
+          params: {
+            request_id: "ask-real-1",
+            threadId: "thread-real",
+            turnId: "turn-real",
+            itemId: "item-real",
+            questions: [{ id: "q-1", header: "", question: "Choose one" }],
+          },
+        },
+      });
+    });
+
+    expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
+      workspace_id: "ws-req-id",
+      request_id: "ask-real-1",
+      params: {
+        thread_id: "thread-real",
+        turn_id: "turn-real",
+        item_id: "item-real",
+        questions: [
+          {
+            id: "q-1",
+            header: "",
+            question: "Choose one",
+            isOther: false,
+            isSecret: false,
+            options: undefined,
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("falls back to active codex thread for reasoning events without threadId", async () => {
     const handlers: Handlers = {
       onAppServerEvent: vi.fn(),
