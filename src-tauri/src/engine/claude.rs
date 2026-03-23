@@ -19,15 +19,15 @@ use super::events::EngineEvent;
 use super::{EngineConfig, EngineType, SendMessageParams};
 #[path = "claude_stream_helpers.rs"]
 mod stream_helpers;
+#[cfg(test)]
+use stream_helpers::extract_text_from_content;
 use stream_helpers::{
     concat_reasoning_blocks, concat_text_blocks, extract_claude_tool_input,
     extract_claude_tool_name, extract_delta_text_from_event, extract_reasoning_fragment,
     extract_result_text, extract_string_field, extract_tool_result_output,
-    extract_tool_result_text, is_claude_stream_control_line,
-    looks_like_claude_runtime_error, parse_claude_stream_json_line, tool_input_signature,
+    extract_tool_result_text, is_claude_stream_control_line, looks_like_claude_runtime_error,
+    parse_claude_stream_json_line, tool_input_signature,
 };
-#[cfg(test)]
-use stream_helpers::extract_text_from_content;
 
 #[derive(Debug, Clone)]
 pub struct ClaudeTurnEvent {
@@ -42,6 +42,9 @@ struct PendingClaudeTool {
     tool_name: String,
     input_signature: Option<String>,
 }
+
+const RETRYABLE_PROMPT_TOO_LONG_PREFIX: &str = "__claude_retryable_prompt_too_long__:";
+const AUTO_COMPACT_SIGNAL_SOURCE: &str = "auto_compact_retry";
 
 /// Claude Code session for a workspace
 pub struct ClaudeSession {
@@ -146,6 +149,175 @@ impl ClaudeSession {
                 code: None,
             },
         );
+    }
+
+    fn is_prompt_too_long_error(error: &str) -> bool {
+        let lower = error.to_ascii_lowercase();
+        lower.contains("prompt is too long")
+            || lower.contains("prompt too long")
+            || lower.contains("maximum context length")
+            || lower.contains("max context length")
+            || lower.contains("context length exceeded")
+            || lower.contains("token limit exceeded")
+    }
+
+    fn mark_retryable_prompt_too_long_error(error: &str) -> String {
+        if error.starts_with(RETRYABLE_PROMPT_TOO_LONG_PREFIX) {
+            return error.to_string();
+        }
+        format!("{RETRYABLE_PROMPT_TOO_LONG_PREFIX}{error}")
+    }
+
+    pub(crate) fn extract_retryable_prompt_too_long_error(error: &str) -> Option<String> {
+        error
+            .strip_prefix(RETRYABLE_PROMPT_TOO_LONG_PREFIX)
+            .map(|value| value.to_string())
+    }
+
+    fn clear_retryable_prompt_too_long_marker(error: String) -> String {
+        Self::extract_retryable_prompt_too_long_error(&error).unwrap_or(error)
+    }
+
+    fn normalize_compaction_signal_from_text(value: &str) -> Option<&'static str> {
+        let normalized = value.trim().to_ascii_lowercase().replace(['-', ' '], "_");
+        if normalized.is_empty() {
+            return None;
+        }
+        if normalized.contains("compaction_failed")
+            || normalized.contains("compact_failed")
+            || normalized.contains("compactfailure")
+        {
+            return Some("compaction_failed");
+        }
+        if normalized.contains("compact_boundary") || normalized.contains("compacted") {
+            return Some("compact_boundary");
+        }
+        if normalized.contains("compacting") {
+            return Some("compacting");
+        }
+        None
+    }
+
+    fn has_compaction_system_signal(event: &Value) -> bool {
+        for key in [
+            "subtype",
+            "subType",
+            "event",
+            "event_type",
+            "eventType",
+            "name",
+            "kind",
+            "status",
+            "phase",
+            "state",
+            "type",
+        ] {
+            if let Some(raw) = event.get(key).and_then(|value| value.as_str()) {
+                if Self::normalize_compaction_signal_from_text(raw).is_some() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn emit_compaction_signal(
+        &self,
+        turn_id: &str,
+        subtype: &str,
+        extra_fields: Option<serde_json::Map<String, Value>>,
+    ) {
+        let mut payload = serde_json::Map::new();
+        payload.insert("type".to_string(), Value::String("system".to_string()));
+        payload.insert("subtype".to_string(), Value::String(subtype.to_string()));
+        payload.insert(
+            "source".to_string(),
+            Value::String(AUTO_COMPACT_SIGNAL_SOURCE.to_string()),
+        );
+        if let Some(extra) = extra_fields {
+            for (key, value) in extra {
+                payload.insert(key, value);
+            }
+        }
+        self.emit_turn_event(
+            turn_id,
+            EngineEvent::Raw {
+                workspace_id: self.workspace_id.clone(),
+                engine: EngineType::Claude,
+                data: Value::Object(payload),
+            },
+        );
+    }
+
+    pub async fn send_message_with_auto_compact_retry(
+        &self,
+        params: SendMessageParams,
+        turn_id: &str,
+    ) -> Result<String, String> {
+        let first_attempt = self.send_message(params.clone(), turn_id).await;
+        let first_error = match first_attempt {
+            Ok(response) => return Ok(response),
+            Err(error) => error,
+        };
+
+        let trigger_error = match Self::extract_retryable_prompt_too_long_error(&first_error) {
+            Some(error) => error,
+            None => return Err(Self::clear_retryable_prompt_too_long_marker(first_error)),
+        };
+
+        log::warn!(
+            "[claude] turn={} hit prompt-too-long boundary, triggering one-time /compact recovery",
+            turn_id
+        );
+
+        self.emit_compaction_signal(turn_id, "compacting", None);
+
+        let mut compact_params = params.clone();
+        compact_params.text = "/compact".to_string();
+        compact_params.images = None;
+        compact_params.continue_session = true;
+        if compact_params.session_id.is_none() {
+            compact_params.session_id = self.get_session_id().await;
+        }
+        let compact_turn_id = format!("{turn_id}::auto-compact");
+        if let Err(compact_error) = self.send_message(compact_params, &compact_turn_id).await {
+            let compact_error = Self::clear_retryable_prompt_too_long_marker(compact_error);
+            let failure_message = format!(
+                "Prompt is too long and automatic /compact failed: {}",
+                compact_error
+            );
+            let mut failure_payload = serde_json::Map::new();
+            failure_payload.insert("reason".to_string(), Value::String(failure_message.clone()));
+            self.emit_compaction_signal(turn_id, "compaction_failed", Some(failure_payload));
+            self.emit_error(turn_id, failure_message.clone());
+            return Err(failure_message);
+        }
+
+        self.emit_compaction_signal(turn_id, "compact_boundary", None);
+
+        let mut retry_params = params;
+        retry_params.continue_session = true;
+        if retry_params.session_id.is_none() {
+            retry_params.session_id = self.get_session_id().await;
+        }
+        match self.send_message(retry_params, turn_id).await {
+            Ok(response) => Ok(response),
+            Err(retry_error) => {
+                let retry_error = Self::clear_retryable_prompt_too_long_marker(retry_error);
+                let final_message = format!(
+                    "Prompt is too long. Retried once after /compact but still failed: {}",
+                    retry_error
+                );
+                log::error!(
+                    "[claude] auto /compact retry failed (turn={}): trigger={}, final={}",
+                    turn_id,
+                    trigger_error,
+                    final_message
+                );
+                self.emit_error(turn_id, final_message.clone());
+                Err(final_message)
+            }
+        }
     }
 
     /// Set session ID (after successful execution)
@@ -297,9 +469,21 @@ impl ClaudeSession {
         let mut cmd = self.build_command(&params, has_images);
 
         // Spawn the process
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| format!("Failed to spawn claude: {}", e))?;
+        let mut child = match cmd.spawn() {
+            Ok(child) => child,
+            Err(e) => {
+                let error_msg = format!("Failed to spawn claude: {}", e);
+                self.emit_turn_event(
+                    turn_id,
+                    EngineEvent::TurnError {
+                        workspace_id: self.workspace_id.clone(),
+                        error: error_msg.clone(),
+                        code: None,
+                    },
+                );
+                return Err(error_msg);
+            }
+        };
 
         // If there are images, write the message content to stdin
         if has_images {
@@ -442,6 +626,9 @@ impl ClaudeSession {
                             if stream_runtime_error.is_none() {
                                 stream_runtime_error = Some(error.clone());
                             }
+                            if Self::is_prompt_too_long_error(error) {
+                                continue;
+                            }
                             stream_error_event_emitted = true;
                         }
 
@@ -523,6 +710,10 @@ impl ClaudeSession {
 
                 log::error!("Claude process failed: {}", error_msg);
 
+                if Self::is_prompt_too_long_error(&error_msg) {
+                    return Err(Self::mark_retryable_prompt_too_long_error(&error_msg));
+                }
+
                 self.emit_turn_event(
                     turn_id,
                     EngineEvent::TurnError {
@@ -577,6 +768,9 @@ impl ClaudeSession {
                 stream_error
             };
             log::error!("Claude stream reported runtime error: {}", error_msg);
+            if Self::is_prompt_too_long_error(&error_msg) {
+                return Err(Self::mark_retryable_prompt_too_long_error(&error_msg));
+            }
             if !stream_error_event_emitted {
                 self.emit_turn_event(
                     turn_id,
@@ -677,6 +871,13 @@ impl ClaudeSession {
                             engine: EngineType::Claude,
                         });
                     }
+                }
+                if Self::has_compaction_system_signal(event) {
+                    return Some(EngineEvent::Raw {
+                        workspace_id: self.workspace_id.clone(),
+                        engine: EngineType::Claude,
+                        data: event.clone(),
+                    });
                 }
                 None
             }
@@ -929,9 +1130,8 @@ impl ClaudeSession {
                 // Intercept AskUserQuestion tool to emit a RequestUserInput event
                 if tool_name == "AskUserQuestion" {
                     if let Some(ref input_val) = input {
-                        return self.convert_ask_user_question_to_request(
-                            &tool_id, input_val, turn_id,
-                        );
+                        return self
+                            .convert_ask_user_question_to_request(&tool_id, input_val, turn_id);
                     }
                 }
 
@@ -2146,6 +2346,33 @@ mod tests {
     }
 
     #[test]
+    fn prompt_too_long_detection_matches_common_variants() {
+        assert!(ClaudeSession::is_prompt_too_long_error(
+            "Prompt is too long"
+        ));
+        assert!(ClaudeSession::is_prompt_too_long_error(
+            "Maximum context length exceeded for this model"
+        ));
+        assert!(!ClaudeSession::is_prompt_too_long_error(
+            "API Error: All providers unavailable"
+        ));
+    }
+
+    #[test]
+    fn prompt_too_long_marker_roundtrip() {
+        let marked = ClaudeSession::mark_retryable_prompt_too_long_error("Prompt is too long");
+        assert!(marked.starts_with(RETRYABLE_PROMPT_TOO_LONG_PREFIX));
+        assert_eq!(
+            ClaudeSession::extract_retryable_prompt_too_long_error(&marked),
+            Some("Prompt is too long".to_string())
+        );
+        assert_eq!(
+            ClaudeSession::clear_retryable_prompt_too_long_marker(marked),
+            "Prompt is too long".to_string()
+        );
+    }
+
+    #[test]
     fn extract_text_from_content_concatenates_fragmented_blocks() {
         let content = json!([
             {"type": "text", "text": "你"},
@@ -2238,6 +2465,51 @@ mod tests {
         match converted {
             Some(EngineEvent::TextDelta { text, .. }) => assert_eq!(text, "stream chunk"),
             other => panic!("expected text delta, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn convert_event_maps_system_compacting_to_raw() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        let event = json!({
+            "type": "system",
+            "subtype": "compacting",
+            "usage_percent": 95,
+        });
+
+        let converted = session.convert_event("turn-a", &event);
+        match converted {
+            Some(EngineEvent::Raw { engine, data, .. }) => {
+                assert!(matches!(engine, EngineType::Claude));
+                assert_eq!(data["subtype"], Value::String("compacting".to_string()));
+            }
+            other => panic!("expected raw compaction signal, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn convert_event_maps_system_compact_boundary_to_raw() {
+        let session = ClaudeSession::new(
+            "test-workspace".to_string(),
+            PathBuf::from("/tmp/test"),
+            None,
+        );
+        let event = json!({
+            "type": "system",
+            "event": "compact_boundary",
+        });
+
+        let converted = session.convert_event("turn-a", &event);
+        match converted {
+            Some(EngineEvent::Raw { engine, data, .. }) => {
+                assert!(matches!(engine, EngineType::Claude));
+                assert_eq!(data["event"], Value::String("compact_boundary".to_string()));
+            }
+            other => panic!("expected raw compact boundary signal, got {:?}", other),
         }
     }
 
