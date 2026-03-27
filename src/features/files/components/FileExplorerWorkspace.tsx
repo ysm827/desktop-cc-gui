@@ -1,7 +1,7 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { OpenAppTarget } from "../../../types";
+import type { GitFileStatus, OpenAppTarget } from "../../../types";
 import { getClientStoreSync, writeClientStoreValue } from "../../../services/clientStorage";
 import { SpecHub } from "../../spec/components/SpecHub";
 import { FileTreePanel } from "./FileTreePanel";
@@ -29,6 +29,7 @@ type FileExplorerWorkspaceProps = {
   isLoading: boolean;
   gitignoredFiles: Set<string>;
   gitignoredDirectories: Set<string>;
+  gitStatusFiles?: GitFileStatus[];
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
@@ -52,6 +53,7 @@ export function FileExplorerWorkspace({
   isLoading,
   gitignoredFiles,
   gitignoredDirectories,
+  gitStatusFiles,
   openTargets,
   openAppIconById,
   selectedOpenAppId,
@@ -166,7 +168,7 @@ export function FileExplorerWorkspace({
           openAppIconById={openAppIconById}
           selectedOpenAppId={selectedOpenAppId}
           onSelectOpenAppId={onSelectOpenAppId}
-          gitStatusFiles={[]}
+          gitStatusFiles={gitStatusFiles}
           gitignoredFiles={gitignoredFiles}
           gitignoredDirectories={gitignoredDirectories}
           onRefreshFiles={onRefreshFiles}
@@ -198,6 +200,7 @@ export function FileExplorerWorkspace({
             workspaceId={workspaceId}
             workspacePath={workspacePath}
             filePath={activeFilePath}
+            gitStatusFiles={gitStatusFiles}
             navigationTarget={navigationTarget}
             openTabs={openTabs}
             activeTabPath={activeFilePath}

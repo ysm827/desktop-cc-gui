@@ -794,10 +794,6 @@ export function FileTreePanel({
     return map;
   }, [nodes, gitStatusMap]);
 
-  const visibleFolderPaths = folderPaths;
-  const hasFolders = visibleFolderPaths.size > 0;
-  const allVisibleExpanded =
-    hasFolders && Array.from(visibleFolderPaths).every((path) => expandedFolders.has(path));
   const isRootVisibleExpanded = rootExpanded;
   const visibleTreeNodeEntries = useMemo(() => {
     const entries: VisibleTreeNodeEntry[] = [{ path: "", type: "root" }];
@@ -1071,22 +1067,6 @@ export function FileTreePanel({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [previewPath, closePreview]);
-
-  const toggleAllFolders = () => {
-    if (!hasFolders) {
-      return;
-    }
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (allVisibleExpanded) {
-        visibleFolderPaths.forEach((path) => next.delete(path));
-      } else {
-        visibleFolderPaths.forEach((path) => next.add(path));
-      }
-      return next;
-    });
-
-  };
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -1861,16 +1841,14 @@ export function FileTreePanel({
             </button>
           </div>
           <FileTreeRootActions
-            allVisibleExpanded={allVisibleExpanded}
             canTrashSelectedNode={canTrashSelectedNode}
-            hasFolders={hasFolders}
             isSpecHubActive={isSpecHubActive}
             selectedParentFolder={selectedParentFolder}
             onOpenDetachedExplorer={onOpenDetachedExplorer}
             detachedInitialFilePath={detachedInitialFilePath}
             onOpenNewFile={(parentFolder) => openNewFilePrompt(parentFolder ?? "")}
             onOpenNewFolder={(parentFolder) => openNewFolderPrompt(parentFolder ?? "")}
-            onToggleAllFolders={toggleAllFolders}
+            onRefreshFiles={onRefreshFiles}
             onTrashSelected={() => {
               if (!canTrashSelectedNode || !selectedNodePath || !selectedNodeType) {
                 return;

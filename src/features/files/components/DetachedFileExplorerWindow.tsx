@@ -8,6 +8,7 @@ import { useWorkspaceFiles } from "../../workspaces/hooks/useWorkspaceFiles";
 import { useWindowFocusState } from "../../layout/hooks/useWindowFocusState";
 import { useOpenAppIcons } from "../../app/hooks/useOpenAppIcons";
 import { DEFAULT_OPEN_APP_ID, DEFAULT_OPEN_APP_TARGETS } from "../../app/constants";
+import { useGitStatus } from "../../git/hooks/useGitStatus";
 import { getClientStoreSync } from "../../../services/clientStorage";
 import type { WorkspaceInfo } from "../../../types";
 import { isMacPlatform, isWindowsPlatform } from "../../../utils/platform";
@@ -71,6 +72,9 @@ export function DetachedFileExplorerWindow() {
     activeWorkspace,
     pollingEnabled: isFocused,
   });
+  const { status: gitStatus, refresh: refreshGitStatus } = useGitStatus(activeWorkspace, {
+    pollingEnabled: isFocused,
+  });
   const {
     openTabs,
     activeFilePath,
@@ -103,7 +107,8 @@ export function DetachedFileExplorerWindow() {
       return;
     }
     void refreshFiles();
-  }, [isFocused, refreshFiles, session]);
+    void refreshGitStatus();
+  }, [isFocused, refreshFiles, refreshGitStatus, session]);
 
   if (!session) {
       return (
@@ -150,6 +155,7 @@ export function DetachedFileExplorerWindow() {
         isLoading={isLoading}
         gitignoredFiles={gitignoredFiles}
         gitignoredDirectories={gitignoredDirectories}
+        gitStatusFiles={gitStatus.files}
         openTargets={DEFAULT_OPEN_APP_TARGETS}
         openAppIconById={openAppIconById}
         selectedOpenAppId={selectedOpenAppId}

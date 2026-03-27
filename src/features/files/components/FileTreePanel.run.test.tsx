@@ -570,10 +570,14 @@ describe("FileTreePanel run action isolation", () => {
     );
 
     const deleteButton = screen.getByRole("button", { name: "files.deleteItem" }) as HTMLButtonElement;
+    const refreshButton = screen.getByRole("button", { name: "files.refreshFiles" }) as HTMLButtonElement;
     expect(screen.getByRole("button", { name: "files.newFile" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "files.newFolder" })).toBeTruthy();
+    expect(refreshButton).toBeTruthy();
     expect(deleteButton).toBeTruthy();
     expect(deleteButton.disabled).toBe(true);
+    fireEvent.click(refreshButton);
+    expect(onRefreshFiles).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "README.md" }));
     expect(deleteButton.disabled).toBe(false);
@@ -585,7 +589,7 @@ describe("FileTreePanel run action isolation", () => {
         path: "README.md",
       });
     });
-    expect(onRefreshFiles).toHaveBeenCalledTimes(1);
+    expect(onRefreshFiles).toHaveBeenCalledTimes(2);
   });
 
   it("creates new folder from root action", async () => {

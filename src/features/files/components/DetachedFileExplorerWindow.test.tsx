@@ -6,6 +6,7 @@ let focusState = false;
 const setTitleMock = vi.fn(async () => undefined);
 const closeMock = vi.fn(async () => undefined);
 const refreshFilesMock = vi.fn(async () => undefined);
+const refreshGitStatusMock = vi.fn(async () => undefined);
 const useCodeCssVarsMock = vi.fn();
 const useWorkspaceFilesMock = vi.fn(() => ({
   files: ["src/index.ts"],
@@ -15,6 +16,13 @@ const useWorkspaceFilesMock = vi.fn(() => ({
   isLoading: false,
   refreshFiles: refreshFilesMock,
 }));
+const useGitStatusMock = vi.fn(() => ({
+  status: {
+    files: [{ path: "src/index.ts", status: "M", additions: 2, deletions: 1 }],
+  },
+  refresh: refreshGitStatusMock,
+}));
+const fileExplorerWorkspaceMock = vi.fn(() => <div data-testid="detached-workspace" />);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -48,6 +56,9 @@ vi.mock("@tauri-apps/api/window", () => ({
 vi.mock("../../workspaces/hooks/useWorkspaceFiles", () => ({
   useWorkspaceFiles: (...args: any[]) => (useWorkspaceFilesMock as any)(...args),
 }));
+vi.mock("../../git/hooks/useGitStatus", () => ({
+  useGitStatus: (...args: any[]) => (useGitStatusMock as any)(...args),
+}));
 
 vi.mock("../../layout/hooks/useWindowFocusState", () => ({
   useWindowFocusState: () => focusState,
@@ -77,7 +88,7 @@ vi.mock("../hooks/useDetachedFileExplorerSession", () => ({
 }));
 
 vi.mock("./FileExplorerWorkspace", () => ({
-  FileExplorerWorkspace: () => <div data-testid="detached-workspace" />,
+  FileExplorerWorkspace: (props: any) => (fileExplorerWorkspaceMock as any)(props),
 }));
 
 import { DetachedFileExplorerWindow } from "./DetachedFileExplorerWindow";
@@ -88,8 +99,11 @@ describe("DetachedFileExplorerWindow", () => {
     setTitleMock.mockClear();
     closeMock.mockClear();
     refreshFilesMock.mockClear();
+    refreshGitStatusMock.mockClear();
     useCodeCssVarsMock.mockClear();
     useWorkspaceFilesMock.mockClear();
+    useGitStatusMock.mockClear();
+    fileExplorerWorkspaceMock.mockClear();
   });
 
   it("uses detached focus state to drive polling and refresh", () => {
@@ -103,6 +117,18 @@ describe("DetachedFileExplorerWindow", () => {
       }),
       pollingEnabled: false,
     });
+    expect(useGitStatusMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "ws-1",
+        path: "/tmp/workspace",
+      }),
+      { pollingEnabled: false },
+    );
+    expect(fileExplorerWorkspaceMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        gitStatusFiles: [{ path: "src/index.ts", status: "M", additions: 2, deletions: 1 }],
+      }),
+    );
     expect(useCodeCssVarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         uiFontFamily: "Test UI Font",
@@ -122,6 +148,7 @@ describe("DetachedFileExplorerWindow", () => {
     rerender(<DetachedFileExplorerWindow />);
 
     expect(refreshFilesMock).toHaveBeenCalled();
+    expect(refreshGitStatusMock).toHaveBeenCalled();
     expect(setTitleMock).toHaveBeenCalledWith("workspace · File Explorer");
   });
 });
