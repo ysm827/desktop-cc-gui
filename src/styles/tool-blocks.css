@@ -124,6 +124,32 @@
   border: 1px solid var(--border-primary, var(--border-subtle));
 }
 
+.read-tool-rendered-content {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border-primary, var(--border-subtle));
+  border-radius: 6px;
+  background: var(--bg-secondary, var(--surface-command));
+  padding: 8px;
+}
+
+.read-tool-markdown {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.read-tool-markdown p,
+.read-tool-markdown ul,
+.read-tool-markdown ol,
+.read-tool-markdown pre,
+.read-tool-markdown blockquote {
+  margin-top: 0;
+}
+
+.read-tool-markdown > :last-child {
+  margin-bottom: 0;
+}
+
 /* 工具标题样式 */
 .tool-title-icon {
   color: var(--text-primary);
