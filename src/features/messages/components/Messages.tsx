@@ -2732,11 +2732,6 @@ export const Messages = memo(function Messages({
               {t("messages.showEarlierMessages", { count: collapsedHistoryItemCount })}
             </div>
           )}
-          {isThinking && collapseLiveMiddleStepsEnabled && collapsedMiddleStepCount > 0 && (
-            <div className="messages-live-middle-collapsed-indicator" role="status">
-              {t("messages.middleStepsCollapsedHint", { count: collapsedMiddleStepCount })}
-            </div>
-          )}
           {groupedEntries.map(renderEntry)}
           {claudeDockedReasoningItems.map(({ item, parsed }) => (
             <ReasoningRow
@@ -2751,6 +2746,11 @@ export const Messages = memo(function Messages({
             />
           ))}
           {userInputNode}
+          {isThinking && collapseLiveMiddleStepsEnabled && collapsedMiddleStepCount > 0 && (
+            <div className="messages-live-middle-collapsed-indicator" role="status">
+              {t("messages.middleStepsCollapsedHint", { count: collapsedMiddleStepCount })}
+            </div>
+          )}
           <WorkingIndicator
             isThinking={isThinking}
             proxyEnabled={proxyEnabled}
