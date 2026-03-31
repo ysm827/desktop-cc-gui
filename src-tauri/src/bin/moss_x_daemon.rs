@@ -872,26 +872,15 @@ fn list_workspace_directory_children_inner(
 
 fn list_external_absolute_directory_children_inner(
     absolute_directory_path: &str,
+    allowed_roots: &[PathBuf],
     max_entries: usize,
 ) -> Result<WorkspaceFilesResponse, String> {
-    let trimmed = absolute_directory_path.trim();
-    if trimmed.is_empty() {
-        return Err("Invalid directory path.".to_string());
-    }
-
-    let raw_path = PathBuf::from(trimmed);
-    if !raw_path.is_absolute() {
-        return Err("Invalid directory path.".to_string());
-    }
-
-    let canonical_path = raw_path
-        .canonicalize()
-        .map_err(|err| format!("Failed to resolve directory path: {err}"))?;
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read directory metadata: {err}"))?;
-    if !metadata.is_dir() {
-        return Err("Path is not a directory.".to_string());
-    }
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_directory_path,
+        allowed_roots,
+        "directory",
+        "Invalid directory path.",
+    )?;
 
     let entries = std::fs::read_dir(&canonical_path)
         .map_err(|err| format!("Failed to read directory: {err}"))?;
@@ -1093,26 +1082,16 @@ fn read_workspace_file_inner(
     Ok(WorkspaceFileResponse { content, truncated })
 }
 
-fn read_external_absolute_file_inner(absolute_path: &str) -> Result<WorkspaceFileResponse, String> {
-    let trimmed = absolute_path.trim();
-    if trimmed.is_empty() {
-        return Err("Invalid file path".to_string());
-    }
-
-    let raw_path = PathBuf::from(trimmed);
-    if !raw_path.is_absolute() {
-        return Err("Invalid file path".to_string());
-    }
-
-    let canonical_path = raw_path
-        .canonicalize()
-        .map_err(|err| format!("Failed to open file: {err}"))?;
-
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
-    if !metadata.is_file() {
-        return Err("Path is not a file".to_string());
-    }
+fn read_external_absolute_file_inner(
+    absolute_path: &str,
+    allowed_roots: &[PathBuf],
+) -> Result<WorkspaceFileResponse, String> {
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_path,
+        allowed_roots,
+        "file",
+        "Invalid file path",
+    )?;
 
     let file = File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
     let mut buffer = Vec::new();
@@ -1129,34 +1108,71 @@ fn read_external_absolute_file_inner(absolute_path: &str) -> Result<WorkspaceFil
     Ok(WorkspaceFileResponse { content, truncated })
 }
 
-fn write_external_absolute_file_inner(absolute_path: &str, content: &str) -> Result<(), String> {
+fn write_external_absolute_file_inner(
+    absolute_path: &str,
+    allowed_roots: &[PathBuf],
+    content: &str,
+) -> Result<(), String> {
     if content.len() > MAX_WORKSPACE_FILE_BYTES as usize {
         return Err("File content exceeds maximum allowed size".to_string());
     }
 
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_path,
+        allowed_roots,
+        "file",
+        "Invalid file path",
+    )?;
+
+    std::fs::write(&canonical_path, content)
+        .map_err(|err| format!("Failed to write file: {err}"))?;
+    Ok(())
+}
+
+fn resolve_allowed_external_absolute_path(
+    absolute_path: &str,
+    allowed_roots: &[PathBuf],
+    expected_kind: &str,
+    invalid_path_message: &str,
+) -> Result<PathBuf, String> {
     let trimmed = absolute_path.trim();
     if trimmed.is_empty() {
-        return Err("Invalid file path".to_string());
+        return Err(invalid_path_message.to_string());
     }
 
     let raw_path = PathBuf::from(trimmed);
     if !raw_path.is_absolute() {
-        return Err("Invalid file path".to_string());
+        return Err(invalid_path_message.to_string());
     }
 
     let canonical_path = raw_path
         .canonicalize()
         .map_err(|err| format!("Failed to open file: {err}"))?;
 
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
-    if !metadata.is_file() {
-        return Err("Path is not a file".to_string());
+    let mut within_allowed_root = false;
+    for root in allowed_roots {
+        if let Ok(canonical_root) = root.canonicalize() {
+            if canonical_path.starts_with(&canonical_root) {
+                within_allowed_root = true;
+                break;
+            }
+        }
+    }
+    if !within_allowed_root {
+        return Err("Path is not within allowed directories.".to_string());
     }
 
-    std::fs::write(&canonical_path, content)
-        .map_err(|err| format!("Failed to write file: {err}"))?;
-    Ok(())
+    let metadata = std::fs::metadata(&canonical_path)
+        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
+    let kind_matches = match expected_kind {
+        "file" => metadata.is_file(),
+        "directory" => metadata.is_dir(),
+        _ => false,
+    };
+    if !kind_matches {
+        return Err(format!("Path is not a {expected_kind}."));
+    }
+    Ok(canonical_path)
 }
 
 fn default_data_dir() -> PathBuf {

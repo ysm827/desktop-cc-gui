@@ -15,6 +15,7 @@ import type {
   EngineStatus,
   EngineType,
   EngineModelInfo,
+  CustomPromptOption,
 } from "../types";
 import type {
   GitFileDiff,
@@ -1202,8 +1203,8 @@ export async function getOpenCodeLspReferences(
   });
 }
 
-export async function getPromptsList(workspaceId: string) {
-  return invoke<any>("prompts_list", { workspaceId });
+export async function getPromptsList(workspaceId: string): Promise<CustomPromptOption[]> {
+  return invoke<CustomPromptOption[]>("prompts_list", { workspaceId });
 }
 
 export async function getWorkspacePromptsDir(workspaceId: string) {
@@ -1223,8 +1224,8 @@ export async function createPrompt(
     argumentHint?: string | null;
     content: string;
   },
-) {
-  return invoke<any>("prompts_create", {
+): Promise<CustomPromptOption> {
+  return invoke<CustomPromptOption>("prompts_create", {
     workspaceId,
     scope: data.scope,
     name: data.name,
@@ -1243,8 +1244,8 @@ export async function updatePrompt(
     argumentHint?: string | null;
     content: string;
   },
-) {
-  return invoke<any>("prompts_update", {
+): Promise<CustomPromptOption> {
+  return invoke<CustomPromptOption>("prompts_update", {
     workspaceId,
     path: data.path,
     name: data.name,
@@ -1254,15 +1255,15 @@ export async function updatePrompt(
   });
 }
 
-export async function deletePrompt(workspaceId: string, path: string) {
-  return invoke<any>("prompts_delete", { workspaceId, path });
+export async function deletePrompt(workspaceId: string, path: string): Promise<void> {
+  return invoke<void>("prompts_delete", { workspaceId, path });
 }
 
 export async function movePrompt(
   workspaceId: string,
   data: { path: string; scope: "workspace" | "global" },
-) {
-  return invoke<any>("prompts_move", {
+): Promise<CustomPromptOption> {
+  return invoke<CustomPromptOption>("prompts_move", {
     workspaceId,
     path: data.path,
     scope: data.scope,

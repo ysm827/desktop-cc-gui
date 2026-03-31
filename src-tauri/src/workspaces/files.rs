@@ -719,26 +719,15 @@ pub(crate) fn list_workspace_directory_children_inner(
 
 pub(crate) fn list_external_absolute_directory_children_inner(
     absolute_directory_path: &str,
+    allowed_roots: &[PathBuf],
     max_entries: usize,
 ) -> Result<WorkspaceFilesResponse, String> {
-    let trimmed = absolute_directory_path.trim();
-    if trimmed.is_empty() {
-        return Err("Invalid directory path.".to_string());
-    }
-
-    let raw_path = PathBuf::from(trimmed);
-    if !raw_path.is_absolute() {
-        return Err("Invalid directory path.".to_string());
-    }
-
-    let canonical_path = raw_path
-        .canonicalize()
-        .map_err(|err| format!("Failed to resolve directory path: {err}"))?;
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read directory metadata: {err}"))?;
-    if !metadata.is_dir() {
-        return Err("Path is not a directory.".to_string());
-    }
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_directory_path,
+        allowed_roots,
+        "directory",
+        "Invalid directory path.",
+    )?;
 
     let entries = std::fs::read_dir(&canonical_path)
         .map_err(|err| format!("Failed to read directory: {err}"))?;
@@ -1114,26 +1103,14 @@ pub(crate) fn read_workspace_file_inner(
 
 pub(crate) fn read_external_absolute_file_inner(
     absolute_path: &str,
+    allowed_roots: &[PathBuf],
 ) -> Result<WorkspaceFileResponse, String> {
-    let trimmed = absolute_path.trim();
-    if trimmed.is_empty() {
-        return Err("Invalid file path".to_string());
-    }
-
-    let raw_path = PathBuf::from(trimmed);
-    if !raw_path.is_absolute() {
-        return Err("Invalid file path".to_string());
-    }
-
-    let canonical_path = raw_path
-        .canonicalize()
-        .map_err(|err| format!("Failed to open file: {err}"))?;
-
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
-    if !metadata.is_file() {
-        return Err("Path is not a file".to_string());
-    }
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_path,
+        allowed_roots,
+        "file",
+        "Invalid file path",
+    )?;
 
     let file = File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
     let mut buffer = Vec::new();
@@ -1152,34 +1129,69 @@ pub(crate) fn read_external_absolute_file_inner(
 
 pub(crate) fn write_external_absolute_file_inner(
     absolute_path: &str,
+    allowed_roots: &[PathBuf],
     content: &str,
 ) -> Result<(), String> {
     if content.len() > MAX_WORKSPACE_FILE_BYTES as usize {
         return Err("File content exceeds maximum allowed size".to_string());
     }
 
+    let canonical_path = resolve_allowed_external_absolute_path(
+        absolute_path,
+        allowed_roots,
+        "file",
+        "Invalid file path",
+    )?;
+
+    std::fs::write(&canonical_path, content)
+        .map_err(|err| format!("Failed to write file: {err}"))?;
+    Ok(())
+}
+
+fn resolve_allowed_external_absolute_path(
+    absolute_path: &str,
+    allowed_roots: &[PathBuf],
+    expected_kind: &str,
+    invalid_path_message: &str,
+) -> Result<PathBuf, String> {
     let trimmed = absolute_path.trim();
     if trimmed.is_empty() {
-        return Err("Invalid file path".to_string());
+        return Err(invalid_path_message.to_string());
     }
 
     let raw_path = PathBuf::from(trimmed);
     if !raw_path.is_absolute() {
-        return Err("Invalid file path".to_string());
+        return Err(invalid_path_message.to_string());
     }
 
     let canonical_path = raw_path
         .canonicalize()
         .map_err(|err| format!("Failed to open file: {err}"))?;
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
-    if !metadata.is_file() {
-        return Err("Path is not a file".to_string());
+
+    let mut within_allowed_root = false;
+    for root in allowed_roots {
+        if let Ok(canonical_root) = root.canonicalize() {
+            if canonical_path.starts_with(&canonical_root) {
+                within_allowed_root = true;
+                break;
+            }
+        }
+    }
+    if !within_allowed_root {
+        return Err("Path is not within allowed directories.".to_string());
     }
 
-    std::fs::write(&canonical_path, content)
-        .map_err(|err| format!("Failed to write file: {err}"))?;
-    Ok(())
+    let metadata = std::fs::metadata(&canonical_path)
+        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
+    let kind_matches = match expected_kind {
+        "file" => metadata.is_file(),
+        "directory" => metadata.is_dir(),
+        _ => false,
+    };
+    if !kind_matches {
+        return Err(format!("Path is not a {expected_kind}."));
+    }
+    Ok(canonical_path)
 }
 
 pub(crate) fn write_workspace_file_inner(
@@ -1602,6 +1614,7 @@ mod tests {
 
         let response = list_external_absolute_directory_children_inner(
             root.join("skill").to_str().expect("directory path"),
+            std::slice::from_ref(&root),
             3,
         )
         .expect("list children");
@@ -1620,7 +1633,9 @@ mod tests {
 
     #[test]
     fn list_external_absolute_directory_children_rejects_relative_path() {
-        let result = list_external_absolute_directory_children_inner("relative/path", 20);
+        let root = PathBuf::from("/tmp");
+        let result =
+            list_external_absolute_directory_children_inner("relative/path", &[root], 20);
         assert!(result.is_err());
         assert_eq!(result.err().as_deref(), Some("Invalid directory path."));
     }
@@ -1651,8 +1666,11 @@ mod tests {
         let file_path = root.join("docs/skill.md");
         std::fs::write(&file_path, encoded.as_ref()).expect("write file");
 
-        let response = read_external_absolute_file_inner(file_path.to_str().expect("file path"))
-            .expect("read file");
+        let response = read_external_absolute_file_inner(
+            file_path.to_str().expect("file path"),
+            std::slice::from_ref(&root),
+        )
+        .expect("read file");
 
         assert_eq!(response.content, "外部绝对路径可读取");
         assert!(!response.truncated);
@@ -1662,7 +1680,8 @@ mod tests {
 
     #[test]
     fn read_external_absolute_file_rejects_relative_path() {
-        let result = read_external_absolute_file_inner("relative/path.md");
+        let root = PathBuf::from("/tmp");
+        let result = read_external_absolute_file_inner("relative/path.md", &[root]);
         assert!(result.is_err());
         assert_eq!(result.err().as_deref(), Some("Invalid file path"));
     }
@@ -1674,8 +1693,12 @@ mod tests {
         let file_path = root.join("docs/skill.md");
         std::fs::write(&file_path, "before").expect("write file");
 
-        write_external_absolute_file_inner(file_path.to_str().expect("file path"), "after")
-            .expect("write absolute file");
+        write_external_absolute_file_inner(
+            file_path.to_str().expect("file path"),
+            std::slice::from_ref(&root),
+            "after",
+        )
+        .expect("write absolute file");
 
         let content = std::fs::read_to_string(&file_path).expect("read updated file");
         assert_eq!(content, "after");
@@ -1685,9 +1708,36 @@ mod tests {
 
     #[test]
     fn write_external_absolute_file_rejects_relative_path() {
-        let result = write_external_absolute_file_inner("relative/path.md", "content");
+        let root = PathBuf::from("/tmp");
+        let result = write_external_absolute_file_inner("relative/path.md", &[root], "content");
         assert!(result.is_err());
         assert_eq!(result.err().as_deref(), Some("Invalid file path"));
+    }
+
+    #[test]
+    fn write_external_absolute_file_rejects_path_outside_allowed_roots() {
+        let root =
+            std::env::temp_dir().join(format!("mossx-write-absolute-root-{}", Uuid::new_v4()));
+        let outside =
+            std::env::temp_dir().join(format!("mossx-write-absolute-outside-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("docs")).expect("create root docs");
+        std::fs::create_dir_all(outside.join("docs")).expect("create outside docs");
+        let file_path = outside.join("docs/skill.md");
+        std::fs::write(&file_path, "before").expect("write file");
+
+        let result = write_external_absolute_file_inner(
+            file_path.to_str().expect("file path"),
+            &[root.clone()],
+            "after",
+        );
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("Path is not within allowed directories.")
+        );
+
+        std::fs::remove_dir_all(&root).expect("cleanup root");
+        std::fs::remove_dir_all(&outside).expect("cleanup outside");
     }
 
     #[test]

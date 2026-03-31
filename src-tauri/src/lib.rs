@@ -231,6 +231,7 @@ pub fn run() {
             let manager = &state.engine_manager;
             tauri::async_runtime::block_on(async {
                 manager.claude_manager.interrupt_all().await;
+                crate::terminal::cleanup_all_terminal_sessions(&state).await;
             });
         }
     });

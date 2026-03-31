@@ -38,7 +38,7 @@ use super::worktree::{
 
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::codex::spawn_workspace_session;
 use crate::engine::{resolve_engine_type, EngineType};
 use crate::git_utils::resolve_git_root;
@@ -59,6 +59,55 @@ pub(crate) struct WorkspaceCommandResult {
     pub(crate) success: bool,
     pub(crate) stdout: String,
     pub(crate) stderr: String,
+}
+
+fn app_data_dir_for_state(state: &AppState) -> Result<PathBuf, String> {
+    state
+        .settings_path
+        .parent()
+        .map(|path| path.to_path_buf())
+        .ok_or_else(|| "Unable to resolve app data dir.".to_string())
+}
+
+fn allowed_external_skill_roots(
+    state: &AppState,
+    workspaces: &std::collections::HashMap<String, WorkspaceEntry>,
+    workspace_id: &str,
+) -> Result<Vec<PathBuf>, String> {
+    let entry = workspaces
+        .get(workspace_id)
+        .ok_or_else(|| format!("Workspace not found: {workspace_id}"))?;
+    let parent_entry = entry
+        .parent_id
+        .as_ref()
+        .and_then(|parent_id| workspaces.get(parent_id));
+
+    let mut roots = vec![
+        app_data_dir_for_state(state)?
+            .join("workspaces")
+            .join(&entry.id)
+            .join("skills"),
+        PathBuf::from(&entry.path).join(".claude").join("skills"),
+        PathBuf::from(&entry.path).join(".codex").join("skills"),
+        PathBuf::from(&entry.path).join(".gemini").join("skills"),
+        PathBuf::from(&entry.path).join(".agents").join("skills"),
+    ];
+
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join(".claude").join("skills"));
+        roots.push(home.join(".gemini").join("skills"));
+        roots.push(home.join(".agents").join("skills"));
+    }
+
+    if let Some(codex_home) =
+        resolve_workspace_codex_home(entry, parent_entry).or_else(resolve_default_codex_home)
+    {
+        roots.push(codex_home.join("skills"));
+    }
+
+    roots.sort();
+    roots.dedup();
+    Ok(roots)
 }
 
 fn normalize_custom_spec_root(path: &str) -> Result<PathBuf, String> {
@@ -309,6 +358,7 @@ async fn collect_workspace_cleanup_ids(
 }
 
 async fn cleanup_engine_sessions_for_workspace(state: &AppState, workspace_id: &str) {
+    crate::terminal::cleanup_terminal_sessions_for_workspace(state, workspace_id).await;
     crate::engine::commands::clear_mcp_toggle_state(workspace_id);
     state
         .engine_manager
@@ -479,14 +529,12 @@ pub(crate) async fn read_external_absolute_file(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    {
+    let allowed_roots = {
         let workspaces = state.workspaces.lock().await;
-        if !workspaces.contains_key(&workspace_id) {
-            return Err(format!("Workspace not found: {workspace_id}"));
-        }
-    }
+        allowed_external_skill_roots(&state, &workspaces, &workspace_id)?
+    };
 
-    read_external_absolute_file_inner(&path)
+    read_external_absolute_file_inner(&path, &allowed_roots)
 }
 
 #[tauri::command]
@@ -538,14 +586,12 @@ pub(crate) async fn write_external_absolute_file(
         return Ok(());
     }
 
-    {
+    let allowed_roots = {
         let workspaces = state.workspaces.lock().await;
-        if !workspaces.contains_key(&workspace_id) {
-            return Err(format!("Workspace not found: {workspace_id}"));
-        }
-    }
+        allowed_external_skill_roots(&state, &workspaces, &workspace_id)?
+    };
 
-    write_external_absolute_file_inner(&path, &content)
+    write_external_absolute_file_inner(&path, &allowed_roots, &content)
 }
 
 #[tauri::command]
@@ -1609,14 +1655,16 @@ pub(crate) async fn list_external_absolute_directory_children(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    {
+    let allowed_roots = {
         let workspaces = state.workspaces.lock().await;
-        if !workspaces.contains_key(&workspace_id) {
-            return Err(format!("Workspace not found: {workspace_id}"));
-        }
-    }
+        allowed_external_skill_roots(&state, &workspaces, &workspace_id)?
+    };
 
-    list_external_absolute_directory_children_inner(&path, MAX_EXTERNAL_DIRECTORY_CHILDREN)
+    list_external_absolute_directory_children_inner(
+        &path,
+        &allowed_roots,
+        MAX_EXTERNAL_DIRECTORY_CHILDREN,
+    )
 }
 
 #[tauri::command]
