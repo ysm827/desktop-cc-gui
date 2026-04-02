@@ -758,6 +758,23 @@ describe("useThreadMessaging", () => {
     });
   });
 
+  it("ignores /review-like custom commands in review entrypoint", async () => {
+    const { result } = makeHook("codex");
+
+    await act(async () => {
+      await result.current.startReview("/review-code run full check");
+      await result.current.startReview("/review:custom run");
+      await result.current.startReview("/review_custom run");
+      await result.current.startReview("/review.custom run");
+    });
+
+    expect(result.current.reviewPrompt).toBeNull();
+    expect(listGitBranches).not.toHaveBeenCalled();
+    expect(getGitLog).not.toHaveBeenCalled();
+    expect(startReviewService).not.toHaveBeenCalled();
+    expect(engineSendMessage).not.toHaveBeenCalled();
+  });
+
   it("rebinds /review to a codex thread when the active thread is claude", async () => {
     const startThreadForWorkspace = vi.fn(async () => "thread-review-1");
     const { result } = makeHook("codex", {

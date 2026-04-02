@@ -1916,7 +1916,14 @@ export function useThreadMessaging({
         return;
       }
       const trimmed = text.trim();
-      const rest = trimmed.replace(/^\/review\b/i, "").trim();
+      if (!trimmed.startsWith("/")) {
+        return;
+      }
+      const commandToken = trimmed.slice(1).split(/\s+/, 1)[0]?.toLowerCase() ?? "";
+      if (commandToken !== "review") {
+        return;
+      }
+      const rest = trimmed.slice(commandToken.length + 1).trim();
       if (!rest) {
         openReviewPrompt();
         return;
