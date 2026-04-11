@@ -2,9 +2,6 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useTranslation } from "react-i18next";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Server from "lucide-react/dist/esm/icons/server";
-import Bot from "lucide-react/dist/esm/icons/bot";
-import Cpu from "lucide-react/dist/esm/icons/cpu";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import Database from "lucide-react/dist/esm/icons/database";
 import Info from "lucide-react/dist/esm/icons/info";
@@ -21,6 +18,7 @@ import {
 import { isWindowsPlatform } from "../../../utils/platform";
 import { isLikelyWindowsFsPath, normalizeFsPath } from "../../../utils/workspacePaths";
 import { Button } from "@/components/ui/button";
+import { EngineIcon } from "../../engine/components/EngineIcon";
 import {
   Select,
   SelectContent,
@@ -171,18 +169,7 @@ function normalizeEngineType(engine: string | null): EngineType {
 }
 
 function getEngineIcon(engineType: EngineType) {
-  switch (engineType) {
-    case "claude":
-      return <Bot size={16} />;
-    case "codex":
-      return <Cpu size={16} />;
-    case "gemini":
-      return <Sparkles size={16} />;
-    case "opencode":
-      return <Server size={16} />;
-    default:
-      return <Server size={16} />;
-  }
+  return <EngineIcon engine={engineType} size={16} />;
 }
 
 function getEngineStatusBadgeKey(

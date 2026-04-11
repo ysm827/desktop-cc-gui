@@ -68,6 +68,10 @@
   align-items: center;
 }
 
+.settings-body.is-sidebar-collapsed {
+  grid-template-columns: 50px minmax(0, 1fr);
+}
+
 .settings-sidebar.is-collapsed .settings-nav {
   justify-content: center;
   padding: 8px;
