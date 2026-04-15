@@ -25,6 +25,7 @@ import { isDefaultWorkspacePath } from "../../workspaces/utils/defaultWorkspace"
 import { formatShortcutForPlatform, isMacPlatform } from "../../../utils/shortcuts";
 import { formatRelativeTimeShort } from "../../../utils/time";
 import { EngineIcon } from "../../engine/components/EngineIcon";
+import { SharedSessionIcon } from "../../shared-session/components/SharedSessionIcon";
 import { pushErrorToast } from "../../../services/toasts";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import BrainCircuit from "lucide-react/dist/esm/icons/brain-circuit";
@@ -35,7 +36,6 @@ import Copy from "lucide-react/dist/esm/icons/copy";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
-import Layers3 from "lucide-react/dist/esm/icons/layers-3";
 import Lock from "lucide-react/dist/esm/icons/lock";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Settings from "lucide-react/dist/esm/icons/settings";
@@ -305,7 +305,7 @@ export function Sidebar({
       case "reload":
         return <RefreshCw size={13} />;
       case "new-shared":
-        return <Layers3 size={13} />;
+        return <SharedSessionIcon size={13} />;
       case "remove":
         return <Trash2 size={13} />;
       case "new-worktree":

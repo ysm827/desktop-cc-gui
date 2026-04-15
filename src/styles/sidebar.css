@@ -1323,6 +1323,10 @@
   color: #8b5cf6;
 }
 
+.sidebar-workspace-menu-item-icon-new-shared {
+  color: #f59e0b;
+}
+
 .sidebar-workspace-menu-item-label {
   min-width: 0;
 }

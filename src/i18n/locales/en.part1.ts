@@ -128,7 +128,7 @@ const enPart1 = {
     clearSearch: "Clear search",
     pinned: "Pinned",
     newAgent: "New agent",
-    newSharedSession: "New shared session",
+    newSharedSession: "Claude Code + Codex",
     newWorktreeAgent: "New worktree agent",
     newCloneAgent: "New clone agent",
     sessionActionsGroup: "New Session",
