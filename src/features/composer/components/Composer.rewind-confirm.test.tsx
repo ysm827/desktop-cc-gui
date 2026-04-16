@@ -146,6 +146,31 @@ const REWIND_ITEMS_WITH_USER_MENTION_FALLBACK: ConversationItem[] = [
   },
 ];
 
+const REWIND_ITEMS_WITH_INLINE_TOKEN_FALLBACK: ConversationItem[] = [
+  {
+    id: "user-inline-token-1",
+    kind: "message",
+    role: "user",
+    text:
+      "📄 config.ts `/Users/demo/repo/config.ts` 删除这个文件，📄 app.ts `/Users/demo/repo/app.ts` 更新注释",
+  },
+  {
+    id: "assistant-inline-token-1",
+    kind: "message",
+    role: "assistant",
+    text: "正在处理",
+  },
+  {
+    id: "tool-inline-token-1",
+    kind: "tool",
+    toolType: "mcpToolCall",
+    title: "Tool: Codex / Noop",
+    detail: "{}",
+    status: "completed",
+    output: "ok",
+  },
+];
+
 const REWIND_ITEMS_WITH_BASH_COMMAND_CHANGES: ConversationItem[] = [
   {
     id: "user-bash-1",
@@ -206,6 +231,94 @@ const REWIND_ITEMS_WITH_BASH_COMMAND_CHANGES: ConversationItem[] = [
   },
 ];
 
+const REWIND_ITEMS_WITH_MISSING_DELETE_TOOL_CHANGE: ConversationItem[] = [
+  {
+    id: "user-codex-delete-fallback-1",
+    kind: "message",
+    role: "user",
+    text: "@/Users/demo/repo/.specify目录结构说明.md 删除这个文件，@/Users/demo/repo/pom.xml 加两行注释，@/Users/demo/repo/abc.txt 内容改成 100",
+  },
+  {
+    id: "assistant-codex-delete-fallback-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-codex-edit-pom",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "/Users/demo/repo/pom.xml",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "/Users/demo/repo/pom.xml",
+        kind: "modified",
+        diff: "@@ -1,1 +1,2 @@\n </properties>\n+<!-- 注释 -->",
+      },
+    ],
+  },
+  {
+    id: "tool-codex-create-abc",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Create file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "/Users/demo/repo/abc.txt",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "/Users/demo/repo/abc.txt",
+        kind: "added",
+        diff: "@@ -0,0 +1,1 @@\n+100",
+      },
+    ],
+  },
+];
+
+const REWIND_ITEMS_WITH_TOOL_MODIFY_AND_MENTION_DELETE_SAME_PATH: ConversationItem[] =
+  [
+    {
+      id: "user-codex-delete-override-1",
+      kind: "message",
+      role: "user",
+      text: "@/Users/demo/repo/abc.txt 删除这个文件",
+    },
+    {
+      id: "assistant-codex-delete-override-1",
+      kind: "message",
+      role: "assistant",
+      text: "处理中",
+    },
+    {
+      id: "tool-codex-modify-abc-only",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "Edit file",
+      detail: JSON.stringify({
+        input: {
+          file_path: "/Users/demo/repo/abc.txt",
+        },
+      }),
+      status: "completed",
+      changes: [
+        {
+          path: "/Users/demo/repo/abc.txt",
+          kind: "modified",
+          diff: "@@ -1,1 +1,1 @@\n-before\n+after",
+        },
+      ],
+    },
+  ];
+
 const REWIND_ITEMS_WITH_WINDOWS_PATH_VARIANTS: ConversationItem[] = [
   {
     id: "user-win-path-1",
@@ -258,9 +371,193 @@ const REWIND_ITEMS_WITH_WINDOWS_PATH_VARIANTS: ConversationItem[] = [
   },
 ];
 
+const REWIND_ITEMS_WITH_WINDOWS_UNC_CASE_VARIANTS: ConversationItem[] = [
+  {
+    id: "user-win-unc-1",
+    kind: "message",
+    role: "user",
+    text: "处理同一个 UNC 路径的大小写变体",
+  },
+  {
+    id: "assistant-win-unc-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-win-unc-modified",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "\\\\SERVER\\Share\\docs\\README.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "\\\\SERVER\\Share\\docs\\README.md",
+        kind: "modified",
+        diff: "@@ -1,1 +1,1 @@\n-old\n+new",
+      },
+    ],
+  },
+  {
+    id: "tool-win-unc-delete",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Delete file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "//server/share/docs/README.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "//server/share/docs/README.md",
+        kind: "delete",
+      },
+    ],
+  },
+];
+
+const REWIND_ITEMS_WITH_CASE_SENSITIVE_UNIX_PATHS: ConversationItem[] = [
+  {
+    id: "user-case-unix-1",
+    kind: "message",
+    role: "user",
+    text: "同时修改两个仅大小写不同的文件",
+  },
+  {
+    id: "assistant-case-unix-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-case-unix-upper",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "/Users/demo/repo/Readme.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "/Users/demo/repo/Readme.md",
+        kind: "modified",
+        diff: "@@ -1,1 +1,1 @@\n-old-upper\n+new-upper",
+      },
+    ],
+  },
+  {
+    id: "tool-case-unix-lower",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "/Users/demo/repo/readme.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "/Users/demo/repo/readme.md",
+        kind: "modified",
+        diff: "@@ -1,1 +1,1 @@\n-old-lower\n+new-lower",
+      },
+    ],
+  },
+];
+
+const REWIND_ITEMS_WITH_WINDOWS_DRIVE_CASE_VARIANTS: ConversationItem[] = [
+  {
+    id: "user-win-case-1",
+    kind: "message",
+    role: "user",
+    text: "同一路径大小写变体",
+  },
+  {
+    id: "assistant-win-case-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-win-case-modified",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "C:\\repo\\demo\\README.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "C:\\repo\\demo\\README.md",
+        kind: "modified",
+        diff: "@@ -1,1 +1,1 @@\n-old\n+new",
+      },
+    ],
+  },
+  {
+    id: "tool-win-case-delete",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Delete file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "c:/repo/demo/README.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "c:/repo/demo/README.md",
+        kind: "delete",
+      },
+    ],
+  },
+];
+
+const REWIND_ITEMS_WITH_CASE_SENSITIVE_MENTION_PATHS: ConversationItem[] = [
+  {
+    id: "user-case-mention-1",
+    kind: "message",
+    role: "user",
+    text: "@/Users/demo/repo/Readme.md 和 @/Users/demo/repo/readme.md 都追加注释",
+  },
+  {
+    id: "assistant-case-mention-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-case-mention-1",
+    kind: "tool",
+    toolType: "mcpToolCall",
+    title: "Tool: Claude / Edit",
+    detail: "{}",
+    status: "completed",
+    output: "Updated notes",
+  },
+];
+
 type ComposerHarnessProps = {
   items?: ConversationItem[];
-  onRewind?: (userMessageId: string) => void | Promise<void>;
+  onRewind?: (
+    userMessageId: string,
+    options?: { restoreWorkspaceFiles?: boolean },
+  ) => void | Promise<void>;
   onOpenDiffPath?: (path: string) => void;
   activeThreadId?: string | null;
   selectedEngine?: "claude" | "codex" | "gemini";
@@ -315,6 +612,7 @@ function ComposerHarness({
 
 describe("Composer Claude rewind confirmation", () => {
   afterEach(() => {
+    vi.clearAllMocks();
     cleanup();
   });
 
@@ -353,7 +651,52 @@ describe("Composer Claude rewind confirmation", () => {
     await waitFor(() => {
       expect(onRewind).toHaveBeenCalledTimes(1);
     });
-    expect(onRewind).toHaveBeenCalledWith("user-1");
+    expect(onRewind).toHaveBeenCalledWith("user-1", {
+      restoreWorkspaceFiles: true,
+    });
+  });
+
+  it("defaults workspace restore toggle to enabled when opening dialog", () => {
+    render(<ComposerHarness />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+
+    expect(
+      (screen.getByTestId("claude-rewind-restore-toggle") as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it("passes disabled workspace restore toggle to rewind callback", async () => {
+    const onRewind = vi.fn(async () => {});
+
+    render(<ComposerHarness onRewind={onRewind} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-restore-toggle"));
+    fireEvent.click(screen.getByTestId("claude-rewind-confirm-button"));
+
+    await waitFor(() => {
+      expect(onRewind).toHaveBeenCalledTimes(1);
+    });
+    expect(onRewind).toHaveBeenCalledWith("user-1", {
+      restoreWorkspaceFiles: false,
+    });
+  });
+
+  it("resets workspace restore toggle to enabled on dialog reopen", () => {
+    render(<ComposerHarness />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-restore-toggle"));
+    fireEvent.click(screen.getByTestId("claude-rewind-cancel-button"));
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+
+    expect(
+      (screen.getByTestId("claude-rewind-restore-toggle") as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 
   it("switches selected file preview and opens standalone diff dialog", () => {
@@ -393,6 +736,22 @@ describe("Composer Claude rewind confirmation", () => {
     expect(
       screen.getByTestId("claude-rewind-file-SPEC_KIT_实战指南.md").textContent,
     ).toContain("git.fileDeleted");
+  });
+
+  it("parses inline file reference tokens when tool payload lacks file path", () => {
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_INLINE_TOKEN_FALLBACK} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+
+    expect(screen.getByTestId("claude-rewind-dialog")).not.toBeNull();
+    expect(screen.getByTestId("claude-rewind-file-config.ts")).not.toBeNull();
+    expect(screen.getByTestId("claude-rewind-file-app.ts")).not.toBeNull();
+    expect(screen.getByTestId("claude-rewind-file-config.ts").textContent).toContain(
+      "git.fileDeleted",
+    );
+    expect(screen.getByTestId("claude-rewind-file-app.ts").textContent).toContain(
+      "git.fileModified",
+    );
   });
 
   it("includes Bash command-created and command-deleted files in rewind preview", () => {
@@ -691,6 +1050,91 @@ describe("Composer Claude rewind confirmation", () => {
     });
   });
 
+  it("supplements missing delete files from @mention paths for codex rewind preview", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const initialCallCount = invokeMock.mock.calls.length;
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-fallback-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-fallback-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-fallback-1/manifest.json",
+      exportId: "user-codex-delete-fallback-1",
+      fileCount: 3,
+    });
+
+    render(
+      <ComposerHarness
+        items={REWIND_ITEMS_WITH_MISSING_DELETE_TOOL_CHANGE}
+        selectedEngine="codex"
+        activeThreadId="thread-codex-1"
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    expect(
+      screen.getByTestId("claude-rewind-file-.specify目录结构说明.md"),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      const args = invokeMock.mock.calls[initialCallCount]?.[1] as
+        | { engine: string; targetMessageId: string; files: Array<{ path: string; status: string }> }
+        | undefined;
+      expect(args).toBeDefined();
+      expect(args?.engine).toBe("codex");
+      expect(args?.targetMessageId).toBe("user-codex-delete-fallback-1");
+      expect(args?.files).toHaveLength(3);
+      expect(args?.files).toEqual(
+        expect.arrayContaining([
+          {
+            path: "/Users/demo/repo/.specify目录结构说明.md",
+            status: "D",
+          },
+          { path: "/Users/demo/repo/abc.txt", status: "A" },
+          { path: "/Users/demo/repo/pom.xml", status: "M" },
+        ]),
+      );
+    });
+  });
+
+  it("upgrades tool-modified file to delete when @mention intent indicates deletion", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const initialCallCount = invokeMock.mock.calls.length;
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-override-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-override-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/codex/2026-04-16/thread-codex-1/user-codex-delete-override-1/manifest.json",
+      exportId: "user-codex-delete-override-1",
+      fileCount: 1,
+    });
+
+    render(
+      <ComposerHarness
+        items={REWIND_ITEMS_WITH_TOOL_MODIFY_AND_MENTION_DELETE_SAME_PATH}
+        selectedEngine="codex"
+        activeThreadId="thread-codex-1"
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      const args = invokeMock.mock.calls[initialCallCount]?.[1] as
+        | { files: Array<{ path: string; status: string }> }
+        | undefined;
+      expect(args).toBeDefined();
+      expect(args?.files).toEqual([
+        { path: "/Users/demo/repo/abc.txt", status: "D" },
+      ]);
+    });
+  });
+
   it("normalizes windows path separators when storing rewind files", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
@@ -715,6 +1159,128 @@ describe("Composer Claude rewind confirmation", () => {
         expect.objectContaining({
           targetMessageId: "user-win-path-1",
           files: [{ path: "C:/repo/demo/readme.md", status: "D" }],
+        }),
+      );
+    });
+  });
+
+  it("keeps case-distinct unix paths as separate entries when storing rewind files", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-unix-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-unix-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-unix-1/manifest.json",
+      exportId: "user-case-unix-1",
+      fileCount: 2,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_CASE_SENSITIVE_UNIX_PATHS} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          targetMessageId: "user-case-unix-1",
+          files: [
+            { path: "/Users/demo/repo/Readme.md", status: "M" },
+            { path: "/Users/demo/repo/readme.md", status: "M" },
+          ],
+        }),
+      );
+    });
+  });
+
+  it("deduplicates windows drive-letter case variants when storing rewind files", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-case-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-case-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-case-1/manifest.json",
+      exportId: "user-win-case-1",
+      fileCount: 1,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_WINDOWS_DRIVE_CASE_VARIANTS} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          targetMessageId: "user-win-case-1",
+          files: [{ path: "C:/repo/demo/README.md", status: "D" }],
+        }),
+      );
+    });
+  });
+
+  it("deduplicates windows UNC case variants when storing rewind files", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-unc-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-unc-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-unc-1/manifest.json",
+      exportId: "user-win-unc-1",
+      fileCount: 1,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_WINDOWS_UNC_CASE_VARIANTS} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          targetMessageId: "user-win-unc-1",
+          files: [{ path: "//SERVER/Share/docs/README.md", status: "D" }],
+        }),
+      );
+    });
+  });
+
+  it("keeps case-distinct unix @mention paths as separate entries when storing rewind files", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-mention-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-mention-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-case-mention-1/manifest.json",
+      exportId: "user-case-mention-1",
+      fileCount: 2,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_CASE_SENSITIVE_MENTION_PATHS} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          targetMessageId: "user-case-mention-1",
+          files: [
+            { path: "/Users/demo/repo/Readme.md", status: "M" },
+            { path: "/Users/demo/repo/readme.md", status: "M" },
+          ],
         }),
       );
     });

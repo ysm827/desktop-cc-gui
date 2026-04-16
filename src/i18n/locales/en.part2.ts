@@ -1807,6 +1807,10 @@ const enPart2 = {
       "After confirmation, the current linear history will roll back from this user message. That includes this user message and all later assistant replies, tool calls, and related changes.",
     impactFollowUp:
       "If files are listed below, their changes happened inside the history segment that will be rewound. Review them before confirming.",
+    workspaceRestoreSectionTitle: "Workspace file strategy",
+    restoreWorkspaceFilesLabel: "Restore workspace files",
+    restoreWorkspaceFilesHint:
+      "When disabled, rewind only updates session history and leaves current workspace files untouched.",
     filesSectionTitle: "Affected files",
     filesRailTitle: "Files",
     filesEmpty: "No file changes were detected in the history segment being rewound.",

@@ -688,7 +688,10 @@ export function useAppShellSections(ctx: any) {
   );
 
   const handleRewindFromMessage = useCallback(
-    async (messageId: string) => {
+    async (
+      messageId: string,
+      options?: { restoreWorkspaceFiles?: boolean },
+    ) => {
       const normalizedMessageId = messageId.trim();
       if (!activeWorkspaceId || !activeThreadId || !normalizedMessageId) {
         throw new Error(t("rewind.notAvailable"));
@@ -696,6 +699,8 @@ export function useAppShellSections(ctx: any) {
       if (!isRewindSupportedThreadId(activeThreadId)) {
         throw new Error(t("rewind.notAvailable"));
       }
+      const shouldRestoreWorkspaceFiles =
+        options?.restoreWorkspaceFiles !== false;
       const rewindFromMessage =
         forkSessionFromMessageForWorkspace ??
         forkClaudeSessionFromMessageForWorkspace;
@@ -703,7 +708,10 @@ export function useAppShellSections(ctx: any) {
         activeWorkspaceId,
         activeThreadId,
         normalizedMessageId,
-        { activate: true },
+        {
+          activate: true,
+          restoreWorkspaceFiles: shouldRestoreWorkspaceFiles,
+        },
       );
       if (!forkedThreadId) {
         throw new Error(t("rewind.failed"));

@@ -160,11 +160,7 @@ export function extractFileChangeSummaries(items: ConversationItem[]): Operation
           }
           existing.additions += stats.additions;
           existing.deletions += stats.deletions;
-          if (status === "A") {
-            existing.status = "A";
-          } else if (status === "D" && existing.status !== "A") {
-            existing.status = "D";
-          }
+          existing.status = mergeFileStatus(existing.status, status);
           existing.diff = pickPreferredDiff(existing.diff, inferredChange.diff);
         }
         continue;
@@ -189,11 +185,7 @@ export function extractFileChangeSummaries(items: ConversationItem[]): Operation
       }
       existing.additions += inferred.additions;
       existing.deletions += inferred.deletions;
-      if (status === "A") {
-        existing.status = "A";
-      } else if (status === "D" && existing.status !== "A") {
-        existing.status = "D";
-      }
+      existing.status = mergeFileStatus(existing.status, status);
       continue;
     }
     for (const change of changes) {
@@ -234,13 +226,27 @@ export function extractFileChangeSummaries(items: ConversationItem[]): Operation
       }
       existing.additions += additions;
       existing.deletions += deletions;
-      if (status === "A") {
-        existing.status = "A";
-      }
+      existing.status = mergeFileStatus(existing.status, status);
       existing.diff = pickPreferredDiff(existing.diff, change.diff);
     }
   }
   return Array.from(seen.values());
+}
+
+function mergeFileStatus(
+  current: OperationFileChangeSummary["status"],
+  incoming: OperationFileChangeSummary["status"],
+): OperationFileChangeSummary["status"] {
+  if (incoming === "A") {
+    return "A";
+  }
+  if (incoming === "D") {
+    return current === "A" ? current : "D";
+  }
+  if (incoming === "R") {
+    return current === "A" || current === "D" ? current : "R";
+  }
+  return current;
 }
 
 function mergeInferredChangesByPath(

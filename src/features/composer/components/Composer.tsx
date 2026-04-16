@@ -72,6 +72,10 @@ import {
 import { pushErrorToast } from "../../../services/toasts";
 import { getManualMemoryInjectionMode } from "../../project-memory/utils/manualInjectionMode";
 
+type RewindExecutionOptions = {
+  restoreWorkspaceFiles?: boolean;
+};
+
 type ComposerProps = {
   kanbanContextMode?: "new" | "inherit";
   onKanbanContextModeChange?: (mode: "new" | "inherit") => void;
@@ -216,7 +220,10 @@ type ComposerProps = {
   plan?: TurnPlan | null;
   isPlanMode?: boolean;
   onOpenDiffPath?: (path: string) => void;
-  onRewind?: (userMessageId: string) => void | Promise<void>;
+  onRewind?: (
+    userMessageId: string,
+    options?: RewindExecutionOptions,
+  ) => void | Promise<void>;
   showStatusPanelToggleOverride?: boolean;
   statusPanelExpandedOverride?: boolean;
   onToggleStatusPanelOverride?: () => void;
@@ -258,6 +265,8 @@ const CREATE_FILE_INTENT_REGEX =
   /(创建|新建|新增|create|add)/i;
 const RENAME_FILE_INTENT_REGEX =
   /(重命名|rename|move)/i;
+const MODIFY_FILE_INTENT_REGEX =
+  /(修改|改|更新|注释|edit|patch|update)/i;
 const REWIND_PREVIEW_MAX_CHARS = 72;
 
 type RewindCandidate = {
@@ -343,6 +352,30 @@ function normalizeRewindExportPath(filePath: string): string {
   return filePath.trim().replace(/\\/g, "/");
 }
 
+function isWindowsLikeRewindPath(rawPath: string, normalizedPath: string): boolean {
+  if (rawPath.includes("\\")) {
+    return true;
+  }
+  if (/^[A-Za-z]:\//.test(normalizedPath)) {
+    return true;
+  }
+  if (/^\/\/[^/]+\/[^/]+/.test(normalizedPath)) {
+    return true;
+  }
+  return /^\/mnt\/[A-Za-z]\//.test(normalizedPath);
+}
+
+function toRewindPathDedupeKey(filePath: string): string {
+  const normalizedPath = normalizeRewindExportPath(filePath);
+  if (!normalizedPath) {
+    return "";
+  }
+  if (isWindowsLikeRewindPath(filePath, normalizedPath)) {
+    return normalizedPath.toLowerCase();
+  }
+  return normalizedPath;
+}
+
 function isLikelyFilePathToken(value: string): boolean {
   const normalized = value.trim();
   if (!normalized) {
@@ -389,6 +422,49 @@ function inferMessageFileStatus(text: string): OperationFileChangeSummary["statu
   return "M";
 }
 
+function inferSegmentFileStatus(
+  text: string,
+): OperationFileChangeSummary["status"] | null {
+  const normalized = text.trim();
+  if (!normalized) {
+    return null;
+  }
+  if (DELETE_FILE_INTENT_REGEX.test(normalized)) {
+    return "D";
+  }
+  if (RENAME_FILE_INTENT_REGEX.test(normalized)) {
+    return "R";
+  }
+  if (CREATE_FILE_INTENT_REGEX.test(normalized)) {
+    return "A";
+  }
+  if (MODIFY_FILE_INTENT_REGEX.test(normalized)) {
+    return "M";
+  }
+  return null;
+}
+
+function extractLeadingIntentClause(text: string): string {
+  const normalized = text.trimStart();
+  const separatorIndex = normalized.search(/[，,。.;；!?！？\n]/);
+  if (separatorIndex < 0) {
+    return normalized;
+  }
+  return normalized.slice(0, separatorIndex);
+}
+
+function extractTrailingIntentClause(text: string): string {
+  const normalized = text.trimEnd();
+  const separatorMatches = Array.from(
+    normalized.matchAll(/[，,。.;；!?！？\n]/g),
+  );
+  const lastSeparator = separatorMatches.at(-1);
+  if (!lastSeparator || lastSeparator.index === undefined) {
+    return normalized;
+  }
+  return normalized.slice(lastSeparator.index + lastSeparator[0].length);
+}
+
 function resolvePreferredStatus(
   current: OperationFileChangeSummary["status"],
   incoming: OperationFileChangeSummary["status"],
@@ -402,24 +478,47 @@ function resolvePreferredStatus(
   return priority[incoming] > priority[current] ? incoming : current;
 }
 
-function extractMentionedPathsFromMessage(text: string): string[] {
+type MentionedPathInMessage = {
+  path: string;
+  dedupeKey: string;
+  start: number;
+  end: number;
+};
+
+function extractMentionedPathsFromMessage(
+  text: string,
+): MentionedPathInMessage[] {
   if (!text.trim()) {
     return [];
   }
-  const paths: string[] = [];
+  const paths: MentionedPathInMessage[] = [];
   const seen = new Set<string>();
 
   text.replace(
     INLINE_FILE_REFERENCE_TOKEN_REGEX,
-    (_full, _icon: string, _name: string, fullPathRaw: string) => {
+    (
+      _full,
+      _icon: string,
+      _name: string,
+      fullPathRaw: string,
+      offset: number,
+    ) => {
       const normalized = normalizeMentionPath(fullPathRaw);
       if (!normalized || !isLikelyFilePathToken(normalized)) {
         return _full;
       }
-      const dedupeKey = normalized.toLowerCase();
+      const dedupeKey = toRewindPathDedupeKey(normalized);
+      if (!dedupeKey) {
+        return _full;
+      }
       if (!seen.has(dedupeKey)) {
         seen.add(dedupeKey);
-        paths.push(normalized);
+        paths.push({
+          path: normalized,
+          dedupeKey,
+          start: offset,
+          end: offset + _full.length,
+        });
       }
       return _full;
     },
@@ -432,15 +531,25 @@ function extractMentionedPathsFromMessage(text: string): string[] {
     if (!normalized || !isLikelyFilePathToken(normalized)) {
       continue;
     }
-    const dedupeKey = normalized.toLowerCase();
+    const dedupeKey = toRewindPathDedupeKey(normalized);
+    if (!dedupeKey) {
+      continue;
+    }
     if (seen.has(dedupeKey)) {
       continue;
     }
     seen.add(dedupeKey);
-    paths.push(normalized);
+    const start = match.index ?? 0;
+    const raw = match[0] ?? normalized;
+    paths.push({
+      path: normalized,
+      dedupeKey,
+      start,
+      end: start + raw.length,
+    });
   }
 
-  return paths;
+  return paths.sort((left, right) => left.start - right.start);
 }
 
 function extractFallbackAffectedFilesFromImpactedMessages(
@@ -451,27 +560,118 @@ function extractFallbackAffectedFilesFromImpactedMessages(
     if (item.kind !== "message" || item.role !== "user") {
       continue;
     }
-    const paths = extractMentionedPathsFromMessage(item.text);
-    if (paths.length === 0) {
+    const mentions = extractMentionedPathsFromMessage(item.text);
+    if (mentions.length === 0) {
       continue;
     }
-    const status = inferMessageFileStatus(item.text);
-    for (const filePath of paths) {
-      const existing = byPath.get(filePath);
+    const singlePathFallbackStatus =
+      mentions.length === 1 ? inferMessageFileStatus(item.text) : "M";
+    mentions.forEach((mention, index) => {
+      const previousEnd = index > 0 ? mentions[index - 1]?.end ?? 0 : 0;
+      const nextStart =
+        index + 1 < mentions.length
+          ? mentions[index + 1]?.start ?? item.text.length
+          : item.text.length;
+      const beforeSegment = extractTrailingIntentClause(
+        item.text.slice(previousEnd, mention.start),
+      );
+      const afterSegment = extractLeadingIntentClause(
+        item.text.slice(mention.end, nextStart),
+      );
+      const beforeStatus = inferSegmentFileStatus(beforeSegment);
+      const afterStatus = inferSegmentFileStatus(afterSegment);
+      const status = (() => {
+        if (beforeStatus && afterStatus) {
+          return resolvePreferredStatus(beforeStatus, afterStatus);
+        }
+        if (afterStatus) {
+          return afterStatus;
+        }
+        if (beforeStatus) {
+          return beforeStatus;
+        }
+        return singlePathFallbackStatus;
+      })();
+      const normalizedPath = normalizeRewindExportPath(mention.path);
+      const dedupeKey = mention.dedupeKey;
+      if (!normalizedPath || !dedupeKey) {
+        return;
+      }
+      const existing = byPath.get(dedupeKey);
       if (!existing) {
-        byPath.set(filePath, {
-          filePath,
-          fileName: getFileNameFromPath(filePath),
+        byPath.set(dedupeKey, {
+          filePath: normalizedPath,
+          fileName: getFileNameFromPath(normalizedPath),
           status,
           additions: 0,
           deletions: 0,
         });
-        continue;
+        return;
       }
       existing.status = resolvePreferredStatus(existing.status, status);
-    }
+    });
   }
   return Array.from(byPath.values());
+}
+
+function mergeRewindAffectedFiles(
+  toolFiles: OperationFileChangeSummary[],
+  fallbackFiles: OperationFileChangeSummary[],
+): OperationFileChangeSummary[] {
+  const mergedByKey = new Map<string, OperationFileChangeSummary>();
+
+  const normalizeForMerge = (file: OperationFileChangeSummary) => {
+    const normalizedPath = normalizeRewindExportPath(file.filePath);
+    const dedupeKey = toRewindPathDedupeKey(normalizedPath);
+    if (!normalizedPath || !dedupeKey) {
+      return null;
+    }
+    return {
+      dedupeKey,
+      file: {
+        ...file,
+        filePath: normalizedPath,
+        fileName: file.fileName?.trim() || getFileNameFromPath(normalizedPath),
+      } satisfies OperationFileChangeSummary,
+    };
+  };
+
+  for (const sourceFile of toolFiles) {
+    const normalized = normalizeForMerge(sourceFile);
+    if (!normalized) {
+      continue;
+    }
+    const existing = mergedByKey.get(normalized.dedupeKey);
+    if (!existing) {
+      mergedByKey.set(normalized.dedupeKey, normalized.file);
+      continue;
+    }
+    existing.status = resolvePreferredStatus(existing.status, normalized.file.status);
+    existing.additions = Math.max(existing.additions, normalized.file.additions);
+    existing.deletions = Math.max(existing.deletions, normalized.file.deletions);
+    if (!existing.diff && normalized.file.diff) {
+      existing.diff = normalized.file.diff;
+    }
+  }
+
+  for (const sourceFile of fallbackFiles) {
+    const normalized = normalizeForMerge(sourceFile);
+    if (!normalized) {
+      continue;
+    }
+    const existing = mergedByKey.get(normalized.dedupeKey);
+    if (!existing) {
+      mergedByKey.set(normalized.dedupeKey, normalized.file);
+      continue;
+    }
+    existing.status = resolvePreferredStatus(existing.status, normalized.file.status);
+  }
+
+  return Array.from(mergedByKey.values()).map((file) => ({
+      ...file,
+      filePath: normalizeRewindExportPath(file.filePath),
+      fileName: file.fileName?.trim() || getFileNameFromPath(file.filePath),
+    }));
 }
 
 function resolveRewindThreadContext(
@@ -525,9 +725,11 @@ function buildLatestRewindPreview(
   const impactedItems = items.slice(latestCandidate.index);
   const affectedFilesFromTools = extractFileChangeSummaries(impactedItems);
   const fallbackAffectedFiles =
-    affectedFilesFromTools.length === 0
-      ? extractFallbackAffectedFilesFromImpactedMessages(impactedItems)
-      : [];
+    extractFallbackAffectedFilesFromImpactedMessages(impactedItems);
+  const affectedFiles = mergeRewindAffectedFiles(
+    affectedFilesFromTools,
+    fallbackAffectedFiles,
+  );
   const threadContext = resolveRewindThreadContext(
     activeThreadId,
     fallbackEngine,
@@ -547,10 +749,7 @@ function buildLatestRewindPreview(
     ).length,
     removedToolCallCount: impactedItems.filter((item) => item.kind === "tool")
       .length,
-    affectedFiles:
-      affectedFilesFromTools.length > 0
-        ? affectedFilesFromTools
-        : fallbackAffectedFiles,
+    affectedFiles,
   };
 }
 
@@ -968,6 +1167,7 @@ export const Composer = memo(function Composer({
   const [rewindInFlight, setRewindInFlight] = useState(false);
   const [rewindPreviewState, setRewindPreviewState] =
     useState<ClaudeRewindPreviewState | null>(null);
+  const [restoreWorkspaceFiles, setRestoreWorkspaceFiles] = useState(true);
   const rewindInFlightRef = useRef(false);
   const lastExpandedHeightRef = useRef(
     Math.max(textareaHeight, COMPOSER_EXPAND_HEIGHT),
@@ -1095,6 +1295,7 @@ export const Composer = memo(function Composer({
 
   useEffect(() => {
     setRewindPreviewState(null);
+    setRestoreWorkspaceFiles(true);
   }, [activeThreadId]);
 
   useEffect(() => {
@@ -1102,6 +1303,7 @@ export const Composer = memo(function Composer({
       return;
     }
     setRewindPreviewState(null);
+    setRestoreWorkspaceFiles(true);
   }, [onRewind, rewindSupportedEngine]);
 
   const handleExpandComposer = useCallback(() => {
@@ -1329,6 +1531,7 @@ export const Composer = memo(function Composer({
       return;
     }
     setRewindPreviewState(null);
+    setRestoreWorkspaceFiles(true);
   }, [rewindInFlight]);
 
   const handleRewind = useCallback(() => {
@@ -1348,6 +1551,7 @@ export const Composer = memo(function Composer({
         });
         return;
       }
+      setRestoreWorkspaceFiles(true);
       setRewindPreviewState(preview);
       return;
     }
@@ -1376,6 +1580,7 @@ export const Composer = memo(function Composer({
         message: t("rewind.notAvailable"),
       });
       setRewindPreviewState(null);
+      setRestoreWorkspaceFiles(true);
       return;
     }
     if (rewindInFlightRef.current || rewindInFlight) {
@@ -1385,8 +1590,9 @@ export const Composer = memo(function Composer({
     rewindInFlightRef.current = true;
     try {
       setRewindInFlight(true);
-      await onRewind(preview.targetMessageId);
+      await onRewind(preview.targetMessageId, { restoreWorkspaceFiles });
       setRewindPreviewState(null);
+      setRestoreWorkspaceFiles(true);
     } catch (error) {
       pushErrorToast({
         title: t("rewind.title"),
@@ -1398,7 +1604,13 @@ export const Composer = memo(function Composer({
       setRewindInFlight(false);
       rewindInFlightRef.current = false;
     }
-  }, [onRewind, rewindInFlight, rewindPreviewState, t]);
+  }, [
+    onRewind,
+    restoreWorkspaceFiles,
+    rewindInFlight,
+    rewindPreviewState,
+    t,
+  ]);
 
   const handleStoreRewindChanges = useCallback(
     async (preview: ClaudeRewindPreviewState) => {
@@ -1413,12 +1625,13 @@ export const Composer = memo(function Composer({
       >();
       for (const file of preview.affectedFiles) {
         const path = normalizeRewindExportPath(file.filePath);
-        if (!path) {
+        const dedupeKey = toRewindPathDedupeKey(file.filePath);
+        if (!path || !dedupeKey) {
           continue;
         }
-        const existing = filesByPath.get(path);
+        const existing = filesByPath.get(dedupeKey);
         if (!existing) {
-          filesByPath.set(path, { path, status: file.status });
+          filesByPath.set(dedupeKey, { path, status: file.status });
           continue;
         }
         const currentStatus = existing.status ?? "M";
@@ -1919,6 +2132,8 @@ export const Composer = memo(function Composer({
       <ClaudeRewindConfirmDialog
         preview={rewindPreviewState}
         isBusy={rewindInFlight}
+        restoreWorkspaceFiles={restoreWorkspaceFiles}
+        onRestoreWorkspaceFilesChange={setRestoreWorkspaceFiles}
         onOpenDiffPath={onOpenDiffPath}
         onStoreChanges={handleStoreRewindChanges}
         onCancel={handleCancelRewind}

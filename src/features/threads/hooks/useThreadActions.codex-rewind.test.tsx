@@ -267,6 +267,72 @@ describe("useThreadActions codex rewind", () => {
     expect(deleteCodexSession).toHaveBeenCalledWith("ws-1", "thread-codex-1");
   });
 
+  it("skips workspace restore when Codex rewind toggle is disabled", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    } as any);
+    vi.mocked(listClaudeSessions).mockResolvedValue([]);
+    vi.mocked(forkThread).mockResolvedValue({
+      thread: { id: "thread-codex-rewind-no-restore" },
+    } as any);
+
+    const { result } = renderActions({
+      itemsByThread: {
+        "thread-codex-1": [
+          {
+            id: "user-local-prev",
+            kind: "message",
+            role: "user",
+            text: "更早一条",
+          },
+          {
+            id: "user-local-target",
+            kind: "message",
+            role: "user",
+            text: "回溯目标",
+          },
+          {
+            id: "tool-local-no-restore",
+            kind: "tool",
+            toolType: "fileChange",
+            title: "File changes",
+            detail: "{}",
+            changes: [
+              {
+                path: "src/App.tsx",
+                kind: "modified",
+                diff: "@@ -1,1 +1,1 @@\n-const value = 'before';\n+const value = 'after';",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+    });
+
+    await act(async () => {
+      await result.current.forkSessionFromMessageForWorkspace(
+        "ws-1",
+        "thread-codex-1",
+        "user-local-target",
+        { restoreWorkspaceFiles: false },
+      );
+    });
+
+    expect(forkThread).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-codex-1",
+      "user-local-target",
+    );
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+  });
+
   it("rejects rewind for unknown prefixed thread ids", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
@@ -519,6 +585,65 @@ describe("useThreadActions codex rewind", () => {
       "src/App.tsx",
       "const value = 'after';\n",
     );
+  });
+
+  it("does not roll workspace files back when Codex rewind fork fails and toggle is disabled", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    } as any);
+    vi.mocked(listClaudeSessions).mockResolvedValue([]);
+    vi.mocked(forkThread).mockRejectedValue(new Error("fork failed"));
+
+    const { result } = renderActions({
+      itemsByThread: {
+        "thread-codex-1": [
+          {
+            id: "user-local-prev",
+            kind: "message",
+            role: "user",
+            text: "更早一条",
+          },
+          {
+            id: "user-local-target",
+            kind: "message",
+            role: "user",
+            text: "回溯目标",
+          },
+          {
+            id: "tool-local-disable-rollback",
+            kind: "tool",
+            toolType: "fileChange",
+            title: "File changes",
+            detail: "{}",
+            changes: [
+              {
+                path: "src/App.tsx",
+                kind: "modified",
+                diff: "@@ -1,1 +1,1 @@\n-const value = 'before';\n+const value = 'after';",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+    });
+
+    await act(async () => {
+      await result.current.forkSessionFromMessageForWorkspace(
+        "ws-1",
+        "thread-codex-1",
+        "user-local-target",
+        { restoreWorkspaceFiles: false },
+      );
+    });
+
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
   });
 
   it("filters persisted Codex rewind hidden items on resume", async () => {

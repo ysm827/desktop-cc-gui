@@ -457,7 +457,10 @@ type LayoutNodesOptions = {
     options?: MessageSendOptions,
   ) => void | Promise<void>;
   onStop: () => void;
-  onRewind?: (userMessageId: string) => void | Promise<void>;
+  onRewind?: (
+    userMessageId: string,
+    options?: { restoreWorkspaceFiles?: boolean },
+  ) => void | Promise<void>;
   canStop: boolean;
   isReviewing: boolean;
   isProcessing: boolean;

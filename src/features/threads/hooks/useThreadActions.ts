@@ -59,7 +59,6 @@ import { normalizeSharedSessionEngine } from "../../shared-session/utils/sharedS
 import {
   asString,
   asNumber,
-  normalizeRootPath,
 } from "../utils/threadNormalize";
 import {
   type CodexRewindHiddenItemIdsMap,
@@ -73,6 +72,11 @@ import {
   findImpactedClaudeRewindItems,
   restoreClaudeRewindWorkspaceSnapshots,
 } from "../utils/claudeRewindRestore";
+import {
+  collectKnownCodexThreadIds,
+  matchesWorkspacePath,
+  normalizeComparableWorkspacePath,
+} from "./useThreadActions.workspacePath";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
 type UseThreadActionsOptions = {
@@ -495,163 +499,11 @@ async function mapWithConcurrency<T>(
   return results;
 }
 
-function normalizeComparableWorkspacePath(path: string): string {
-  return normalizeWindowsPathForComparison(normalizeRootPath(stripFileUri(path)).trim());
-}
-
-function normalizeWindowsPathForComparison(path: string): string {
-  if (!path) {
-    return path;
-  }
-  if (path.startsWith("//?/UNC/")) {
-    return `//${path.slice("//?/UNC/".length)}`;
-  }
-  if (path.startsWith("//?/")) {
-    return path.slice("//?/".length);
-  }
-  return path;
-}
-
-function stripFileUri(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed.toLowerCase().startsWith("file://")) {
-    return trimmed;
-  }
-  try {
-    const url = new URL(trimmed);
-    const pathname = decodeURIComponent(url.pathname || "");
-    if (!pathname) {
-      return trimmed;
-    }
-    const host = decodeURIComponent(url.hostname || "");
-    const lowerHost = host.toLowerCase();
-    if (/^[A-Za-z]$/.test(host) && pathname.startsWith("/")) {
-      return `${host.toUpperCase()}:${pathname}`;
-    }
-    if (lowerHost === "localhost") {
-      if (/^\/[A-Za-z]:\//.test(pathname)) {
-        return pathname.slice(1);
-      }
-      return pathname;
-    }
-    if (host) {
-      return `//${host}${pathname}`;
-    }
-    if (/^\/[A-Za-z]:\//.test(pathname)) {
-      return pathname.slice(1);
-    }
-    return pathname;
-  } catch {
-    return trimmed;
-  }
-}
-
-function addMacVolumeDataVariants(path: string, variants: Set<string>) {
-  if (path.startsWith("/System/Volumes/Data/")) {
-    variants.add(path.slice("/System/Volumes/Data".length));
-    return;
-  }
-  if (path.startsWith("/")) {
-    variants.add(`/System/Volumes/Data${path}`);
-  }
-}
-
-function addWindowsDriveShellVariants(path: string, variants: Set<string>) {
-  const winDriveMatch = path.match(/^([A-Za-z]):\/(.+)$/);
-  if (winDriveMatch) {
-    const drive = winDriveMatch[1]?.toLowerCase() ?? "";
-    const rest = winDriveMatch[2] ?? "";
-    variants.add(`/${drive}/${rest}`);
-    variants.add(`/mnt/${drive}/${rest}`);
-  }
-  const shellDriveMatch = path.match(/^\/(?:(?:mnt)\/)?([A-Za-z])\/(.+)$/);
-  if (shellDriveMatch) {
-    const drive = shellDriveMatch[1]?.toLowerCase() ?? "";
-    const rest = shellDriveMatch[2] ?? "";
-    variants.add(`${drive.toUpperCase()}:/${rest}`);
-    variants.add(`${drive}:/${rest}`);
-  }
-}
-
-function buildWorkspacePathVariants(path: string): Set<string> {
-  const normalized = normalizeComparableWorkspacePath(path);
-  const variants = new Set<string>();
-  if (!normalized) {
-    return variants;
-  }
-  variants.add(normalized);
-  if (normalized.startsWith("/private/")) {
-    variants.add(normalized.slice("/private".length));
-  } else if (normalized.startsWith("/")) {
-    variants.add(`/private${normalized}`);
-  }
-  addMacVolumeDataVariants(normalized, variants);
-  addWindowsDriveShellVariants(normalized, variants);
-  if (/^[A-Za-z]:/.test(normalized)) {
-    variants.add(`${normalized.charAt(0).toLowerCase()}${normalized.slice(1)}`);
-    variants.add(normalized.toLowerCase());
-  }
-  if (normalized.startsWith("//")) {
-    variants.add(normalized.toLowerCase());
-  }
-  return variants;
-}
-
-function matchesWorkspacePath(threadCwd: string, workspacePath: string): boolean {
-  const workspaceVariants = buildWorkspacePathVariants(workspacePath);
-  if (workspaceVariants.size === 0) {
-    return false;
-  }
-  const threadVariants = buildWorkspacePathVariants(threadCwd);
-  for (const candidate of threadVariants) {
-    for (const workspaceCandidate of workspaceVariants) {
-      if (candidate === workspaceCandidate) {
-        return true;
-      }
-      if (
-        candidate.startsWith(workspaceCandidate) &&
-        candidate.charAt(workspaceCandidate.length) === "/"
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function isLikelyCodexThreadId(threadId: string): boolean {
-  const normalized = threadId.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  return !(
-    normalized.startsWith("codex-pending-") ||
-    normalized.startsWith("claude:") ||
-    normalized.startsWith("claude-pending-") ||
-    normalized.startsWith("gemini:") ||
-    normalized.startsWith("gemini-pending-") ||
-    normalized.startsWith("opencode:") ||
-    normalized.startsWith("opencode-pending-")
-  );
-}
-
-function collectKnownCodexThreadIds(
-  existingThreads: ThreadSummary[],
-  activeThreadId: string,
-): Set<string> {
-  const known = new Set<string>();
-  existingThreads.forEach((thread) => {
-    if (thread.threadKind !== "shared" && thread.engineSource === "codex" && thread.id) {
-      known.add(thread.id);
-    }
-  });
-  if (isLikelyCodexThreadId(activeThreadId)) {
-    known.add(activeThreadId);
-  }
-  return known;
-}
-
 type RewindSupportedEngine = "claude" | "codex";
+type RewindFromMessageOptions = {
+  activate?: boolean;
+  restoreWorkspaceFiles?: boolean;
+};
 
 function resolveRewindSupportedEngine(
   threadId: string,
@@ -1652,7 +1504,7 @@ export function useThreadActions({
       workspaceId: string,
       threadId: string,
       messageId: string,
-      options?: { activate?: boolean },
+      options?: RewindFromMessageOptions,
     ) => {
       if (!threadId.startsWith("claude:")) {
         return null;
@@ -1670,6 +1522,8 @@ export function useThreadActions({
         return null;
       }
       const shouldActivate = options?.activate !== false;
+      const shouldRestoreWorkspaceFiles =
+        options?.restoreWorkspaceFiles !== false;
       const rewindLockKey = `${workspaceId}:${threadId}`;
       if (claudeRewindInFlightByThreadRef.current[rewindLockKey]) {
         return null;
@@ -1728,36 +1582,39 @@ export function useThreadActions({
             latestHistoryMessageId,
           },
         });
-        rewindRestoreState = await applyClaudeRewindWorkspaceRestore({
-          workspaceId,
-          workspacePath,
-          impactedItems,
-        });
-        if ((rewindRestoreState?.ignoredCommittedPaths?.length ?? 0) > 0) {
-          onDebug?.({
-            id: `${Date.now()}-client-thread-fork-from-message-restore-committed-ignored`,
-            timestamp: Date.now(),
-            source: "client",
-            label: "thread/fork from message restore committed ignored",
-            payload: {
-              workspaceId,
-              threadId,
-              ignoredCommittedPaths: rewindRestoreState?.ignoredCommittedPaths ?? [],
-            },
+        if (shouldRestoreWorkspaceFiles) {
+          rewindRestoreState = await applyClaudeRewindWorkspaceRestore({
+            workspaceId,
+            workspacePath,
+            impactedItems,
           });
-        }
-        if ((rewindRestoreState?.skippedPaths?.length ?? 0) > 0) {
-          onDebug?.({
-            id: `${Date.now()}-client-thread-fork-from-message-restore-skipped`,
-            timestamp: Date.now(),
-            source: "error",
-            label: "thread/fork from message restore skipped",
-            payload: {
-              workspaceId,
-              threadId,
-              skippedPaths: rewindRestoreState?.skippedPaths ?? [],
-            },
-          });
+          if ((rewindRestoreState?.ignoredCommittedPaths?.length ?? 0) > 0) {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-fork-from-message-restore-committed-ignored`,
+              timestamp: Date.now(),
+              source: "client",
+              label: "thread/fork from message restore committed ignored",
+              payload: {
+                workspaceId,
+                threadId,
+                ignoredCommittedPaths:
+                  rewindRestoreState?.ignoredCommittedPaths ?? [],
+              },
+            });
+          }
+          if ((rewindRestoreState?.skippedPaths?.length ?? 0) > 0) {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-fork-from-message-restore-skipped`,
+              timestamp: Date.now(),
+              source: "error",
+              label: "thread/fork from message restore skipped",
+              payload: {
+                workspaceId,
+                threadId,
+                skippedPaths: rewindRestoreState?.skippedPaths ?? [],
+              },
+            });
+          }
         }
         if (
           firstHistoryMessageId &&
@@ -1786,7 +1643,10 @@ export function useThreadActions({
         });
         const forkedThreadId = extractThreadId(response);
         if (!forkedThreadId) {
-          if (rewindRestoreState?.originalSnapshots?.length) {
+          if (
+            shouldRestoreWorkspaceFiles &&
+            rewindRestoreState?.originalSnapshots?.length
+          ) {
             await restoreClaudeRewindWorkspaceSnapshots(
               workspaceId,
               rewindRestoreState.originalSnapshots,
@@ -1846,7 +1706,10 @@ export function useThreadActions({
         return forkedThreadId;
       } catch (error) {
         try {
-          if (rewindRestoreState?.originalSnapshots?.length) {
+          if (
+            shouldRestoreWorkspaceFiles &&
+            rewindRestoreState?.originalSnapshots?.length
+          ) {
             await restoreClaudeRewindWorkspaceSnapshots(
               workspaceId,
               rewindRestoreState.originalSnapshots,
@@ -1885,7 +1748,7 @@ export function useThreadActions({
       workspaceId: string,
       threadId: string,
       messageId: string,
-      options?: { activate?: boolean },
+      options?: RewindFromMessageOptions,
     ) => {
       const canonicalThreadId = threadId.trim();
       const rewindEngine = resolveRewindSupportedEngine(canonicalThreadId);
@@ -1911,6 +1774,8 @@ export function useThreadActions({
         return null;
       }
       const shouldActivate = options?.activate !== false;
+      const shouldRestoreWorkspaceFiles =
+        options?.restoreWorkspaceFiles !== false;
       const rewindLockKey = `${workspaceId}:${canonicalThreadId}`;
       if (claudeRewindInFlightByThreadRef.current[rewindLockKey]) {
         return null;
@@ -1950,40 +1815,40 @@ export function useThreadActions({
           threadItems,
           normalizedMessageId,
         );
-        if (impactedItems.length < 1) {
-          return null;
-        }
         const firstThreadMessageId = findFirstHistoryUserMessageId(threadItems);
-        rewindRestoreState = await applyClaudeRewindWorkspaceRestore({
-          workspaceId,
-          workspacePath,
-          impactedItems,
-        });
-        if ((rewindRestoreState?.ignoredCommittedPaths?.length ?? 0) > 0) {
-          onDebug?.({
-            id: `${Date.now()}-client-thread-codex-fork-from-message-restore-committed-ignored`,
-            timestamp: Date.now(),
-            source: "client",
-            label: "codex/thread/fork from message restore committed ignored",
-            payload: {
-              workspaceId,
-              threadId: canonicalThreadId,
-              ignoredCommittedPaths: rewindRestoreState?.ignoredCommittedPaths ?? [],
-            },
+        if (shouldRestoreWorkspaceFiles) {
+          rewindRestoreState = await applyClaudeRewindWorkspaceRestore({
+            workspaceId,
+            workspacePath,
+            impactedItems,
           });
-        }
-        if ((rewindRestoreState?.skippedPaths?.length ?? 0) > 0) {
-          onDebug?.({
-            id: `${Date.now()}-client-thread-codex-fork-from-message-restore-skipped`,
-            timestamp: Date.now(),
-            source: "error",
-            label: "codex/thread/fork from message restore skipped",
-            payload: {
-              workspaceId,
-              threadId: canonicalThreadId,
-              skippedPaths: rewindRestoreState?.skippedPaths ?? [],
-            },
-          });
+          if ((rewindRestoreState?.ignoredCommittedPaths?.length ?? 0) > 0) {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-codex-fork-from-message-restore-committed-ignored`,
+              timestamp: Date.now(),
+              source: "client",
+              label: "codex/thread/fork from message restore committed ignored",
+              payload: {
+                workspaceId,
+                threadId: canonicalThreadId,
+                ignoredCommittedPaths:
+                  rewindRestoreState?.ignoredCommittedPaths ?? [],
+              },
+            });
+          }
+          if ((rewindRestoreState?.skippedPaths?.length ?? 0) > 0) {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-codex-fork-from-message-restore-skipped`,
+              timestamp: Date.now(),
+              source: "error",
+              label: "codex/thread/fork from message restore skipped",
+              payload: {
+                workspaceId,
+                threadId: canonicalThreadId,
+                skippedPaths: rewindRestoreState?.skippedPaths ?? [],
+              },
+            });
+          }
         }
 
         if (rewindTargetIndex === 0 || (firstThreadMessageId &&
@@ -2021,7 +1886,10 @@ export function useThreadActions({
         });
         const forkedThreadId = extractThreadId(response);
         if (!forkedThreadId) {
-          if (rewindRestoreState?.originalSnapshots?.length) {
+          if (
+            shouldRestoreWorkspaceFiles &&
+            rewindRestoreState?.originalSnapshots?.length
+          ) {
             await restoreClaudeRewindWorkspaceSnapshots(
               workspaceId,
               rewindRestoreState.originalSnapshots,
@@ -2135,7 +2003,10 @@ export function useThreadActions({
         return forkedThreadId;
       } catch (error) {
         try {
-          if (rewindRestoreState?.originalSnapshots?.length) {
+          if (
+            shouldRestoreWorkspaceFiles &&
+            rewindRestoreState?.originalSnapshots?.length
+          ) {
             await restoreClaudeRewindWorkspaceSnapshots(
               workspaceId,
               rewindRestoreState.originalSnapshots,

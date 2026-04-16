@@ -1780,6 +1780,10 @@ const zhPart2 = {
       "确认后，会从这条用户消息开始整体回退。也就是这条用户消息，以及它后面的助手回复、工具调用和相关变更，都会从当前线性历史里移除。",
     impactFollowUp:
       "如果下面列出了文件，表示这些文件对应的变更发生在将被回退的这段历史里，确认前请先核对。",
+    workspaceRestoreSectionTitle: "工作区文件策略",
+    restoreWorkspaceFilesLabel: "回退工作区文件",
+    restoreWorkspaceFilesHint:
+      "关闭后仅回溯会话历史，不会改写当前工作区中的文件内容。",
     filesSectionTitle: "受影响文件",
     filesRailTitle: "文件列表",
     filesEmpty: "这段回溯历史里没有识别到文件变更。",
