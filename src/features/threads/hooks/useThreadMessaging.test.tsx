@@ -1401,6 +1401,31 @@ describe("useThreadMessaging", () => {
     );
   });
 
+  it("sends follow-up messages on the rewound codex child thread", async () => {
+    const refreshThread = vi.fn(async () => null);
+    const startThreadForWorkspace = vi.fn(async () => "thread-new-1");
+    const { result } = makeHook("codex", {
+      activeThreadId: "thread-codex-rewind-1",
+      ensuredThreadId: "thread-codex-rewind-1",
+      threadEngineById: { "thread-codex-rewind-1": "codex" },
+      refreshThread,
+      startThreadForWorkspace,
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("follow up after rewind");
+    });
+
+    expect(refreshThread).not.toHaveBeenCalled();
+    expect(startThreadForWorkspace).not.toHaveBeenCalled();
+    expect(sendUserMessage).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-codex-rewind-1",
+      "follow up after rewind",
+      expect.any(Object),
+    );
+  });
+
   it("resumes explicit opencode session from /resume command", async () => {
     const dispatch = vi.fn();
     const refreshThread = vi.fn(async () => null);

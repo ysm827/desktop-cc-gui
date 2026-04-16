@@ -186,9 +186,33 @@ fn resolve_target_message_id(
         })
 }
 
+fn finalize_rewind_success(
+    child_thread_id: String,
+    resolved_message_id: String,
+    deleted_count: usize,
+    archive_result: Result<Value, String>,
+) -> Result<Value, String> {
+    archive_result.map_err(|error| {
+        format!(
+            "codex rewind committed hard truncation but failed to archive source runtime thread: {error}"
+        )
+    })?;
+
+    Ok(json!({
+        "thread": {
+            "id": child_thread_id
+        },
+        "resolvedMessageId": resolved_message_id,
+        "truncated": true,
+        "deletedCount": deleted_count,
+        "archivedBeforeDelete": true
+    }))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{resolve_target_message_id, UserMessageCandidate};
+    use super::{finalize_rewind_success, resolve_target_message_id, UserMessageCandidate};
+    use serde_json::json;
 
     fn user_message(id: &str, text: &str) -> UserMessageCandidate {
         UserMessageCandidate {
@@ -260,6 +284,37 @@ mod tests {
         .expect("index fallback should keep selected turn");
 
         assert_eq!(resolved, "u2");
+    }
+
+    #[test]
+    fn finalize_rewind_success_rejects_source_runtime_archive_failure() {
+        let error = finalize_rewind_success(
+            "thread-child".to_string(),
+            "message-1".to_string(),
+            1,
+            Err("archive failed".to_string()),
+        )
+        .expect_err("archive failure should reject rewind success");
+
+        assert!(error.contains("failed to archive source runtime thread"));
+        assert!(error.contains("archive failed"));
+    }
+
+    #[test]
+    fn finalize_rewind_success_returns_truncated_payload_after_archive() {
+        let payload = finalize_rewind_success(
+            "thread-child".to_string(),
+            "message-1".to_string(),
+            2,
+            Ok(json!({ "archived": true })),
+        )
+        .expect("archive success should keep rewind success payload");
+
+        assert_eq!(payload["thread"]["id"], "thread-child");
+        assert_eq!(payload["resolvedMessageId"], "message-1");
+        assert_eq!(payload["truncated"], true);
+        assert_eq!(payload["deletedCount"], 2);
+        assert_eq!(payload["archivedBeforeDelete"], true);
     }
 }
 
@@ -342,21 +397,17 @@ pub(crate) async fn rewind_thread_from_message(
         }
     };
 
-    let archived_before_delete = codex_core::archive_thread_core(
+    let archive_result = codex_core::archive_thread_core(
         sessions,
         workspace_id.clone(),
         normalized_thread_id.clone(),
     )
-    .await
-    .is_ok();
+    .await;
 
-    Ok(json!({
-        "thread": {
-            "id": child_thread_id
-        },
-        "resolvedMessageId": resolved_message_id,
-        "truncated": true,
-        "deletedCount": commit_result.deleted_count,
-        "archivedBeforeDelete": archived_before_delete
-    }))
+    finalize_rewind_success(
+        child_thread_id,
+        resolved_message_id,
+        commit_result.deleted_count,
+        archive_result,
+    )
 }

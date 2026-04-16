@@ -669,6 +669,77 @@ async fn commit_codex_rewind_for_workspace_truncates_source_session_before_targe
 }
 
 #[tokio::test]
+async fn commit_codex_rewind_for_workspace_reopen_reads_only_truncated_target_session() {
+    let codex_home = std::env::temp_dir().join(format!("codex-home-{}", Uuid::new_v4()));
+    let sessions_root = codex_home.join("sessions");
+    let day_key = "2026-01-19";
+    write_named_session_file(
+        &sessions_root,
+        day_key,
+        "rollout-2026-01-19T12-00-00-session-alpha",
+        &[
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","type":"session_meta","payload":{"id":"session-alpha","cwd":"/tmp/project-alpha"}}"#
+                .to_string(),
+            r#"{"timestamp":"2026-01-19T12:00:01.000Z","type":"event_msg","payload":{"type":"user_message","message":"first user"}}"#
+                .to_string(),
+            r#"{"timestamp":"2026-01-19T12:00:02.000Z","type":"event_msg","payload":{"type":"agent_message","message":"first reply"}}"#
+                .to_string(),
+            r#"{"timestamp":"2026-01-19T12:00:03.000Z","type":"event_msg","payload":{"type":"user_message","message":"second user"}}"#
+                .to_string(),
+            r#"{"timestamp":"2026-01-19T12:00:04.000Z","type":"event_msg","payload":{"type":"agent_message","message":"second reply"}}"#
+                .to_string(),
+        ],
+    );
+
+    let mut settings = WorkspaceSettings::default();
+    settings.codex_home = Some(codex_home.to_string_lossy().to_string());
+    let entry = WorkspaceEntry {
+        id: "workspace-id".to_string(),
+        name: "workspace".to_string(),
+        path: "/tmp/project-alpha".to_string(),
+        codex_bin: None,
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings,
+    };
+    let mut workspace_map = HashMap::new();
+    workspace_map.insert(entry.id.clone(), entry);
+    let workspaces = Mutex::new(workspace_map);
+
+    commit_codex_rewind_for_workspace(
+        &workspaces,
+        "workspace-id",
+        "session-alpha",
+        "session-beta",
+        1,
+        None,
+        None,
+    )
+    .await
+    .expect("commit codex rewind");
+
+    let reopened_entries = load_codex_session_entries(
+        "session-beta",
+        Path::new("/tmp/project-alpha"),
+        &[sessions_root],
+    )
+    .expect("reopen rewound session");
+
+    let reopened_payload = reopened_entries
+        .iter()
+        .map(|entry| serde_json::to_string(entry).expect("serialize rewound entry"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(reopened_payload.contains(r#""id":"session-beta""#));
+    assert!(reopened_payload.contains("first user"));
+    assert!(reopened_payload.contains("first reply"));
+    assert!(!reopened_payload.contains("second user"));
+    assert!(!reopened_payload.contains("second reply"));
+}
+
+#[tokio::test]
 async fn commit_codex_rewind_for_workspace_keeps_source_when_target_turn_is_missing() {
     let codex_home = std::env::temp_dir().join(format!("codex-home-{}", Uuid::new_v4()));
     let sessions_root = codex_home.join("sessions");
