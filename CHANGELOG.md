@@ -2,6 +2,42 @@
 
 ---
 
+##### **2026年4月16日（v0.4.1）**
+
+中文：
+
+✨ Features
+- 落地共享会话能力并收口至 Claude/Codex 引擎，支持跨引擎会话共享与消息归一化
+- 实现侧栏缓存机制并重构 app-shell，提升工作区切换与侧栏加载性能
+- 支持回溯场景下删除文件的识别与可选工作区文件恢复，增强回溯操作完整性
+
+🔧 Improvements
+- 优化工作区首页进入流程，降低首次进入门槛并提升安全性
+- 移除侧栏硬编码颜色，统一使用主题变量，提升多主题一致性
+
+🐛 Fixes
+- 修复正文中 LaTeX 与普通文本混排时的渲染异常，提升技术内容阅读体验
+- 修复共享会话在兼容性与消息归一化链路中的边界问题
+- 修复共享会话流程与工作区首页刷新之间的回归冲突
+
+English:
+
+✨ Features
+- Land shared-session capability scoped to Claude/Codex engines with cross-engine session sharing and message normalization
+- Implement sidebar caching and refactor app-shell to improve workspace switching and sidebar loading performance
+- Support deleted-file detection in rewind scenarios with optional workspace file restoration for stronger rollback completeness
+
+🔧 Improvements
+- Make the workspace home entry flow safer and easier to reach, lowering the first-visit barrier
+- Remove hardcoded sidebar colors and unify with theme variables for better multi-theme consistency
+
+🐛 Fixes
+- Fix LaTeX mixed-content rendering issues in message bodies to improve technical content readability
+- Fix shared-session compatibility and message normalization edge cases
+- Integrate shared-session flow without regressing workspace-home refresh behavior
+
+---
+
 ##### **2026年4月14日（v0.4.0）**
 
 中文：
