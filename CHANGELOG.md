@@ -2,6 +2,36 @@
 
 ---
 
+##### **2026年4月18日（v0.4.3）**
+
+中文：
+
+✨ Features
+- 重构回溯模式与文件选择策略：将回溯确认从二态开关改为三种模式单选（回退消息+相关文件、只回退消息、只回退文件），并严格锚定回溯文件集合在最后一条用户消息及其后续 AI 消息范围内
+
+🐛 Fixes
+- 完善 Claude 计划模式切换与执行审批链路，确保 ExitPlanMode 卡片不会误触发默认模式双按钮逻辑，也不会在切换后吞掉后续审批弹窗
+- 补齐 Claude 默认模式审批桥接边界，增强审批卡结构（增加 icon、badge、summary band），并从嵌套 payload 中提取路径与说明摘要
+
+🔧 Improvements
+- 增强 ExitPlanMode 交互体验：保留首张 handoff 卡、记录按钮已选状态、支持复制计划 markdown，并在自动切换 mode selector 后提供可感知的闪烁提示
+- 审批卡默认隐藏 content/patch/diff 等正文类字段，减少审批噪音
+
+English:
+
+✨ Features
+- Refactor rewind mode and file selection strategy: change rewind confirmation from binary toggle to three-mode radio selection (rollback message+related files, message-only, files-only), strictly anchoring rewind file set within the last user message and subsequent AI messages
+
+🐛 Fixes
+- Complete Claude plan-to-execution mode switch and approval flow to prevent ExitPlanMode card from incorrectly triggering default-mode dual-button logic or swallowing subsequent approval dialogs after mode switch
+- Complete Claude default-mode approval bridge boundary handling, enhance approval card structure (icon, badge, summary band), and extract path/summary from nested payloads
+
+🔧 Improvements
+- Enhance ExitPlanMode interaction experience: preserve first handoff card, record button selected state, support copying plan markdown, and add visible flash hint after auto-switching mode selector
+- Approval cards hide content/patch/diff body fields by default to reduce approval noise
+
+---
+
 ##### **2026年4月16日（v0.4.2）**
 
 中文：
