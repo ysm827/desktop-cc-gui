@@ -1,3 +1,4 @@
+import type { AppSettings } from "../../../../../types";
 import { Separator } from "@/components/ui/separator";
 import type { ThreadSummary, WorkspaceInfo } from "../../../../../types";
 import { HistoryCompletionSettings } from "../../HistoryCompletionSettings";
@@ -8,6 +9,7 @@ import {
 import { SessionRadarHistoryManagementSection } from "../../SessionRadarHistoryManagementSection";
 import type { SessionRadarEntry } from "../../../../session-activity/hooks/useSessionRadarFeed";
 import type { SessionRadarHistoryDeleteResult } from "../../../../session-activity/utils/sessionRadarHistoryManagement";
+import { RuntimePoolSection } from "./RuntimePoolSection";
 
 type GroupedWorkspace = {
   id: string | null;
@@ -18,6 +20,9 @@ type GroupedWorkspace = {
 type OtherSectionProps = {
   title: string;
   description: string;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  appSettings: AppSettings;
+  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   sessionRadarRecentCompletedSessions: SessionRadarEntry[];
   onDeleteSessionRadarHistory: (
     entries: SessionRadarEntry[],
@@ -39,6 +44,9 @@ type OtherSectionProps = {
 export function OtherSection({
   title,
   description,
+  t,
+  appSettings,
+  onUpdateAppSettings,
   sessionRadarRecentCompletedSessions,
   onDeleteSessionRadarHistory,
   workspace,
@@ -55,6 +63,12 @@ export function OtherSection({
     <section className="settings-section">
       <div className="settings-section-title">{title}</div>
       <div className="settings-section-subtitle">{description}</div>
+      <RuntimePoolSection
+        t={t}
+        appSettings={appSettings}
+        onUpdateAppSettings={onUpdateAppSettings}
+      />
+      <Separator className="my-4" />
       <HistoryCompletionSettings />
       <Separator className="my-4" />
       <SessionRadarHistoryManagementSection

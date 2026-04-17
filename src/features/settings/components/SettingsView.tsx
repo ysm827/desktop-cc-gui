@@ -2297,6 +2297,9 @@ export function SettingsView({
               <OtherSection
                 title={t("settings.sidebarOther")}
                 description={t("settings.otherDescription")}
+                t={t}
+                appSettings={appSettings}
+                onUpdateAppSettings={onUpdateAppSettings}
                 sessionRadarRecentCompletedSessions={sessionRadarRecentCompletedSessions}
                 onDeleteSessionRadarHistory={handleDeleteSessionRadarHistoryInSettings}
                 workspace={selectedProjectSessionWorkspace}
