@@ -1461,3 +1461,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 61: 补充 v0.4.5 发布说明
+
+**Date**: 2026-04-20
+**Task**: 补充 v0.4.5 发布说明
+**Branch**: `feature/vvvv0.4.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 按用户要求更新 CHANGELOG.md 中 v0.4.5 的追加内容。
+- 保持原有 changelog 结构，不删减已有条目。
+- 使用 Conventional Commits 中文提交信息完成本地 commit。
+
+主要改动：
+- 在 v0.4.5 中文 Features 中追加会话恢复诊断与降级承接说明。
+- 在 v0.4.5 中文 Improvements 中追加 Claude 手动压缩/会话恢复边界与 OpenSpec 进度同步说明。
+- 在 v0.4.5 中文 Fixes 中追加工作区文件树刷新、Opencode 子进程终止与 Codex 恢复兜底说明。
+- 在 English 区域追加对应英文发布说明。
+
+涉及模块：
+- CHANGELOG.md
+
+验证结果：
+- git diff -- CHANGELOG.md：确认只追加 v0.4.5 内容，没有改动旧版本结构。
+- git status --short -- CHANGELOG.md：确认提交前仅 CHANGELOG.md 被修改。
+- git commit 成功生成：58e62cbb docs(changelog): 补充 v0.4.5 发布说明。
+
+后续事项：
+- 如需发布前润色，可继续仅调整新增 changelog 条目措辞。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `58e62cbb616f5cd2ff61c4bd666ae3a8bc7fa732` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
