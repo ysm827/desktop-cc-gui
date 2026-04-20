@@ -60,7 +60,7 @@ pub(crate) async fn delete_codex_sessions_for_workspace(
         if normalized.is_empty() {
             return Err("session_id is required".to_string());
         }
-        if normalized.contains('/') || normalized.contains('\\') || normalized.contains("..") {
+        if is_invalid_session_path_segment(normalized) {
             return Err("invalid session_id".to_string());
         }
         if seen_session_ids.insert(normalized.to_string()) {

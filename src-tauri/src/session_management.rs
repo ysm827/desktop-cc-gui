@@ -919,7 +919,7 @@ fn normalize_session_ids(session_ids: Vec<String>) -> Result<Vec<String>, String
         if trimmed.is_empty() {
             return Err("session_ids must not contain empty values".to_string());
         }
-        if trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains("..") {
+        if is_invalid_session_path_segment(trimmed) {
             return Err("invalid session_id".to_string());
         }
         if seen.insert(trimmed.to_string()) {
@@ -927,6 +927,13 @@ fn normalize_session_ids(session_ids: Vec<String>) -> Result<Vec<String>, String
         }
     }
     Ok(normalized)
+}
+
+fn is_invalid_session_path_segment(session_id: &str) -> bool {
+    session_id == "."
+        || session_id.contains('/')
+        || session_id.contains('\\')
+        || session_id.contains("..")
 }
 
 async fn workspace_path_for_id(
@@ -1452,6 +1459,10 @@ mod tests {
 
         let error = normalize_session_ids(vec!["claude:folder/session".to_string()])
             .expect_err("slash-containing session ids must be rejected");
+        assert_eq!(error, "invalid session_id");
+
+        let error = normalize_session_ids(vec![".".to_string()])
+            .expect_err("current-directory session ids must be rejected");
         assert_eq!(error, "invalid session_id");
     }
 

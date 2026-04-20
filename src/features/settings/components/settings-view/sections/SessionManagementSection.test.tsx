@@ -173,6 +173,39 @@ describe("SessionManagementSection", () => {
     expect(listGlobalCodexSessions).toHaveBeenCalled();
   });
 
+  it("renders missing timestamps as an unknown marker", async () => {
+    vi.mocked(listGlobalCodexSessions).mockResolvedValueOnce({
+      data: [
+        {
+          sessionId: "codex:global",
+          workspaceId: "__global_unassigned__",
+          title: "Missing timestamp session",
+          updatedAt: 0,
+          engine: "codex",
+          archivedAt: null,
+          threadKind: "native",
+        },
+      ],
+      nextCursor: null,
+      partialSource: null,
+    });
+
+    render(
+      <SessionManagementSection
+        title="Session Management"
+        description="Manage sessions"
+        workspaces={[workspace]}
+        groupedWorkspaces={[{ id: null, name: "Ungrouped", workspaces: [workspace] }]}
+        initialWorkspaceId="ws-1"
+      />,
+    );
+
+    clickFirstEnabledButtonByName("settings.sessionManagementModeGlobal");
+
+    expect(await screen.findByText("Missing timestamp session")).toBeTruthy();
+    expect(await screen.findByText("--")).toBeTruthy();
+  });
+
   it("keeps refresh available in global mode even when no workspace is selected", async () => {
     vi.mocked(listGlobalCodexSessions).mockResolvedValueOnce({
       data: [],
@@ -320,6 +353,68 @@ describe("SessionManagementSection", () => {
     expect(
       await screen.findByText("settings.sessionManagementAttributionReasonWorktreeFamily"),
     ).toBeTruthy();
+  });
+
+  it("reloads related sessions after a successful related delete", async () => {
+    vi.mocked(listWorkspaceSessions).mockResolvedValue({
+      data: [],
+      nextCursor: null,
+      partialSource: null,
+    });
+    vi.mocked(listProjectRelatedCodexSessions)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            sessionId: "codex:related",
+            workspaceId: "ws-2",
+            matchedWorkspaceId: "ws-1",
+            matchedWorkspaceLabel: "Workspace",
+            attributionStatus: "inferred-related",
+            attributionReason: "shared-worktree-family",
+            attributionConfidence: "high",
+            title: "Sibling worktree session",
+            updatedAt: 1710000000002,
+            engine: "codex",
+            archivedAt: null,
+            threadKind: "native",
+            sourceLabel: "cli/codex",
+          },
+        ],
+        nextCursor: null,
+        partialSource: null,
+      })
+      .mockResolvedValueOnce({
+        data: [],
+        nextCursor: null,
+        partialSource: null,
+      });
+    vi.mocked(deleteWorkspaceSessions).mockResolvedValue({
+      results: [{ sessionId: "codex:related", ok: true }],
+    });
+
+    render(
+      <SessionManagementSection
+        title="Session Management"
+        description="Manage sessions"
+        workspaces={[workspace, worktree]}
+        groupedWorkspaces={[{ id: null, name: "Ungrouped", workspaces: [workspace, worktree] }]}
+        initialWorkspaceId="ws-1"
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Sibling worktree session" }));
+    fireEvent.click(getEnabledButtonByTestId("settings-project-sessions-delete-selected"));
+    fireEvent.click(getEnabledButtonByTestId("settings-project-sessions-delete-selected"));
+
+    await waitFor(() => {
+      expect(deleteWorkspaceSessions).toHaveBeenCalledWith("ws-2", ["codex:related"]);
+    });
+    await waitFor(() => {
+      expect(listProjectRelatedCodexSessions).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("checkbox", { name: "Sibling worktree session" })).toBeNull();
+    });
   });
 
   it("keeps failed sessions selected after partial archive failure", async () => {

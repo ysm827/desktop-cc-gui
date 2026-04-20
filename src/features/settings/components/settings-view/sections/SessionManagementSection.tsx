@@ -144,6 +144,9 @@ function normalizeEngineType(engine: string): EngineType {
 }
 
 function formatUpdatedAtDisplay(updatedAt: number, locale: string) {
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) {
+    return "--";
+  }
   const date = new Date(updatedAt);
   if (Number.isNaN(date.getTime())) {
     return "--";
@@ -452,6 +455,12 @@ export function SessionManagementSection({
     if (selectedEntries.length === 0) {
       return;
     }
+    const relatedSelectionKeys = new Set(
+      relatedEntries.map((entry) => buildWorkspaceSessionSelectionKey(entry)),
+    );
+    const hasSelectedRelatedEntry = selectedEntries.some((entry) =>
+      relatedSelectionKeys.has(buildWorkspaceSessionSelectionKey(entry)),
+    );
     if (kind === "delete" && !deleteArmed) {
       setDeleteArmed(true);
       return;
@@ -484,11 +493,13 @@ export function SessionManagementSection({
           }),
         });
       }
-      const shouldReloadInBackground = kind !== "delete" || failed.length > 0;
-      if (shouldReloadInBackground) {
+      const shouldReloadPrimary = kind !== "delete" || failed.length > 0;
+      const shouldReloadRelated =
+        mode === "project" && (shouldReloadPrimary || hasSelectedRelatedEntry);
+      if (shouldReloadPrimary || shouldReloadRelated) {
         void Promise.all([
-          reloadPrimary(),
-          mode === "project" ? reloadRelated() : Promise.resolve(),
+          shouldReloadPrimary ? reloadPrimary() : Promise.resolve(),
+          shouldReloadRelated ? reloadRelated() : Promise.resolve(),
         ]);
       }
       const succeededWorkspaceIds = collectSucceededWorkspaceIds(response.results);

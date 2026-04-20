@@ -214,6 +214,13 @@ pub mod commands {
         }
     }
 
+    fn is_invalid_session_path_segment(session_id: &str) -> bool {
+        session_id == "."
+            || session_id.contains('/')
+            || session_id.contains('\\')
+            || session_id.contains("..")
+    }
+
     fn delete_opencode_session_files(
         workspace_path: &Path,
         session_id: &str,
@@ -221,9 +228,7 @@ pub mod commands {
     ) -> Result<(), String> {
         let normalized_session_id = session_id.trim();
         if normalized_session_id.is_empty()
-            || normalized_session_id.contains('/')
-            || normalized_session_id.contains('\\')
-            || normalized_session_id.contains("..")
+            || is_invalid_session_path_segment(normalized_session_id)
         {
             return Err("[SESSION_NOT_FOUND] Invalid OpenCode session id".to_string());
         }
@@ -340,6 +345,20 @@ pub mod commands {
                     "method": "filesystem",
                 }))
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::is_invalid_session_path_segment;
+
+        #[test]
+        fn opencode_session_id_rejects_path_like_segments() {
+            assert!(is_invalid_session_path_segment("."));
+            assert!(is_invalid_session_path_segment("../escape"));
+            assert!(is_invalid_session_path_segment("folder/session"));
+            assert!(is_invalid_session_path_segment(r"folder\session"));
+            assert!(!is_invalid_session_path_segment("ses_valid"));
         }
     }
 }

@@ -246,7 +246,7 @@ pub(crate) async fn load_codex_session(
     if session_id.is_empty() {
         return Err("session_id is required".to_string());
     }
-    if session_id.contains('/') || session_id.contains('\\') || session_id.contains("..") {
+    if is_invalid_session_path_segment(&session_id) {
         return Err("invalid session_id".to_string());
     }
 
@@ -275,6 +275,13 @@ pub(crate) async fn load_codex_session(
         "sessionId": session_id,
         "entries": entries,
     }))
+}
+
+pub(super) fn is_invalid_session_path_segment(session_id: &str) -> bool {
+    session_id == "."
+        || session_id.contains('/')
+        || session_id.contains('\\')
+        || session_id.contains("..")
 }
 
 fn find_codex_session_file(
