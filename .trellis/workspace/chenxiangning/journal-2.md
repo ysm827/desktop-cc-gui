@@ -591,3 +591,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: 补充左侧项目显式主区切换入口
+
+**Date**: 2026-04-20
+**Task**: 补充左侧项目显式主区切换入口
+**Branch**: `feature/vvvv0.4.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 在保留左侧项目单击展开/收起会话的前提下，补一个显式的主区切换入口。
+- 避免把展开与切换主区两个语义重新绑回同一个 click。
+
+主要改动:
+- 为 WorkspaceCard 增加显式的 "切到主区" action，点击后走既有 onSelectWorkspace/selectWorkspace 链路。
+- 为 WorktreeCard 增加同样的显式主区切换 action，并在 Sidebar -> WorktreeSection -> WorktreeCard 间贯通 onSelectWorkspace。
+- 新增中英文 i18n 文案：sidebar.activateWorkspace。
+- 补充 Sidebar / WorktreeSection 回归测试，验证点击项目行仍只负责展开，点击显式 action 才会切主区且不会误触发展开/收起。
+
+涉及模块:
+- src/features/app/components/Sidebar.tsx
+- src/features/app/components/WorkspaceCard.tsx
+- src/features/app/components/WorktreeCard.tsx
+- src/features/app/components/WorktreeSection.tsx
+- src/features/app/components/Sidebar.test.tsx
+- src/features/app/components/WorktreeSection.test.tsx
+- src/i18n/locales/en.part1.ts
+- src/i18n/locales/zh.part1.ts
+
+验证结果:
+- npm exec vitest run src/features/app/components/Sidebar.test.tsx src/features/app/components/WorktreeSection.test.tsx src/features/files/components/FileTreePanel.detached.test.tsx 通过。
+- npm run typecheck 通过。
+- npm exec eslint src/features/app/components/Sidebar.tsx src/features/app/components/WorkspaceCard.tsx src/features/app/components/WorktreeCard.tsx src/features/app/components/WorktreeSection.tsx src/features/app/components/Sidebar.test.tsx src/features/app/components/WorktreeSection.test.tsx 通过。
+- npm run lint 仅存在仓库已有的 react-hooks exhaustive-deps warnings，本次新增 warning 已修复。
+
+后续事项:
+- 可继续补一条 MainHeader 项目下拉切换主区后，右侧 file panel 不 blank 的回归测试，锁住顶部入口与左侧入口的一致性。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23f9ec09` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
