@@ -1178,3 +1178,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 56: 修复工作区切换文件树稳定性
+
+**Date**: 2026-04-20
+**Task**: 修复工作区切换文件树稳定性
+**Branch**: `feature/vvvv0.4.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+修复工作区切换后右侧文件树可能空白、首次加载失败后不自愈，以及旧 workspace 慢响应回写当前文件树的稳定性问题。
+
+## 主要改动
+- 在 `src/features/workspaces/hooks/useWorkspaceFiles.ts` 增加 `loadError`、首次失败自动重试、最新 workspace 响应门禁，避免 stale response 覆盖当前 state。
+- 将文件树加载错误透传到主面板和 detached explorer，在 `src/features/files/components/FileTreePanel.tsx` 增加根文件树错误态与重试入口。
+- 在 i18n 中补充 `loadFilesFailed` / `retryLoadFiles` 文案。
+- 新增 `src/features/workspaces/hooks/useWorkspaceFiles.test.tsx`，覆盖首次失败重试、切 workspace 清理 retry、快切 workspace stale response 三条回归。
+- 更新 `src/features/files/components/FileTreePanel.run.test.tsx`，覆盖根文件树错误态而不是空态。
+
+## 涉及模块
+- `src/features/workspaces/hooks/useWorkspaceFiles.ts`
+- `src/features/files/components/FileTreePanel.tsx`
+- `src/features/files/components/DetachedFileExplorerWindow.tsx`
+- `src/features/files/components/FileExplorerWorkspace.tsx`
+- `src/features/layout/hooks/useLayoutNodes.tsx`
+- `src/app-shell.tsx`
+- `src/app-shell-parts/useAppShellLayoutNodesSection.tsx`
+- `src/i18n/locales/en.part2.ts`
+- `src/i18n/locales/zh.part2.ts`
+
+## 验证结果
+- `npm exec vitest run src/features/workspaces/hooks/useWorkspaceFiles.test.tsx src/features/app/components/MainHeader.workspace-switch-regression.test.tsx` 通过
+- `npm run typecheck` 通过
+- 用户手测确认：问题已压住
+- 本次未跑全量 `npm run lint`
+
+## 后续事项
+- 如后续继续整理文件树/工作区稳定性，可考虑把这次 stale response gate 经验沉淀到 frontend hook spec。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e5cab7e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

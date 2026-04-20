@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 55
+- **Total Sessions**: 56
 - **Last Active**: 2026-04-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1180 | Active |
+| `journal-2.md` | ~1242 | Active |
 | `journal-1.md` | ~1990 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 56 | 2026-04-20 | 修复工作区切换文件树稳定性 | `e5cab7e2` | `feature/vvvv0.4.5` |
 | 55 | 2026-04-20 | 补强 Codex 会话自恢复与零活动超时兜底 | `c0c475f6af600f5af91482bc2094f839999123a1` | `feature/vvvv0.4.5` |
 | 54 | 2026-04-20 | 修复会话恢复与空态展示边界问题 | `78bf435a` | `feature/vvvv0.4.5` |
 | 53 | 2026-04-20 | Claude /compact 提案定稿 | `e0386b2f` | `feature/vvvv0.4.5` |
