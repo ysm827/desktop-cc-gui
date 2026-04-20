@@ -48,6 +48,7 @@ describe("WorktreeSection", () => {
         getPinTimestamp={() => null}
         onConnectWorkspace={vi.fn()}
         onShowWorktreeSessionMenu={vi.fn()}
+        onSelectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={vi.fn()}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}
@@ -96,6 +97,7 @@ describe("WorktreeSection", () => {
         getPinTimestamp={() => null}
         onConnectWorkspace={vi.fn()}
         onShowWorktreeSessionMenu={vi.fn()}
+        onSelectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={vi.fn()}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}
@@ -148,6 +150,7 @@ describe("WorktreeSection", () => {
         getPinTimestamp={() => null}
         onConnectWorkspace={vi.fn()}
         onShowWorktreeSessionMenu={vi.fn()}
+        onSelectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}
@@ -199,6 +202,7 @@ describe("WorktreeSection", () => {
         getPinTimestamp={() => null}
         onConnectWorkspace={vi.fn()}
         onShowWorktreeSessionMenu={onShowWorktreeSessionMenu}
+        onSelectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}
@@ -215,6 +219,57 @@ describe("WorktreeSection", () => {
 
     expect(onShowWorktreeSessionMenu).toHaveBeenCalledTimes(1);
     expect(onShowWorktreeSessionMenu.mock.calls[0]?.[1]).toEqual(worktree);
+    expect(onToggleWorkspaceCollapse).not.toHaveBeenCalled();
+  });
+
+  it("activates the worktree from the explicit main-panel action without toggling collapse", () => {
+    const onSelectWorkspace = vi.fn();
+    const onToggleWorkspaceCollapse = vi.fn();
+
+    render(
+      <WorktreeSection
+        parentWorkspaceId="workspace-1"
+        worktrees={[worktree]}
+        isSectionCollapsed={false}
+        onToggleSectionCollapse={vi.fn()}
+        deletingWorktreeIds={new Set()}
+        threadsByWorkspace={{ [worktree.id]: [] }}
+        threadStatusById={{}}
+        threadListLoadingByWorkspace={{ [worktree.id]: false }}
+        threadListPagingByWorkspace={{ [worktree.id]: false }}
+        threadListCursorByWorkspace={{ [worktree.id]: null }}
+        expandedWorkspaces={new Set()}
+        activeWorkspaceId={null}
+        activeThreadId={null}
+        getThreadRows={() => ({
+          pinnedRows: [],
+          unpinnedRows: [],
+          totalRoots: 0,
+          hasMoreRoots: false,
+        })}
+        getThreadTime={() => null}
+        isThreadPinned={() => false}
+        isThreadAutoNaming={() => false}
+        onToggleThreadPin={vi.fn()}
+        getPinTimestamp={() => null}
+        onConnectWorkspace={vi.fn()}
+        onShowWorktreeSessionMenu={vi.fn()}
+        onSelectWorkspace={onSelectWorkspace}
+        onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
+        onSelectThread={vi.fn()}
+        onShowThreadMenu={vi.fn()}
+        onShowWorktreeMenu={vi.fn()}
+        onToggleExpanded={vi.fn()}
+        onLoadOlderThreads={vi.fn()}
+      />,
+    );
+
+    const activateButton = screen.getByRole("button", {
+      name: /切到主区|Open in main panel|sidebar\.activateWorkspace/i,
+    });
+    fireEvent.click(activateButton);
+
+    expect(onSelectWorkspace).toHaveBeenCalledWith("wt-1");
     expect(onToggleWorkspaceCollapse).not.toHaveBeenCalled();
   });
 });

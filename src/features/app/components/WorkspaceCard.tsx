@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
 import type { WorkspaceInfo } from "../../../types";
 import { TooltipIconButton } from "../../../components/ui/tooltip-icon-button";
 import { isDefaultWorkspacePath } from "../../workspaces/utils/defaultWorkspace";
@@ -12,6 +13,7 @@ type WorkspaceCardProps = {
   hasRunningSession?: boolean;
   isCollapsed: boolean;
   onShowWorkspaceMenu: (event: MouseEvent, workspace: WorkspaceInfo) => void;
+  onSelectWorkspace: (workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   children?: React.ReactNode;
 };
@@ -24,6 +26,7 @@ export function WorkspaceCard({
   hasRunningSession = false,
   isCollapsed,
   onShowWorkspaceMenu,
+  onSelectWorkspace,
   onToggleWorkspaceCollapse,
   children,
 }: WorkspaceCardProps) {
@@ -83,6 +86,21 @@ export function WorkspaceCard({
           ) : null}
 
           <div className="workspace-actions">
+            <TooltipIconButton
+              className="workspace-action-btn"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectWorkspace(workspace.id);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+              }}
+              label={t("sidebar.activateWorkspace")}
+              disabled={isActive}
+              data-tauri-drag-region="false"
+            >
+              <ArrowRight size={13} aria-hidden />
+            </TooltipIconButton>
             <TooltipIconButton
               className="workspace-action-btn"
               onClick={(event) => {

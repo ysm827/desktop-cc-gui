@@ -1,4 +1,5 @@
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
 import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -14,6 +15,7 @@ type WorktreeCardProps = {
   isDeleting?: boolean;
   onShowWorktreeMenu: (event: MouseEvent, workspaceId: string) => void;
   onShowWorktreeSessionMenu: (event: MouseEvent, workspace: WorkspaceInfo) => void;
+  onSelectWorkspace: (workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   children?: React.ReactNode;
@@ -49,6 +51,7 @@ export function WorktreeCard({
   isDeleting = false,
   onShowWorktreeMenu,
   onShowWorktreeSessionMenu,
+  onSelectWorkspace,
   onToggleWorkspaceCollapse,
   onConnectWorkspace,
   children,
@@ -115,6 +118,23 @@ export function WorktreeCard({
             </div>
           ) : (
             <>
+              <button
+                type="button"
+                className="worktree-create-session-button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectWorkspace(worktree.id);
+                }}
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                }}
+                data-tauri-drag-region="false"
+                aria-label={t("sidebar.activateWorkspace")}
+                title={t("sidebar.activateWorkspace")}
+                disabled={isActive}
+              >
+                <ArrowRight size={13} aria-hidden />
+              </button>
               <button
                 type="button"
                 className="worktree-create-session-button"

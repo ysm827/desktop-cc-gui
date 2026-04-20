@@ -14,6 +14,7 @@ vi.mock("react-i18next", () => ({
         "sidebar.sessionActionsGroup": "New Session",
         "sidebar.toggleSearch": "Toggle search",
         "sidebar.searchProjects": "Search projects",
+        "sidebar.activateWorkspace": "Open in main panel",
         "sidebar.quickNewThread": "Home",
         "sidebar.quickAutomation": "Automation",
         "sidebar.quickSearch": "Search",
@@ -628,6 +629,43 @@ describe("Sidebar", () => {
 
     expect(onToggleWorkspaceCollapse).not.toHaveBeenCalled();
     expect(onSelectWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("activates the workspace from the explicit main-panel action without toggling collapse", () => {
+    const workspace = {
+      id: "ws-1",
+      name: "codemoss",
+      path: "/tmp/codemoss",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: true,
+        worktreeSetupScript: null,
+      },
+    };
+    const onSelectWorkspace = vi.fn();
+    const onToggleWorkspaceCollapse = vi.fn();
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace],
+          },
+        ]}
+        onSelectWorkspace={onSelectWorkspace}
+        onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in main panel" }));
+
+    expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
+    expect(onToggleWorkspaceCollapse).not.toHaveBeenCalled();
   });
 
   it("shows tooltips for the add workspace and workspace actions icons", async () => {

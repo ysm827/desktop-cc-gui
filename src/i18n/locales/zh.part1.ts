@@ -132,6 +132,7 @@ const zhPart1 = {
     newCloneAgent: "新建克隆代理",
     newWindow: "新建窗口",
     sessionActionsGroup: "新建会话",
+    activateWorkspace: "切到主区",
     workspaceActionsGroup: "工作区操作",
     deprecatedTag: "废弃",
     unavailableTag: "未开放",

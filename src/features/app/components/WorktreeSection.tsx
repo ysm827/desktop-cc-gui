@@ -48,6 +48,7 @@ type WorktreeSectionProps = {
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onShowWorktreeSessionMenu: (event: MouseEvent, workspace: WorkspaceInfo) => void;
+  onSelectWorkspace: (workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
@@ -90,6 +91,7 @@ export function WorktreeSection({
   getPinTimestamp,
   onConnectWorkspace,
   onShowWorktreeSessionMenu,
+  onSelectWorkspace,
   onToggleWorkspaceCollapse,
   onSelectThread,
   onShowThreadMenu,
@@ -210,6 +212,7 @@ export function WorktreeSection({
                 onShowWorktreeSessionMenu={onShowWorktreeSessionMenu}
                 onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
                 onConnectWorkspace={onConnectWorkspace}
+                onSelectWorkspace={onSelectWorkspace}
               >
                 {showWorktreeThreadList && (
                   <ThreadList

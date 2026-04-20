@@ -132,6 +132,7 @@ const enPart1 = {
     newWorktreeAgent: "New worktree agent",
     newCloneAgent: "New clone agent",
     sessionActionsGroup: "New Session",
+    activateWorkspace: "Open in main panel",
     workspaceActionsGroup: "Workspace Actions",
     deprecatedTag: "Deprecated",
     unavailableTag: "Unavailable",

@@ -164,7 +164,7 @@ export function Sidebar({
   onToggleTerminal: _onToggleTerminal,
   onAddWorkspace,
   onSelectHome: _onSelectHome,
-  onSelectWorkspace: _onSelectWorkspace,
+  onSelectWorkspace,
   onConnectWorkspace,
   onAddAgent,
   onAddSharedAgent,
@@ -749,6 +749,7 @@ export function Sidebar({
         hasRunningSession={hasRunningSession}
         isCollapsed={isCollapsed}
         onShowWorkspaceMenu={showWorkspaceMenu}
+        onSelectWorkspace={onSelectWorkspace}
         onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
       >
         {!isCollapsed && worktrees.length > 0 && (
@@ -776,6 +777,7 @@ export function Sidebar({
             getPinTimestamp={getPinTimestamp}
             onConnectWorkspace={onConnectWorkspace}
             onShowWorktreeSessionMenu={showWorkspaceSessionMenu}
+            onSelectWorkspace={onSelectWorkspace}
             onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
             onSelectThread={onSelectThread}
             onShowThreadMenu={showThreadMenu}
@@ -845,6 +847,7 @@ export function Sidebar({
     onConfirmDeleteConfirm,
     onConnectWorkspace,
     onLoadOlderThreads,
+    onSelectWorkspace,
     onSelectThread,
     showThreadMenu,
     showWorkspaceMenu,
