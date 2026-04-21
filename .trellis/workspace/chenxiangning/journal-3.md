@@ -1202,3 +1202,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 89: 修复 Windows 下 Claude 对话幕布闪烁止血补丁
+
+**Date**: 2026-04-21
+**Task**: 修复 Windows 下 Claude 对话幕布闪烁止血补丁
+**Branch**: `feature/v-0.4.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 对当前工作区改动做全面 review，重点检查边界条件、Windows/macOS 兼容性和大文件治理约束。
+- 为 Windows 下 Claude 对话幕布闪烁问题提交一个无损止血补丁。
+
+## 主要改动
+- 在 `src/features/messages/components/Messages.tsx` 中引入 Windows 平台判断，仅在 `Windows + Claude + isThinking` 场景挂载 `windows-claude-processing` class。
+- 修复 `conversationState` 覆盖 legacy props 时的边界条件，统一使用归一化 `isThinking` 驱动 `waitingForFirstChunk`、`useStreamActivityPhase` 和 mitigation class，避免状态源不一致导致漏触发。
+- 在 `src/styles/messages.css` 中为上述场景定向关闭 ingress 重特效，并禁用消息行的 `content-visibility:auto`，降低 WebView2 合成抖动风险。
+- 新增 `src/features/messages/components/Messages.windows-render-mitigation.test.tsx`，补齐 Windows / 非 Windows / 非 Claude / stale prop + normalized state 覆盖测试。
+- 强化 `src/styles/layout-swapped-platform-guard.test.ts` 的样式作用域断言，确保该降级只对 desktop Windows 生效。
+
+## 涉及模块
+- 会话消息幕布：`src/features/messages/components/Messages.tsx`
+- 消息样式：`src/styles/messages.css`
+- 平台样式守卫测试：`src/styles/layout-swapped-platform-guard.test.ts`
+- Windows 定向止血测试：`src/features/messages/components/Messages.windows-render-mitigation.test.tsx`
+
+## 验证结果
+- `npm run lint -- --quiet` ✅
+- `npm run typecheck` ✅
+- `npm exec vitest run src/features/messages/components/Messages.windows-render-mitigation.test.tsx src/features/messages/components/Messages.test.tsx src/features/messages/components/Messages.live-behavior.test.tsx src/styles/layout-swapped-platform-guard.test.ts` ✅
+- `npm run check:large-files:near-threshold` ✅（命中 near-threshold 警告，但本次触达文件未超过 hard gate）
+- `npm run check:large-files:gate` ✅
+
+## 后续事项
+- 让真实 Windows 物理机用户验证闪烁是否明显下降。
+- 若仍有残留，可继续收敛 Claude live reasoning 可见重排频率，但无需先动 runtime contract。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `747751b5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

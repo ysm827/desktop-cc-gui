@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 88
+- **Total Sessions**: 89
 - **Last Active**: 2026-04-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1204 | Active |
+| `journal-3.md` | ~1264 | Active |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 89 | 2026-04-21 | 修复 Windows 下 Claude 对话幕布闪烁止血补丁 | `747751b5` | `feature/v-0.4.7` |
 | 88 | 2026-04-21 | Archive Codex stalled recovery change | `e6ad9549` | `feature/v-0.4.7` |
 | 87 | 2026-04-21 | archive completed openspec changes | `007c3b9d` | `feature/v-0.4.7` |
 | 86 | 2026-04-21 | runtime 与 thread actions 大文件模块拆分治理 | `643252092ca5359e507490c8e2071aa69cdf65b3` | `feature/f-v0.4.6` |
