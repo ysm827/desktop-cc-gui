@@ -128,6 +128,18 @@ describe("layout swapped platform guard", () => {
     );
   });
 
+  it("keeps Windows Claude render mitigation scoped to desktop Windows messages shell", () => {
+    expect(messagesCss).toMatch(
+      /\.app\.windows-desktop[\s\S]*\.messages-shell\.windows-claude-processing[\s\S]*\.working\.is-ingress[\s\S]*\.working-spinner\s*\{/,
+    );
+    expect(messagesCss).toMatch(
+      /\.app\.windows-desktop[\s\S]*\.messages-shell\.windows-claude-processing[\s\S]*\.message\s*\{/,
+    );
+    expect(messagesCss).not.toMatch(
+      /(^|\n)\.messages-shell\.windows-claude-processing[\s\S]*\.working\.is-ingress[\s\S]*\.working-spinner\s*\{/m,
+    );
+  });
+
   it("keeps swapped sidebar quick nav in normal LTR order", () => {
     expect(sidebarCss).toContain(
       ".app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item {",

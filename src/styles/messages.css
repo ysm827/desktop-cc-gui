@@ -536,6 +536,28 @@
   animation: working-spark-spin 0.58s linear infinite;
 }
 
+.app.windows-desktop
+  .messages-shell.windows-claude-processing
+  .working.is-ingress
+  .working-spinner {
+  animation-duration: 1s;
+  border-top-color: color-mix(in srgb, var(--text-stronger) 82%, transparent);
+  border-right-color: rgba(255, 255, 255, 0.2);
+  filter: none;
+}
+
+.app.windows-desktop
+  .messages-shell.windows-claude-processing
+  .working.is-ingress
+  .working-spinner::before,
+.app.windows-desktop
+  .messages-shell.windows-claude-processing
+  .working.is-ingress
+  .working-spinner::after {
+  animation: none;
+  display: none;
+}
+
 :root[data-theme="light"] .working.is-ingress .working-spinner {
   border-top-color: #ff6a00;
   border-right-color: rgba(255, 106, 0, 0.68);
@@ -705,6 +727,10 @@
   margin-bottom: 12px;
   content-visibility: auto;
   contain-intrinsic-block-size: auto 120px;
+}
+
+.app.windows-desktop .messages-shell.windows-claude-processing .message {
+  content-visibility: visible;
 }
 
 .messages-live-sticky-user-message {

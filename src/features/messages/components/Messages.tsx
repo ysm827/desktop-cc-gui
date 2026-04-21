@@ -80,6 +80,7 @@ import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import { dedupeExitPlanItemsKeepFirst } from "./messagesExitPlan";
 import { RuntimeReconnectCard } from "./RuntimeReconnectCard";
 import { resolveAssistantRuntimeReconnectHint, resolveRetryMessageForReconnectItem } from "./runtimeReconnect";
+import { isWindowsPlatform } from "../../../utils/platform";
 
 type MessagesProps = {
   items: ConversationItem[];
@@ -1305,6 +1306,7 @@ export const Messages = memo(function Messages({
   onRecoverThreadRuntimeAndResend,
 }: MessagesProps) {
   const { t } = useTranslation();
+  const isWindowsDesktop = useMemo(() => isWindowsPlatform(), []);
   const isWorking = legacyIsThinking || isContextCompacting;
   const fallbackConversationState = useMemo<ConversationState>(
     () => ({
@@ -1346,6 +1348,13 @@ export const Messages = memo(function Messages({
   const userInputRequests = effectiveState.userInputQueue;
   const workspaceId = effectiveState.meta.workspaceId || legacyWorkspaceId;
   const threadId = effectiveState.meta.threadId || legacyThreadId;
+  const activeEngine = toConversationEngine(effectiveState.meta.engine);
+  const isThinking = conversationState
+    ? effectiveState.meta.isThinking
+    : legacyIsThinking;
+  const heartbeatPulse = conversationState
+    ? (effectiveState.meta.heartbeatPulse ?? legacyHeartbeatPulse ?? 0)
+    : legacyHeartbeatPulse ?? 0;
   const latestRuntimeReconnectItemId = useMemo(() => {
     for (let index = items.length - 1; index >= 0; index -= 1) {
       const item = items[index];
@@ -1367,13 +1376,6 @@ export const Messages = memo(function Messages({
     () => resolveRetryMessageForReconnectItem(items, latestRuntimeReconnectItemId),
     [items, latestRuntimeReconnectItemId],
   );
-  const activeEngine = toConversationEngine(effectiveState.meta.engine);
-  const isThinking = conversationState
-    ? effectiveState.meta.isThinking
-    : legacyIsThinking;
-  const heartbeatPulse = conversationState
-    ? (effectiveState.meta.heartbeatPulse ?? legacyHeartbeatPulse ?? 0)
-    : legacyHeartbeatPulse ?? 0;
   const renderStartedAt =
     typeof performance === "undefined" ? 0 : performance.now();
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -1883,7 +1885,7 @@ export const Messages = memo(function Messages({
   }, [effectiveItems, lastUserMessageIndex]);
 
   const waitingForFirstChunk = useMemo(() => {
-    if (!legacyIsThinking || effectiveItems.length === 0) {
+    if (!isThinking || effectiveItems.length === 0) {
       return false;
     }
     let lastUserIndex = -1;
@@ -1904,16 +1906,18 @@ export const Messages = memo(function Messages({
       }
     }
     return true;
-  }, [legacyIsThinking, effectiveItems]);
+  }, [isThinking, effectiveItems]);
   const streamActivityPhase = useStreamActivityPhase({
     isProcessing:
-      legacyIsThinking &&
+      isThinking &&
       (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini"),
     items: effectiveItems,
   });
   const primaryWorkingLabel = isContextCompacting
     ? t("chat.contextDualViewCompacting")
     : approvalResumeWorkingLabel;
+  const enableWindowsClaudeRenderMitigation =
+    isWindowsDesktop && activeEngine === "claude" && isThinking;
 
   const visibleItems = useMemo(() => {
     const filtered = effectiveItems.filter((item) => {
@@ -2825,7 +2829,9 @@ export const Messages = memo(function Messages({
   }, []);
 
   return (
-    <div className={`messages-shell${hasAnchorRail ? " has-anchor-rail" : ""}`}>
+    <div
+      className={`messages-shell${hasAnchorRail ? " has-anchor-rail" : ""}${enableWindowsClaudeRenderMitigation ? " windows-claude-processing" : ""}`}
+    >
       {hasAnchorRail && (
         <div
           className="messages-anchor-rail"
