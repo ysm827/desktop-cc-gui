@@ -1,9 +1,11 @@
 use super::{
-    build_engine_observability, is_engine_root_process, parse_process_rows_unix_output,
-    parse_process_rows_windows_payload, replace_workspace_session_with_terminator,
-    terminate_replaced_workspace_session, write_json_atomically, ProcessSnapshotRow,
-    RuntimeEndedRecord, RuntimeEngineObservability, RuntimeManager, RuntimeProcessDiagnostics,
-    RuntimeState,
+    build_engine_observability, replace_workspace_session_with_terminator,
+    terminate_replaced_workspace_session, write_json_atomically, RuntimeEndedRecord,
+    RuntimeEngineObservability, RuntimeManager, RuntimeProcessDiagnostics, RuntimeState,
+};
+use super::process_diagnostics::{
+    is_engine_root_process, parse_process_rows_unix_output,
+    parse_process_rows_windows_payload, ProcessSnapshotRow,
 };
 use crate::backend::app_server::{
     dispose_test_workspace_session, make_test_workspace_session, WorkspaceSession,

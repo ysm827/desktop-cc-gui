@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, WorkspaceInfo } from "../../../types";
 import {
@@ -37,7 +37,11 @@ import {
 } from "../../../utils/threadItems";
 import { loadSidebarSnapshot } from "../utils/sidebarSnapshot";
 import { saveThreadActivity } from "../utils/threadStorage";
-import { useThreadActions } from "./useThreadActions";
+import {
+  expectSetThreadsDispatched,
+  renderActions,
+  workspace,
+} from "./useThreadActions.test-utils";
 
 vi.mock("../../../services/tauri", () => ({
   startThread: vi.fn(),
@@ -90,14 +94,6 @@ vi.mock("../utils/sidebarSnapshot", () => ({
 }));
 
 describe("useThreadActions", () => {
-  const workspace: WorkspaceInfo = {
-    id: "ws-1",
-    name: "ccgui",
-    path: "/tmp/codex",
-    connected: true,
-    settings: { sidebarCollapsed: false },
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
@@ -138,64 +134,6 @@ describe("useThreadActions", () => {
     vi.mocked(writeWorkspaceFile).mockResolvedValue(undefined);
     vi.mocked(loadSidebarSnapshot).mockReturnValue(null);
   });
-
-  function renderActions(
-    overrides?: Partial<Parameters<typeof useThreadActions>[0]>,
-  ) {
-    const dispatch = vi.fn();
-    const loadedThreadsRef = { current: {} as Record<string, boolean> };
-    const replaceOnResumeRef = { current: {} as Record<string, boolean> };
-    const threadActivityRef = {
-      current: {} as Record<string, Record<string, number>>,
-    };
-    const applyCollabThreadLinksFromThread = vi.fn();
-    const updateThreadParent = vi.fn();
-
-    const args: Parameters<typeof useThreadActions>[0] = {
-      dispatch,
-      itemsByThread: {},
-      userInputRequests: [],
-      threadsByWorkspace: {},
-      activeThreadIdByWorkspace: {},
-      threadListCursorByWorkspace: {},
-      threadStatusById: {},
-      getCustomName: () => undefined,
-      threadActivityRef,
-      loadedThreadsRef,
-      replaceOnResumeRef,
-      applyCollabThreadLinksFromThread,
-      updateThreadParent,
-      onThreadTitleMappingsLoaded: vi.fn(),
-      onRenameThreadTitleMapping: vi.fn(),
-      ...overrides,
-    };
-
-    const utils = renderHook(() => useThreadActions(args));
-
-    return {
-      dispatch,
-      loadedThreadsRef: args.loadedThreadsRef,
-      replaceOnResumeRef: args.replaceOnResumeRef,
-      threadActivityRef: args.threadActivityRef,
-      applyCollabThreadLinksFromThread: args.applyCollabThreadLinksFromThread,
-      updateThreadParent: args.updateThreadParent,
-      ...utils,
-    };
-  }
-
-  function expectSetThreadsDispatched(
-    dispatch: ReturnType<typeof vi.fn>,
-    workspaceId: string,
-    threads: Array<Record<string, unknown>>,
-  ) {
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "setThreads",
-        workspaceId,
-        threads: threads.map((thread) => expect.objectContaining(thread)),
-      }),
-    );
-  }
 
   it("starts a thread and activates it by default", async () => {
     vi.mocked(startThread).mockResolvedValue({
