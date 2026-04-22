@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 108
+- **Total Sessions**: 109
 - **Last Active**: 2026-04-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~389 | Active |
+| `journal-4.md` | ~444 | Active |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 109 | 2026-04-22 | 对齐 Claude Doctor 与 CLI 验证链路 | `80829b4c` | `feature/v-0.4.7` |
 | 108 | 2026-04-22 | 修复 OpenCode 自动探测抖动 | `f3448982` | `feature/v-0.4.7` |
 | 107 | 2026-04-22 | 完成 Computer Use Phase 1 状态桥接实现 | `7cbf1f60` | `feature/v-0.4.7` |
 | 106 | 2026-04-22 | fix(notifications): 收紧运行时提示悬浮点右下角定位 | `74fbc0bb` | `feature/v-0.4.7` |

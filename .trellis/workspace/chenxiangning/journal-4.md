@@ -387,3 +387,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 109: 对齐 Claude Doctor 与 CLI 验证链路
+
+**Date**: 2026-04-22
+**Task**: 对齐 Claude Doctor 与 CLI 验证链路
+**Branch**: `feature/v-0.4.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：补齐 Claude CLI settings、doctor、remote backend 与 daemon forwarding 的 cross-layer contract，让 Claude Code 与 Codex 在 CLI 验证、PATH 诊断和远端执行语义上保持一致。
+
+主要改动：
+- 在 frontend settings、service、controller 与 app shell 中补齐 claudeBin 字段、Claude doctor 触发入口与结果透传。
+- 将设置页的 Codex 入口升级为统一的 CLI 验证面板，拆分 shared execution backend 与 Codex / Claude Code tabs。
+- 在 Rust backend 新增/收口 claude_doctor 相关实现，补齐 remote bridge、daemon RPC、history command forwarding 与 PATH bootstrap。
+- 调整 CLI 二进制探测与 debug helper，减少自定义 bin 误匹配并统一 app/daemon 的诊断语义。
+- 同步补齐相关 TS/Rust 测试、i18n 文案与 OpenSpec change：fix-claude-doctor-settings-alignment。
+
+涉及模块：
+- src/features/settings/**
+- src/services/tauri.ts 与 src/services/tauri/doctor.ts
+- src-tauri/src/codex/**
+- src-tauri/src/bin/cc_gui_daemon/**
+- src-tauri/src/engine/**
+- openspec/changes/fix-claude-doctor-settings-alignment/
+
+验证结果：
+- 本次回合未额外执行 lint / typecheck / test；提交依据是当前工作区跨层改动分组结果与现有测试补丁。
+
+后续事项：
+- 后续可补跑 frontend / Rust 质量门禁，并手测 settings 中的 Codex / Claude Code doctor 行为与 remote backend parity。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `80829b4c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
