@@ -1296,3 +1296,60 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 125: 回归门禁修复与线程测试契约对齐
+
+**Date**: 2026-04-23
+**Task**: 回归门禁修复与线程测试契约对齐
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+补跑全量回归，修复阻塞回归验收的静态门禁问题，并对齐 threads 域 integration tests 的 tauri mock contract。
+
+## 主要改动
+- 在 `src/app-shell.tsx` 补回 `writeClientStoreValue` import，恢复 app-shell runtime contract 校验。
+- 去掉 `src/app-shell-parts/useAppShellPromptActionsSection.ts` 与 `src/app-shell-parts/useAppShellSearchRadarSection.ts` 的 `@ts-nocheck`，改为显式输入类型 contract。
+- 为 `useThreads.memory-race.integration.test.tsx`、`useThreads.pin.integration.test.tsx`、`useThreads.integration.test.tsx` 的 `services/tauri` mock 补齐 `connectWorkspace`，修复 heavy integration 下的测试契约漂移。
+
+## 涉及模块
+- app-shell orchestration
+- threads integration tests
+- clientStorage/runtime contract gate
+
+## 验证结果
+- `npm run typecheck` 通过
+- `npm run lint` 通过（0 errors，保留既有 warnings）
+- `npm run check:runtime-contracts` 通过
+- `npm run doctor:strict` 通过
+- `cargo test --manifest-path src-tauri/Cargo.toml` 通过（485 passed）
+- `VITEST_INCLUDE_HEAVY=1 npm run test` 全量跑通；期间修复 `useThreads` 集成测试 mock 漂移后，从 277/345 断点续跑剩余 69 个 test files，全绿
+
+## 后续事项
+- 当前工作树只剩本次已提交代码与待提交 journal record
+- 可考虑后续单独清理仓库中长期存在的 `react-hooks/exhaustive-deps` warnings
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a975548c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

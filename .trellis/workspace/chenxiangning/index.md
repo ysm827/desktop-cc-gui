@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 124
+- **Total Sessions**: 125
 - **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~1298 | Active |
+| `journal-4.md` | ~1355 | Active |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 125 | 2026-04-23 | 回归门禁修复与线程测试契约对齐 | `a975548c` | `feature/v-0.4.8` |
 | 124 | 2026-04-23 | Split engine OpenCode command surface | `2384c5a6` | `feature/v-0.4.8` |
 | 123 | 2026-04-23 | Split git branch commands and refresh baseline | `332497ee` | `feature/v-0.4.8` |
 | 122 | 2026-04-23 | Split runtime session lifecycle submodule | `8556b2c4` | `feature/v-0.4.8` |
