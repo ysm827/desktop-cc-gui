@@ -16,6 +16,7 @@
 - 优化实时吸顶用户问题与历史吸顶标题的对齐关系，统一 live sticky bubble 与历史区域头部的视觉基线，减少长会话中的吸顶错位噪音
 - 补强运行时提示框启动链路与状态语义，补充本地状态迁移、输入历史恢复、界面资源加载与 shell 挂载提示，并在首次 runtime `ready` 时回写状态闭环，让客户端启动阶段更可见
 - 优化运行时提示框的多引擎与跨平台边界处理，根据实际 engine 展示 runtime 文案，并补齐 Windows 反斜杠路径与空工作区元数据场景下的稳定 fallback
+- 优化实时对话中 inline code 的流式渲染与去重作用域，减少 markdown 结构在流式阶段被误拆分、误归并或重复重绘的概率
 - 同步归档本轮已完成的 OpenSpec 变更并刷新相关 proposal / spec，使运行时稳定性、融合续跑与消息区行为说明继续与实现保持一致
 
 🐛 Fixes
@@ -25,6 +26,7 @@
 - 修复 Windows 下 Claude 对话幕布闪烁风险，并进一步加固 desktop render-safe mode，降低跨平台渲染空白、闪屏和流式渲染不稳定问题
 - 修复消息吸顶与 runtime 恢复重试之间的联动边界，避免实时提示、吸顶气泡与恢复动作同时出现时发生状态错位或视觉重叠
 - 修复运行时提示框在头部状态已回到“空闲”时，最小化图标仍显示叹号的语义错位，避免历史 notice 残留导致外部提示状态与当前状态不一致
+- 修复 assistant 最终消息在长任务或结构化回答中偶发整段重复输出的问题，收口近似重复段落、单换行拼接的 markdown section 与 completed 阶段的双份渲染
 
 English:
 
@@ -38,6 +40,7 @@ English:
 - Align live sticky user-question bubbles with the history sticky header so the visual baseline stays consistent during long conversations and sticky elements compete less for attention
 - Strengthen the runtime notice dock bootstrap flow and status semantics by adding migration, input-history, interface-resource, and shell-mount notices, while writing back the first runtime `ready` state so startup progress reads as a complete lifecycle
 - Improve engine-aware and cross-platform behavior in the runtime notice dock so runtime copy reflects the actual engine, and Windows backslash paths plus empty workspace metadata still resolve to stable labels
+- Improve inline-code streaming rendering and de-duplication scope in live conversations so markdown structures are less likely to be split incorrectly, merged too aggressively, or rendered twice mid-stream
 - Sync and archive the completed OpenSpec changes from this release, keeping runtime-stability, fusion-continuity, and message-behavior documentation aligned with the implementation
 
 🐛 Fixes
@@ -47,6 +50,7 @@ English:
 - Fix Claude conversation-surface flicker on Windows and further harden desktop render-safe mode to reduce blanking, flashing, and unstable streaming presentation across platforms
 - Fix coordination gaps between sticky message state and runtime recovery retries so live notices, sticky bubbles, and retry actions no longer drift out of sync or visually overlap
 - Fix the runtime notice dock minimized icon staying on an exclamation state after the header had already returned to `Idle`, preventing stale notice history from misrepresenting the current runtime state
+- Fix duplicated assistant final messages in long-running or structured responses by collapsing near-duplicate paragraphs, single-newline markdown sections, and repeated completed-stage payloads into one readable result
 
 ---
 
