@@ -1743,3 +1743,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 98: 拆分消息样式并补强桌面渲染守卫
+
+**Date**: 2026-04-22
+**Task**: 拆分消息样式并补强桌面渲染守卫
+**Branch**: `feature/v-0.4.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：对 messages.css 进行大文件拆分，同时补齐桌面 render-safe 边界回归，并保持 OpenSpec/Trellis 记录与实现一致。
+
+主要改动：
+- 将 src/styles/messages.css 拆分为聚合入口、messages.part1.css、messages.part2.css，保留 selector contract 与导入顺序。
+- 更新 src/styles/layout-swapped-platform-guard.test.ts，使样式守卫测试支持递归展开 @import 后再进行断言。
+- 在 src/features/messages/components/Messages.windows-render-mitigation.test.tsx 中补充 normalized conversationState 停止 processing 后移除 claude-render-safe 的退出态回归测试。
+- 修正 openspec/changes/fix-claude-chat-canvas-cross-platform-blanking/design.md 中旧的 windows-claude-processing 文案。
+- 补全 .trellis/workspace/chenxiangning/journal-3.md 中 Session 97 的 summary / testing / commit 记录。
+
+涉及模块：messages chat canvas、src/styles/messages*.css、messages render-safe regression tests、OpenSpec change 文档、Trellis workspace journal。
+
+验证结果：
+- npm run lint 通过（仅存在仓库既有 react-hooks/exhaustive-deps warnings，非本次新增）
+- npm run typecheck 通过
+- npm run test 通过（336 test files 全部通过）
+- npm run check:large-files 通过
+- openspec validate fix-claude-chat-canvas-cross-platform-blanking --type change --strict --no-interactive 通过
+
+后续事项：
+- messages.part1.css 仍有 2208 行，后续若消息区继续扩展，可在真正新增样式时再按 shell / working / card 三个块继续细拆。
+- CHANGELOG.md 当前仍有未提交改动，本次未纳入业务提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7619db05` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
