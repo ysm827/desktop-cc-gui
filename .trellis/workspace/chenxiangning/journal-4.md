@@ -938,3 +938,60 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 119: Split tauri, app shell, and thread messaging hotspots
+
+**Date**: 2026-04-23
+**Task**: Split tauri, app shell, and thread messaging hotspots
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+拆分 tauri façade、app-shell orchestration 和 thread messaging session tooling 三个高热点大文件。
+
+### Main Changes
+
+任务目标:
+- 将 bridge/runtime 与 threads/shell 的大文件热点拆成 feature-local 或 domain-local 模块。
+
+主要改动:
+- 将 src/services/tauri.ts 拆成 vendors / agents / dictation / terminalRuntime / projectMemory 子模块。
+- 将 app-shell 的 search/radar/activity 与 prompt actions orchestration 提取到 app-shell-parts hooks。
+- 将 useThreadMessaging 的 session tooling commands 提取到独立 hook。
+- 保持 outward contract，不要求调用方迁移。
+
+涉及模块:
+- src/services/tauri.ts 及 src/services/tauri/*
+- src/app-shell.tsx 及 src/app-shell-parts/*
+- src/features/threads/hooks/useThreadMessaging.ts
+- src/features/threads/hooks/useThreadMessagingSessionTooling.ts
+- 对应 Trellis tasks 与 OpenSpec changes
+
+验证结果:
+- npm run typecheck 通过
+- npm run check:runtime-contracts 通过
+- npm run check:large-files:gate 通过
+- npx vitest run src/features/threads/hooks/useThreadMessaging.test.tsx src/features/threads/hooks/useQueuedSend.test.tsx 通过
+
+后续事项:
+- 继续拆解 threads 侧剩余热点，并在最终一组提交中统一更新 baseline/watchlist。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b25ff26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
