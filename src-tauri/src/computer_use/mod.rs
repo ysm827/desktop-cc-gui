@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -285,7 +286,7 @@ fn resolve_computer_use_cache_root() -> Option<PathBuf> {
 fn detect_plugin_manifest_path(cache_root: Option<&Path>) -> Option<PathBuf> {
     let root = cache_root?;
     let entries = fs::read_dir(root).ok()?;
-    let mut manifests = entries
+    entries
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let file_type = entry.file_type().ok()?;
@@ -295,10 +296,67 @@ fn detect_plugin_manifest_path(cache_root: Option<&Path>) -> Option<PathBuf> {
             let manifest_path = entry.path().join(".codex-plugin").join("plugin.json");
             manifest_path.is_file().then_some(manifest_path)
         })
-        .collect::<Vec<_>>();
+        .max_by(|left, right| compare_plugin_manifest_paths(left, right))
+}
 
-    manifests.sort();
-    manifests.pop()
+fn compare_plugin_manifest_paths(left: &PathBuf, right: &PathBuf) -> Ordering {
+    let left_numbers = plugin_manifest_version_numbers(left);
+    let right_numbers = plugin_manifest_version_numbers(right);
+    match compare_version_number_slices(&left_numbers, &right_numbers) {
+        Ordering::Equal => {
+            plugin_manifest_version_label(left).cmp(&plugin_manifest_version_label(right))
+        }
+        ordering => ordering,
+    }
+}
+
+fn compare_version_number_slices(left: &[u64], right: &[u64]) -> Ordering {
+    let max_len = left.len().max(right.len());
+    for index in 0..max_len {
+        let left_value = *left.get(index).unwrap_or(&0);
+        let right_value = *right.get(index).unwrap_or(&0);
+        match left_value.cmp(&right_value) {
+            Ordering::Equal => {}
+            ordering => return ordering,
+        }
+    }
+    Ordering::Equal
+}
+
+fn plugin_manifest_version_label(path: &Path) -> String {
+    path.parent()
+        .and_then(Path::parent)
+        .and_then(|version_dir| version_dir.file_name())
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_string())
+        .unwrap_or_default()
+}
+
+fn plugin_manifest_version_numbers(path: &Path) -> Vec<u64> {
+    let label = plugin_manifest_version_label(path);
+    let mut numbers = Vec::new();
+    let mut digits = String::new();
+
+    for character in label.chars() {
+        if character.is_ascii_digit() {
+            digits.push(character);
+            continue;
+        }
+        if !digits.is_empty() {
+            if let Ok(value) = digits.parse::<u64>() {
+                numbers.push(value);
+            }
+            digits.clear();
+        }
+    }
+
+    if !digits.is_empty() {
+        if let Ok(value) = digits.parse::<u64>() {
+            numbers.push(value);
+        }
+    }
+
+    numbers
 }
 
 fn read_plugin_enabled_from_config(path: &Path) -> Result<Option<bool>, String> {
@@ -519,6 +577,47 @@ mod tests {
                     .join("SkyComputerUseClient")
             )
         );
+
+        fs::remove_dir_all(&test_root).expect("temp directory should be removed");
+    }
+
+    #[test]
+    fn detect_plugin_manifest_path_prefers_highest_numeric_version() {
+        let test_root = std::env::temp_dir().join(format!(
+            "cc-gui-computer-use-plugin-cache-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time should be after unix epoch")
+                .as_nanos()
+        ));
+        let low_manifest = test_root
+            .join("2.9.0")
+            .join(".codex-plugin")
+            .join("plugin.json");
+        let high_manifest = test_root
+            .join("10.0.0")
+            .join(".codex-plugin")
+            .join("plugin.json");
+
+        fs::create_dir_all(
+            low_manifest
+                .parent()
+                .expect("low manifest parent should exist"),
+        )
+        .expect("low manifest parent should be created");
+        fs::create_dir_all(
+            high_manifest
+                .parent()
+                .expect("high manifest parent should exist"),
+        )
+        .expect("high manifest parent should be created");
+        fs::write(&low_manifest, "{}").expect("low manifest should be created");
+        fs::write(&high_manifest, "{}").expect("high manifest should be created");
+
+        let selected = detect_plugin_manifest_path(Some(test_root.as_path()))
+            .expect("highest plugin manifest should be detected");
+
+        assert_eq!(selected, high_manifest);
 
         fs::remove_dir_all(&test_root).expect("temp directory should be removed");
     }
