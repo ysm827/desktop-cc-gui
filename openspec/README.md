@@ -5,8 +5,8 @@
 ## 仓库快照（2026-04-23）
 
 - 主规范目录: `openspec/specs/`（168 个 capability）
-- 归档变更: `openspec/changes/archive/`（161 个）
-- 活跃变更: `openspec/changes/`（4 个）
+- 归档变更: `openspec/changes/archive/`（162 个）
+- 活跃变更: `openspec/changes/`（3 个）
 - 工作流技能: `.claude/skills/open* + osp-openspec-sync`
 
 ## 细粒度统计（Capability 分域）
@@ -88,5 +88,5 @@ python3 .claude/skills/osp-openspec-sync/scripts/incremental-sync.py --project-p
 
 ---
 
-- 更新时间: 2026-04-23T00:00:00+08:00
+- 更新时间: 2026-04-23T00:20:00+08:00
 - 维护者: CodeMoss Team

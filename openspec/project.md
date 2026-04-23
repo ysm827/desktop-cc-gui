@@ -1,8 +1,8 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-04-23T00:00:00+08:00
-- Sync Scope: sync `add-codex-computer-use-plugin-bridge` main specs + archive completed change
+- Updated At: 2026-04-23T00:20:00+08:00
+- Sync Scope: recalibrate OpenSpec snapshot counts after archive drift + clear strict validation warning
 
 ## Domain
 
@@ -13,7 +13,7 @@ OpenSpec workflow and governance for CodeMoss/ccgui, including change lifecycle 
 - Spec artifacts: `openspec/specs/*`
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
-- Current change state: active changes = `4`, archive changes = `161`
+- Current change state: active changes = `3`, archive changes = `162`
 - Command/skill layer: `.claude/commands/open-spec/*`, `.claude/skills/*`
 - Consistency tooling: `.claude/skills/osp-openspec-sync/scripts/*`
 - External spec root contract: custom spec root accepts both `<project-root>` and `<project-root>/openspec` forms.
@@ -113,6 +113,7 @@ OpenSpec workflow and governance for CodeMoss/ccgui, including change lifecycle 
 
 ## Update History
 
+- 2026-04-23: Recalibrated OpenSpec snapshot counts after archive drift (`fix-claude-doctor-settings-alignment` already archived in worktree state) and cleared the last strict validation warning on `conversation-user-path-reference-cards` (specs=168, archive=162, active=3; `openspec validate --all --strict` = 171 passed, 0 failed).
 - 2026-04-23: Synced `codex-computer-use-plugin-bridge`, `computer-use-availability-surface`, and `computer-use-platform-adapter` into main specs; archived `add-codex-computer-use-plugin-bridge` after Windows `unsupported` and macOS `blocked` manual evidence closed `E.3` (specs=168, archive=161, active=4).
 - 2026-04-22: Archived `fix-claude-chat-canvas-cross-platform-blanking` and synced `conversation-render-surface-stability` + `conversation-stream-activity-presence` into main specs (specs=143, archive=136, active=6 before second archive).
 - 2026-04-22: Archived `fix-opencode-auto-probe-churn`, synced `opencode-mode-ux`, and refreshed active change inventory after proposal reality backfill (specs=143, archive=137, active=5).
