@@ -1280,3 +1280,47 @@
 ### Next Steps
 
 - 在 macOS UI 刷新 Computer Use Bridge 状态页，确认不再显示 Codex.app parent dead end；后续真实阻塞应只剩 Screen Recording / Accessibility / app approval 等人工授权项。
+
+
+## Session 159: 接入 Codex CLI Computer Use broker
+
+**Date**: 2026-04-23
+**Task**: 接入 Codex CLI Computer Use broker
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：让当前客户端具备通过 Codex CLI / 官方 Codex runtime 使用 Computer Use 的能力，同时避免直接执行官方 SkyComputerUseClient helper。
+
+主要改动：新增 src-tauri/src/computer_use/broker.rs，提供 run_computer_use_codex_broker Tauri command、请求/结果类型、hard/soft blocker gate、workspace 校验、single-flight guard、read-only Codex runtime 托管执行与 bounded result；在 command_registry 注册 broker command；在 frontend 新增 runComputerUseCodexBroker service、useComputerUseBroker hook、Computer Use status card broker 面板、workspace 选择、任务输入、运行结果展示与中英文 i18n 文案。
+
+涉及模块：Computer Use backend bridge、Codex app-server broker、Tauri service facade、settings Computer Use status card、OpenSpec specs、Trellis backend/frontend implementation contracts。
+
+规范与归档：创建并归档 OpenSpec change add-codex-cli-computer-use-broker，同步新增 openspec/specs/codex-cli-computer-use-broker/spec.md，并更新 codex-cli-computer-use-plugin-bridge、codex-computer-use-plugin-bridge、computer-use-activation-lane 主 specs；补齐 .trellis/spec/backend/computer-use-bridge.md 与 .trellis/spec/frontend/computer-use-bridge.md 的 broker 契约。
+
+验证结果：cargo test --manifest-path src-tauri/Cargo.toml computer_use -- --nocapture 通过，31 个 computer_use Rust 测试通过；npx vitest run src/features/computer-use/hooks/useComputerUseBroker.test.tsx src/features/computer-use/components/ComputerUseStatusCard.test.tsx src/services/tauri.test.ts 通过，3 个文件 94 个测试通过；npm run typecheck 通过；npm run check:large-files 通过，found=0；openspec validate --all --strict --no-interactive 通过，178 passed；git diff --check / git diff --cached --check 通过。
+
+后续事项：需要在真实 macOS UI 中选择 workspace，输入一个明确 Computer Use 任务，验证官方 Codex runtime 是否弹出 Screen Recording / Accessibility / allowed app approval，并确认 broker 返回 completed/blocked/failed 的结构化结果。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8ba83421` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
