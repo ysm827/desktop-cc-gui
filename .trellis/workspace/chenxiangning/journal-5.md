@@ -586,3 +586,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 147: 归档 computer-use bridge 与 Claude doctor OpenSpec 变更
+
+**Date**: 2026-04-23
+**Task**: 归档 computer-use bridge 与 Claude doctor OpenSpec 变更
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：收尾并归档 `add-codex-computer-use-plugin-bridge` 与 `fix-claude-doctor-settings-alignment` 两个已完成的 OpenSpec change，同步主 specs，并让 OpenSpec 索引与 archive 状态对齐。
+
+主要改动：
+- 归档 `openspec/changes/add-codex-computer-use-plugin-bridge` 到 `openspec/changes/archive/2026-04-23-add-codex-computer-use-plugin-bridge/`。
+- 归档 `openspec/changes/fix-claude-doctor-settings-alignment` 到 `openspec/changes/archive/2026-04-23-fix-claude-doctor-settings-alignment/`。
+- 同步主 spec：`codex-computer-use-plugin-bridge`、`computer-use-availability-surface`、`computer-use-platform-adapter`、`claude-cli-settings-doctor`、`cli-execution-backend-parity`。
+- 新增 `openspec/docs/computer-use-bridge-manual-test-matrix-2026-04-23.md`，沉淀 Windows unsupported 与 macOS blocked 的人工验证证据。
+- 更新 `openspec/README.md` 与 `openspec/project.md`，刷新 capability / archive / active change 统计与 Update History。
+
+涉及模块：
+- `openspec/changes/archive/**`
+- `openspec/specs/**`
+- `openspec/docs/**`
+- `openspec/README.md`
+- `openspec/project.md`
+
+验证结果：
+- `openspec validate fix-claude-doctor-settings-alignment --type change --strict --no-interactive` 通过。
+- `openspec validate claude-cli-settings-doctor --strict --no-interactive` 通过。
+- `openspec validate cli-execution-backend-parity --strict --no-interactive` 通过。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run test` 通过（批处理完成 343 个 test files）。
+- `cargo test --manifest-path src-tauri/Cargo.toml` 通过。
+- focused settings/doctor 回归通过：`npx vitest run src/features/settings/components/SettingsView.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/services/tauri.test.ts`。
+
+后续事项：
+- `add-codex-computer-use-plugin-bridge` 的业务代码与后续工作若继续推进，应基于已归档 spec 继续演进，不要复用旧 change 目录。
+- 当前 session 未归档额外 `.trellis/tasks/*` 任务，后续按真实任务完成度单独处理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46cb7f75` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-5.md`
-- **Total Sessions**: 146
+- **Total Sessions**: 147
 - **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-5.md` | ~588 | Active |
+| `journal-5.md` | ~650 | Active |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
@@ -33,6 +33,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 147 | 2026-04-23 | 归档 computer-use bridge 与 Claude doctor OpenSpec 变更 | `46cb7f75` | `feature/v-0.4.8` |
 | 146 | 2026-04-23 | 补充 v0.4.8 CHANGELOG 发布说明 | `52ea36e6adecdbbad62f94ce99d248aae0c41f1b` | `feature/v-0.4.8` |
 | 145 | 2026-04-23 | 修正 heavy-test-noise 环境告警统计 | `48ac9bee` | `feature/v-0.4.8` |
 | 144 | 2026-04-23 | 增加 heavy test 噪音 CI 门禁 | `bf288c25` | `feature/v-0.4.8` |
