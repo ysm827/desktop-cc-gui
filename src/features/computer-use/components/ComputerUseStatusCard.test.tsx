@@ -60,6 +60,36 @@ function blockedMacStatus() {
   };
 }
 
+function officialParentHandoff() {
+  return {
+    kind: "requires_official_parent" as const,
+    methods: [],
+    durationMs: 3,
+    diagnosticMessage:
+      "Readable metadata points to an official OpenAI parent/team contract.",
+    evidence: {
+      codexInfoPlistPath: "/Applications/Codex.app/Contents/Info.plist",
+      serviceInfoPlistPath:
+        "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/Info.plist",
+      helperInfoPlistPath:
+        "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/Info.plist",
+      parentCodeRequirementPath:
+        "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/Resources/SkyComputerUseClient_Parent.coderequirement",
+      pluginManifestPath: blockedMacStatus().pluginManifestPath,
+      mcpDescriptorPath: blockedMacStatus().helperDescriptorPath,
+      codexUrlSchemes: ["codex"],
+      serviceBundleIdentifier: "com.openai.sky.CUAService",
+      helperBundleIdentifier: "com.openai.sky.CUAService.cli",
+      parentTeamIdentifier: "2DC432GLL2",
+      applicationGroups: ["2DC432GLL2.com.openai.sky.CUAService"],
+      xpcServiceIdentifiers: [],
+      durationMs: 3,
+      stdoutSnippet: null,
+      stderrSnippet: null,
+    },
+  };
+}
+
 describe("ComputerUseStatusCard", () => {
   beforeEach(() => {
     useComputerUseBridgeStatusMock.mockReset();
@@ -315,6 +345,7 @@ describe("ComputerUseStatusCard", () => {
           durationMs: 4,
           stdoutSnippet: null,
           stderrSnippet: "Authority=Developer ID Application",
+          officialParentHandoff: officialParentHandoff(),
         },
       },
       isRunning: false,
@@ -337,6 +368,16 @@ describe("ComputerUseStatusCard", () => {
       screen.getByText("direct_exec_skipped_nested_app_bundle"),
     ).toBeTruthy();
     expect(screen.getByText("codesign exited with status 0")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "settings.computerUse.hostContract.officialParent.kind.requires_official_parent",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("2DC432GLL2")).toBeTruthy();
+    expect(
+      screen.getByText("2DC432GLL2.com.openai.sky.CUAService"),
+    ).toBeTruthy();
+    expect(screen.getByText("com.openai.sky.CUAService.cli")).toBeTruthy();
     expect(
       screen.getByText(
         "settings.computerUse.hostContract.diagnosticOnlyNotice",

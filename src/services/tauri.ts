@@ -54,6 +54,10 @@ export type {
   ComputerUseHostContractDiagnosticsKind,
   ComputerUseHostContractDiagnosticsResult,
   ComputerUseHostContractEvidence,
+  ComputerUseOfficialParentHandoffDiscovery,
+  ComputerUseOfficialParentHandoffEvidence,
+  ComputerUseOfficialParentHandoffKind,
+  ComputerUseOfficialParentHandoffMethod,
 } from "../types";
 export {
   cancelDictation,

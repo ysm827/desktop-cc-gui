@@ -21,6 +21,8 @@ const COMPUTER_USE_ACTIVATION_TIMEOUT_MS: u64 = 5_000;
 const COMPUTER_USE_ACTIVATION_HELP_ARG: &str = "--help";
 const COMPUTER_USE_ACTIVATION_SNIPPET_LIMIT: usize = 240;
 const COMPUTER_USE_HOST_CONTRACT_COMMAND_TIMEOUT_MS: u64 = 1_500;
+const COMPUTER_USE_PARENT_CODE_REQUIREMENT_FILENAME: &str =
+    "SkyComputerUseClient_Parent.coderequirement";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -124,6 +126,55 @@ pub(crate) enum ComputerUseHostContractDiagnosticsKind {
     Unknown,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ComputerUseOfficialParentHandoffKind {
+    HandoffCandidateFound,
+    HandoffUnavailable,
+    RequiresOfficialParent,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseOfficialParentHandoffMethod {
+    pub(crate) method: String,
+    pub(crate) source_path: Option<String>,
+    pub(crate) identifier: String,
+    pub(crate) confidence: String,
+    pub(crate) notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseOfficialParentHandoffEvidence {
+    pub(crate) codex_info_plist_path: Option<String>,
+    pub(crate) service_info_plist_path: Option<String>,
+    pub(crate) helper_info_plist_path: Option<String>,
+    pub(crate) parent_code_requirement_path: Option<String>,
+    pub(crate) plugin_manifest_path: Option<String>,
+    pub(crate) mcp_descriptor_path: Option<String>,
+    pub(crate) codex_url_schemes: Vec<String>,
+    pub(crate) service_bundle_identifier: Option<String>,
+    pub(crate) helper_bundle_identifier: Option<String>,
+    pub(crate) parent_team_identifier: Option<String>,
+    pub(crate) application_groups: Vec<String>,
+    pub(crate) xpc_service_identifiers: Vec<String>,
+    pub(crate) duration_ms: u64,
+    pub(crate) stdout_snippet: Option<String>,
+    pub(crate) stderr_snippet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseOfficialParentHandoffDiscovery {
+    pub(crate) kind: ComputerUseOfficialParentHandoffKind,
+    pub(crate) methods: Vec<ComputerUseOfficialParentHandoffMethod>,
+    pub(crate) evidence: ComputerUseOfficialParentHandoffEvidence,
+    pub(crate) duration_ms: u64,
+    pub(crate) diagnostic_message: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ComputerUseHostContractEvidence {
@@ -136,6 +187,7 @@ pub(crate) struct ComputerUseHostContractEvidence {
     pub(crate) duration_ms: u64,
     pub(crate) stdout_snippet: Option<String>,
     pub(crate) stderr_snippet: Option<String>,
+    pub(crate) official_parent_handoff: ComputerUseOfficialParentHandoffDiscovery,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -389,6 +441,7 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
     })?;
 
     if !computer_use_activation_enabled() {
+        let duration_ms = started_at.elapsed().as_millis() as u64;
         return Ok(build_host_contract_result(
             ComputerUseHostContractDiagnosticsKind::Unknown,
             context.bridge_status,
@@ -398,11 +451,12 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
                 "skipped_activation_disabled".to_string(),
                 None,
                 None,
-                started_at.elapsed().as_millis() as u64,
+                duration_ms,
                 None,
                 None,
+                skipped_official_parent_handoff_discovery("activation_disabled", duration_ms),
             ),
-            started_at.elapsed().as_millis() as u64,
+            duration_ms,
             "Computer Use host-contract diagnostics are disabled by host flag.".to_string(),
         ));
     }
@@ -410,6 +464,7 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
     let _probe_guard = match state.computer_use_activation_lock.try_lock() {
         Ok(guard) => guard,
         Err(_) => {
+            let duration_ms = started_at.elapsed().as_millis() as u64;
             return Ok(build_host_contract_result(
                 ComputerUseHostContractDiagnosticsKind::Unknown,
                 context.bridge_status,
@@ -419,11 +474,12 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
                     "skipped_already_running".to_string(),
                     None,
                     None,
-                    started_at.elapsed().as_millis() as u64,
+                    duration_ms,
                     None,
                     None,
+                    skipped_official_parent_handoff_discovery("already_running", duration_ms),
                 ),
-                started_at.elapsed().as_millis() as u64,
+                duration_ms,
                 "A Computer Use activation or host-contract diagnostics run is already running."
                     .to_string(),
             ));
@@ -431,6 +487,16 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
     };
 
     let helper_path = context.adapter_result.snapshot.helper_path.clone();
+    let discovery_snapshot = context.adapter_result.snapshot.clone();
+    let official_parent_handoff =
+        tokio::task::spawn_blocking(move || discover_official_parent_handoff(&discovery_snapshot))
+            .await
+            .unwrap_or_else(|error| {
+                skipped_official_parent_handoff_discovery(
+                    &format!("handoff discovery task failed: {error}"),
+                    started_at.elapsed().as_millis() as u64,
+                )
+            });
     let (codesign_evidence, spctl_evidence) =
         collect_host_contract_command_evidence(helper_path.as_deref()).await;
     let current_host_path = current_host_path();
@@ -455,6 +521,7 @@ pub(crate) async fn run_computer_use_host_contract_diagnostics(
             codesign_evidence.stderr_snippet,
             spctl_evidence.stderr_snippet,
         ]),
+        official_parent_handoff,
     );
     let diagnostic_message = host_contract_diagnostic_message(kind);
 
@@ -776,6 +843,7 @@ fn build_host_contract_evidence(
     duration_ms: u64,
     stdout_snippet: Option<String>,
     stderr_snippet: Option<String>,
+    official_parent_handoff: ComputerUseOfficialParentHandoffDiscovery,
 ) -> ComputerUseHostContractEvidence {
     ComputerUseHostContractEvidence {
         helper_path: snapshot.helper_path.clone(),
@@ -787,6 +855,7 @@ fn build_host_contract_evidence(
         duration_ms,
         stdout_snippet,
         stderr_snippet,
+        official_parent_handoff,
     }
 }
 
@@ -882,6 +951,363 @@ fn host_contract_diagnostic_message(kind: ComputerUseHostContractDiagnosticsKind
 
 fn current_host_path() -> Option<String> {
     std::env::current_exe().ok().and_then(path_to_string)
+}
+
+fn discover_official_parent_handoff(
+    snapshot: &ComputerUseDetectionSnapshot,
+) -> ComputerUseOfficialParentHandoffDiscovery {
+    let started_at = Instant::now();
+    let helper_path = snapshot.helper_path.as_deref().map(Path::new);
+    let helper_app_root = helper_path.and_then(find_nearest_app_bundle_root);
+    let service_app_root = helper_app_root.and_then(resolve_service_app_root_from_helper_app);
+    let codex_app_root = helper_path
+        .and_then(|path| find_ancestor_app_bundle_named(path, "Codex.app"))
+        .or_else(|| {
+            snapshot
+                .marketplace_path
+                .as_deref()
+                .map(Path::new)
+                .and_then(|path| find_ancestor_app_bundle_named(path, "Codex.app"))
+        });
+
+    let codex_info_plist_path = codex_app_root.map(app_info_plist_path);
+    let service_info_plist_path = service_app_root.map(app_info_plist_path);
+    let helper_info_plist_path = helper_app_root.map(app_info_plist_path);
+    let parent_code_requirement_path = helper_app_root.map(|root| {
+        root.join("Contents")
+            .join("Resources")
+            .join(COMPUTER_USE_PARENT_CODE_REQUIREMENT_FILENAME)
+    });
+
+    let codex_info = codex_info_plist_path
+        .as_ref()
+        .and_then(|path| read_file_to_string_if_file(path));
+    let service_info = service_info_plist_path
+        .as_ref()
+        .and_then(|path| read_file_to_string_if_file(path));
+    let helper_info = helper_info_plist_path
+        .as_ref()
+        .and_then(|path| read_file_to_string_if_file(path));
+    let parent_requirement = parent_code_requirement_path
+        .as_ref()
+        .and_then(|path| read_file_to_string_if_file(path));
+
+    let codex_url_schemes = codex_info
+        .as_deref()
+        .map(|contents| plist_array_strings(contents, "CFBundleURLSchemes"))
+        .unwrap_or_default();
+    let service_bundle_identifier = service_info
+        .as_deref()
+        .and_then(|contents| plist_string(contents, "CFBundleIdentifier"));
+    let helper_bundle_identifier = helper_info
+        .as_deref()
+        .and_then(|contents| plist_string(contents, "CFBundleIdentifier"));
+    let parent_team_identifier = parent_requirement
+        .as_deref()
+        .and_then(|contents| plist_string(contents, "team-identifier"));
+    let application_groups =
+        collect_application_groups([service_info.as_deref(), helper_info.as_deref()]);
+    let xpc_service_identifiers = codex_app_root
+        .map(|root| collect_xpc_service_identifiers(root, 6, 512))
+        .unwrap_or_default();
+
+    let mut methods = Vec::new();
+    for scheme in codex_url_schemes.iter().filter(|scheme| {
+        let normalized = scheme.to_ascii_lowercase();
+        normalized.contains("computer") || normalized.contains("cua")
+    }) {
+        methods.push(ComputerUseOfficialParentHandoffMethod {
+            method: "launch_services_url_scheme".to_string(),
+            source_path: codex_info_plist_path
+                .as_ref()
+                .and_then(|path| path_to_string(path.clone())),
+            identifier: scheme.clone(),
+            confidence: "medium".to_string(),
+            notes: "Codex declares a Computer Use-specific URL scheme candidate.".to_string(),
+        });
+    }
+
+    for identifier in &xpc_service_identifiers {
+        methods.push(ComputerUseOfficialParentHandoffMethod {
+            method: "xpc_service".to_string(),
+            source_path: codex_app_root.and_then(|path| path_to_string(path.to_path_buf())),
+            identifier: identifier.clone(),
+            confidence: "low".to_string(),
+            notes: "XPC service declaration exists in the official app bundle; this is evidence only and was not launched.".to_string(),
+        });
+    }
+
+    let mcp_descriptor_path = snapshot.helper_descriptor_path.clone();
+    if snapshot
+        .helper_descriptor_path
+        .as_deref()
+        .map(Path::new)
+        .and_then(parse_helper_descriptor)
+        .is_some_and(|descriptor| !path_looks_like_nested_app_binary(&descriptor.command_path))
+    {
+        methods.push(ComputerUseOfficialParentHandoffMethod {
+            method: "mcp_descriptor".to_string(),
+            source_path: mcp_descriptor_path.clone(),
+            identifier: COMPUTER_USE_MCP_SERVER_NAME.to_string(),
+            confidence: "medium".to_string(),
+            notes: "MCP descriptor points to a non-nested app-bundle command candidate."
+                .to_string(),
+        });
+    }
+
+    let duration_ms = started_at.elapsed().as_millis() as u64;
+    let kind = classify_official_parent_handoff(
+        !methods.is_empty(),
+        parent_team_identifier.as_deref(),
+        helper_bundle_identifier.as_deref(),
+        service_bundle_identifier.as_deref(),
+    );
+    let diagnostic_message = official_parent_handoff_message(kind).to_string();
+    let evidence = ComputerUseOfficialParentHandoffEvidence {
+        codex_info_plist_path: codex_info_plist_path.and_then(path_to_string),
+        service_info_plist_path: service_info_plist_path.and_then(path_to_string),
+        helper_info_plist_path: helper_info_plist_path.and_then(path_to_string),
+        parent_code_requirement_path: parent_code_requirement_path.and_then(path_to_string),
+        plugin_manifest_path: snapshot.plugin_manifest_path.clone(),
+        mcp_descriptor_path,
+        codex_url_schemes,
+        service_bundle_identifier,
+        helper_bundle_identifier,
+        parent_team_identifier,
+        application_groups,
+        xpc_service_identifiers,
+        duration_ms,
+        stdout_snippet: None,
+        stderr_snippet: None,
+    };
+
+    ComputerUseOfficialParentHandoffDiscovery {
+        kind,
+        methods,
+        evidence,
+        duration_ms,
+        diagnostic_message,
+    }
+}
+
+fn skipped_official_parent_handoff_discovery(
+    reason: &str,
+    duration_ms: u64,
+) -> ComputerUseOfficialParentHandoffDiscovery {
+    ComputerUseOfficialParentHandoffDiscovery {
+        kind: ComputerUseOfficialParentHandoffKind::Unknown,
+        methods: Vec::new(),
+        evidence: ComputerUseOfficialParentHandoffEvidence {
+            codex_info_plist_path: None,
+            service_info_plist_path: None,
+            helper_info_plist_path: None,
+            parent_code_requirement_path: None,
+            plugin_manifest_path: None,
+            mcp_descriptor_path: None,
+            codex_url_schemes: Vec::new(),
+            service_bundle_identifier: None,
+            helper_bundle_identifier: None,
+            parent_team_identifier: None,
+            application_groups: Vec::new(),
+            xpc_service_identifiers: Vec::new(),
+            duration_ms,
+            stdout_snippet: None,
+            stderr_snippet: Some(output_snippet(reason).unwrap_or_else(|| reason.to_string())),
+        },
+        duration_ms,
+        diagnostic_message: format!("Official parent handoff discovery was skipped: {reason}."),
+    }
+}
+
+fn classify_official_parent_handoff(
+    has_candidate_method: bool,
+    parent_team_identifier: Option<&str>,
+    helper_bundle_identifier: Option<&str>,
+    service_bundle_identifier: Option<&str>,
+) -> ComputerUseOfficialParentHandoffKind {
+    if has_candidate_method {
+        return ComputerUseOfficialParentHandoffKind::HandoffCandidateFound;
+    }
+
+    if parent_team_identifier.is_some()
+        || helper_bundle_identifier.is_some_and(|identifier| identifier.contains(".CUAService.cli"))
+        || service_bundle_identifier.is_some_and(|identifier| identifier.contains(".CUAService"))
+    {
+        return ComputerUseOfficialParentHandoffKind::RequiresOfficialParent;
+    }
+
+    if helper_bundle_identifier.is_none() && service_bundle_identifier.is_none() {
+        return ComputerUseOfficialParentHandoffKind::Unknown;
+    }
+
+    ComputerUseOfficialParentHandoffKind::HandoffUnavailable
+}
+
+fn official_parent_handoff_message(kind: ComputerUseOfficialParentHandoffKind) -> &'static str {
+    match kind {
+        ComputerUseOfficialParentHandoffKind::HandoffCandidateFound => {
+            "Official Codex metadata contains a handoff candidate. This is evidence only and does not enable runtime integration."
+        }
+        ComputerUseOfficialParentHandoffKind::HandoffUnavailable => {
+            "No supported official parent handoff method was detected from readable metadata."
+        }
+        ComputerUseOfficialParentHandoffKind::RequiresOfficialParent => {
+            "Readable metadata points to an official OpenAI parent/team contract, but no public handoff entry was detected."
+        }
+        ComputerUseOfficialParentHandoffKind::Unknown => {
+            "Official parent handoff discovery could not classify the available metadata."
+        }
+    }
+}
+
+fn app_info_plist_path(app_root: &Path) -> PathBuf {
+    app_root.join("Contents").join("Info.plist")
+}
+
+fn read_file_to_string_if_file(path: &Path) -> Option<String> {
+    path.is_file()
+        .then(|| fs::read_to_string(path).ok())
+        .flatten()
+}
+
+fn find_nearest_app_bundle_root(path: &Path) -> Option<&Path> {
+    path.ancestors().find(|ancestor| {
+        ancestor
+            .extension()
+            .is_some_and(|extension| extension == "app")
+    })
+}
+
+fn find_ancestor_app_bundle_named<'a>(path: &'a Path, app_name: &str) -> Option<&'a Path> {
+    path.ancestors().find(|ancestor| {
+        ancestor
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name == app_name)
+    })
+}
+
+fn resolve_service_app_root_from_helper_app(helper_app_root: &Path) -> Option<&Path> {
+    helper_app_root
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .filter(|path| path.extension().is_some_and(|extension| extension == "app"))
+}
+
+fn plist_string(contents: &str, key: &str) -> Option<String> {
+    let key_marker = format!("<key>{key}</key>");
+    let key_start = contents.find(&key_marker)?;
+    let after_key = &contents[key_start + key_marker.len()..];
+    first_xml_string(after_key)
+}
+
+fn plist_array_strings(contents: &str, key: &str) -> Vec<String> {
+    let key_marker = format!("<key>{key}</key>");
+    let Some(key_start) = contents.find(&key_marker) else {
+        return Vec::new();
+    };
+    let after_key = &contents[key_start + key_marker.len()..];
+    let Some(array_start) = after_key.find("<array>") else {
+        return Vec::new();
+    };
+    let after_array = &after_key[array_start + "<array>".len()..];
+    let Some(array_end) = after_array.find("</array>") else {
+        return Vec::new();
+    };
+
+    xml_strings(&after_array[..array_end])
+}
+
+fn first_xml_string(contents: &str) -> Option<String> {
+    xml_strings(contents).into_iter().next()
+}
+
+fn xml_strings(contents: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut remaining = contents;
+
+    while let Some(start) = remaining.find("<string>") {
+        let value_start = start + "<string>".len();
+        let after_start = &remaining[value_start..];
+        let Some(end) = after_start.find("</string>") else {
+            break;
+        };
+        values.push(unescape_minimal_xml(&after_start[..end]));
+        remaining = &after_start[end + "</string>".len()..];
+    }
+
+    values
+}
+
+fn unescape_minimal_xml(value: &str) -> String {
+    value
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+}
+
+fn collect_application_groups(plists: [Option<&str>; 2]) -> Vec<String> {
+    let mut groups = Vec::new();
+    for contents in plists.into_iter().flatten() {
+        for group in plist_array_strings(contents, "com.apple.security.application-groups") {
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+        }
+    }
+    groups
+}
+
+fn collect_xpc_service_identifiers(
+    root: &Path,
+    max_depth: usize,
+    max_entries: usize,
+) -> Vec<String> {
+    let mut identifiers = Vec::new();
+    let mut stack = vec![(root.to_path_buf(), 0usize)];
+    let mut visited_entries = 0usize;
+
+    while let Some((path, depth)) = stack.pop() {
+        if visited_entries >= max_entries || depth > max_depth {
+            break;
+        }
+
+        let Ok(entries) = fs::read_dir(&path) else {
+            continue;
+        };
+
+        for entry in entries.filter_map(Result::ok) {
+            if visited_entries >= max_entries {
+                break;
+            }
+            visited_entries += 1;
+            let entry_path = entry.path();
+            if entry_path
+                .extension()
+                .is_some_and(|extension| extension == "xpc")
+            {
+                let info_path = app_info_plist_path(&entry_path);
+                if let Some(identifier) = read_file_to_string_if_file(&info_path)
+                    .as_deref()
+                    .and_then(|contents| plist_string(contents, "CFBundleIdentifier"))
+                {
+                    identifiers.push(identifier);
+                }
+                continue;
+            }
+
+            if depth < max_depth && entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+                stack.push((entry_path, depth + 1));
+            }
+        }
+    }
+
+    identifiers.sort();
+    identifiers.dedup();
+    identifiers
 }
 
 async fn collect_host_contract_command_evidence(
@@ -1663,6 +2089,7 @@ mod tests {
             duration_ms: 4,
             stdout_snippet: None,
             stderr_snippet: Some("Authority=Developer ID Application".to_string()),
+            official_parent_handoff: skipped_official_parent_handoff_discovery("test", 4),
         };
         let result = build_host_contract_result(
             ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent,
@@ -1679,6 +2106,168 @@ mod tests {
             "direct_exec_skipped_nested_app_bundle"
         );
         assert_eq!(payload["evidence"]["durationMs"], 4);
+        assert_eq!(
+            payload["evidence"]["officialParentHandoff"]["kind"],
+            "unknown"
+        );
+    }
+
+    #[test]
+    fn official_parent_handoff_classifies_parent_contract_without_public_method() {
+        let kind = classify_official_parent_handoff(
+            false,
+            Some("2DC432GLL2"),
+            Some("com.openai.sky.CUAService.cli"),
+            Some("com.openai.sky.CUAService"),
+        );
+
+        assert_eq!(
+            kind,
+            ComputerUseOfficialParentHandoffKind::RequiresOfficialParent
+        );
+    }
+
+    #[test]
+    fn official_parent_handoff_candidate_found_takes_precedence() {
+        let kind = classify_official_parent_handoff(
+            true,
+            Some("2DC432GLL2"),
+            Some("com.openai.sky.CUAService.cli"),
+            Some("com.openai.sky.CUAService"),
+        );
+
+        assert_eq!(
+            kind,
+            ComputerUseOfficialParentHandoffKind::HandoffCandidateFound
+        );
+    }
+
+    #[test]
+    fn plist_helpers_extract_strings_and_arrays() {
+        let plist = r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.openai.sky.CUAService.cli</string>
+  <key>CFBundleURLSchemes</key>
+  <array>
+    <string>codex</string>
+    <string>codex-computer-use</string>
+  </array>
+</dict>
+</plist>"#;
+
+        assert_eq!(
+            plist_string(plist, "CFBundleIdentifier"),
+            Some("com.openai.sky.CUAService.cli".to_string())
+        );
+        assert_eq!(
+            plist_array_strings(plist, "CFBundleURLSchemes"),
+            vec!["codex".to_string(), "codex-computer-use".to_string()]
+        );
+    }
+
+    #[test]
+    fn discover_official_parent_handoff_reads_read_only_metadata() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("computer-use-handoff-{unique}"));
+        let codex_app = root.join("Codex.app");
+        let plugin_root = codex_app
+            .join("Contents")
+            .join("Resources")
+            .join("plugins")
+            .join("openai-bundled")
+            .join("plugins")
+            .join("computer-use");
+        let service_app = plugin_root.join("Codex Computer Use.app");
+        let helper_app = service_app
+            .join("Contents")
+            .join("SharedSupport")
+            .join("SkyComputerUseClient.app");
+        let helper_macos = helper_app.join("Contents").join("MacOS");
+        fs::create_dir_all(&helper_macos).expect("create helper layout");
+        fs::create_dir_all(helper_app.join("Contents").join("Resources"))
+            .expect("create helper resources");
+        fs::create_dir_all(service_app.join("Contents").join("Resources"))
+            .expect("create resources");
+        fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create manifest directory");
+
+        fs::write(
+            codex_app.join("Contents").join("Info.plist"),
+            r#"<plist><dict><key>CFBundleURLSchemes</key><array><string>codex</string></array></dict></plist>"#,
+        )
+        .expect("write codex plist");
+        fs::write(
+            service_app.join("Contents").join("Info.plist"),
+            r#"<plist><dict><key>CFBundleIdentifier</key><string>com.openai.sky.CUAService</string><key>com.apple.security.application-groups</key><array><string>2DC432GLL2.com.openai.sky.CUAService</string></array></dict></plist>"#,
+        )
+        .expect("write service plist");
+        fs::write(
+            helper_app.join("Contents").join("Info.plist"),
+            r#"<plist><dict><key>CFBundleIdentifier</key><string>com.openai.sky.CUAService.cli</string><key>com.apple.security.application-groups</key><array><string>2DC432GLL2.com.openai.sky.CUAService</string></array></dict></plist>"#,
+        )
+        .expect("write helper plist");
+        fs::write(
+            helper_app
+                .join("Contents")
+                .join("Resources")
+                .join(COMPUTER_USE_PARENT_CODE_REQUIREMENT_FILENAME),
+            r#"<plist><dict><key>team-identifier</key><string>2DC432GLL2</string></dict></plist>"#,
+        )
+        .expect("write parent requirement");
+        fs::write(plugin_root.join(".codex-plugin").join("plugin.json"), "{}")
+            .expect("write manifest");
+        let descriptor_path = plugin_root.join(".mcp.json");
+        fs::write(
+            &descriptor_path,
+            r#"{"mcpServers":{"computer-use":{"command":"./Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient","args":["mcp"],"cwd":"."}}}"#,
+        )
+        .expect("write descriptor");
+
+        let snapshot = ComputerUseDetectionSnapshot {
+            helper_path: path_to_string(
+                helper_app
+                    .join("Contents")
+                    .join("MacOS")
+                    .join("SkyComputerUseClient"),
+            ),
+            helper_descriptor_path: path_to_string(descriptor_path),
+            plugin_manifest_path: path_to_string(
+                plugin_root.join(".codex-plugin").join("plugin.json"),
+            ),
+            marketplace_path: path_to_string(
+                codex_app
+                    .join("Contents")
+                    .join("Resources")
+                    .join("plugins")
+                    .join("openai-bundled")
+                    .join(".agents")
+                    .join("plugins")
+                    .join("marketplace.json"),
+            ),
+            ..ComputerUseDetectionSnapshot::default()
+        };
+
+        let discovery = discover_official_parent_handoff(&snapshot);
+
+        assert_eq!(
+            discovery.kind,
+            ComputerUseOfficialParentHandoffKind::RequiresOfficialParent
+        );
+        assert_eq!(
+            discovery.evidence.parent_team_identifier,
+            Some("2DC432GLL2".to_string())
+        );
+        assert_eq!(
+            discovery.evidence.application_groups,
+            vec!["2DC432GLL2.com.openai.sky.CUAService".to_string()]
+        );
+        assert!(discovery.methods.is_empty());
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

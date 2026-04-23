@@ -266,6 +266,46 @@ export type ComputerUseHostContractDiagnosticsKind =
   | "manual_permission_required"
   | "unknown";
 
+export type ComputerUseOfficialParentHandoffKind =
+  | "handoff_candidate_found"
+  | "handoff_unavailable"
+  | "requires_official_parent"
+  | "unknown";
+
+export type ComputerUseOfficialParentHandoffMethod = {
+  method: string;
+  sourcePath: string | null;
+  identifier: string;
+  confidence: string;
+  notes: string;
+};
+
+export type ComputerUseOfficialParentHandoffEvidence = {
+  codexInfoPlistPath: string | null;
+  serviceInfoPlistPath: string | null;
+  helperInfoPlistPath: string | null;
+  parentCodeRequirementPath: string | null;
+  pluginManifestPath: string | null;
+  mcpDescriptorPath: string | null;
+  codexUrlSchemes: string[];
+  serviceBundleIdentifier: string | null;
+  helperBundleIdentifier: string | null;
+  parentTeamIdentifier: string | null;
+  applicationGroups: string[];
+  xpcServiceIdentifiers: string[];
+  durationMs: number;
+  stdoutSnippet: string | null;
+  stderrSnippet: string | null;
+};
+
+export type ComputerUseOfficialParentHandoffDiscovery = {
+  kind: ComputerUseOfficialParentHandoffKind;
+  methods: ComputerUseOfficialParentHandoffMethod[];
+  evidence: ComputerUseOfficialParentHandoffEvidence;
+  durationMs: number;
+  diagnosticMessage: string;
+};
+
 export type ComputerUseHostContractEvidence = {
   helperPath: string | null;
   helperDescriptorPath: string | null;
@@ -276,6 +316,7 @@ export type ComputerUseHostContractEvidence = {
   durationMs: number;
   stdoutSnippet: string | null;
   stderrSnippet: string | null;
+  officialParentHandoff: ComputerUseOfficialParentHandoffDiscovery;
 };
 
 export type ComputerUseHostContractDiagnosticsResult = {

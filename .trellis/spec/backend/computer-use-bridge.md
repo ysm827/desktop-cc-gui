@@ -113,6 +113,22 @@ struct ComputerUseHostContractEvidence {
     duration_ms: u64,
     stdout_snippet: Option<String>,
     stderr_snippet: Option<String>,
+    official_parent_handoff: ComputerUseOfficialParentHandoffDiscovery,
+}
+
+enum ComputerUseOfficialParentHandoffKind {
+    HandoffCandidateFound,
+    HandoffUnavailable,
+    RequiresOfficialParent,
+    Unknown,
+}
+
+struct ComputerUseOfficialParentHandoffDiscovery {
+    kind: ComputerUseOfficialParentHandoffKind,
+    methods: Vec<ComputerUseOfficialParentHandoffMethod>,
+    evidence: ComputerUseOfficialParentHandoffEvidence,
+    duration_ms: u64,
+    diagnostic_message: String,
 }
 ```
 
@@ -137,6 +153,7 @@ struct ComputerUseHostContractEvidence {
   - MUST 与 activation probe 复用同一 single-flight lock，避免并发 helper investigation
   - MUST 支持同一 activation kill switch，关闭后只返回 diagnostics disabled 结果
   - MUST 只读采集 helper path、descriptor path、current host path、handoff method、`codesign` / `spctl` bounded summary
+  - MUST 只读扫描 official parent handoff evidence，包括 `Codex.app` / service / helper `Info.plist`、parent coderequirement、application group、MCP descriptor 与 XPC/service declarations
   - MUST NOT direct exec nested `.app/Contents/MacOS/...` helper
   - MUST NOT 写入官方 Codex App、plugin cache、helper bundle、系统权限或 approval 配置
 
@@ -193,6 +210,8 @@ struct ComputerUseHostContractEvidence {
 | activation kill switch 关闭 | activation result `failed` | `activation_disabled` |
 | nested helper 不能由当前 host 直接执行 | activation result `failed` | `host_incompatible` |
 | host-contract diagnostics 识别 nested helper + 非官方 parent | diagnostics result | `requires_official_parent` |
+| official parent handoff discovery 只发现 team/application group parent contract | handoff discovery | `requires_official_parent` |
+| official parent handoff discovery 发现 URL/XPC/MCP 候选入口 | handoff discovery | `handoff_candidate_found`，但不得自动 ready |
 | helper bridge 已验证但权限/approval 仍未确认 | diagnostics result | `manual_permission_required` |
 | 非 macOS host 调用 host diagnostics | diagnostics result | `unknown`，且不执行 helper |
 | 多 server descriptor 缺少 `computer-use` key | `blocked` | `helper_missing` 或保留前置状态 |
@@ -227,6 +246,8 @@ struct ComputerUseHostContractEvidence {
   - kill switch truthy values
   - nested app-bundle helper diagnostics-only fallback
   - host-contract diagnostics kind 序列化为 snake_case，payload 字段序列化为 camelCase
+  - official parent handoff discovery 嵌套 payload 序列化为 camelCase，kind 为 snake_case
+  - parent coderequirement / application group 读取与 `requires_official_parent` 分类
   - host-contract diagnostics 对 Windows / unsupported host 保持 non-executable
 
 ## Wrong vs Correct

@@ -91,6 +91,40 @@ export type ComputerUseHostContractDiagnosticsResult = {
   durationMs: number;
   diagnosticMessage: string;
 };
+
+export type ComputerUseOfficialParentHandoffDiscovery = {
+  kind:
+    | "handoff_candidate_found"
+    | "handoff_unavailable"
+    | "requires_official_parent"
+    | "unknown";
+  methods: Array<{
+    method: string;
+    sourcePath: string | null;
+    identifier: string;
+    confidence: string;
+    notes: string;
+  }>;
+  evidence: {
+    codexInfoPlistPath: string | null;
+    serviceInfoPlistPath: string | null;
+    helperInfoPlistPath: string | null;
+    parentCodeRequirementPath: string | null;
+    pluginManifestPath: string | null;
+    mcpDescriptorPath: string | null;
+    codexUrlSchemes: string[];
+    serviceBundleIdentifier: string | null;
+    helperBundleIdentifier: string | null;
+    parentTeamIdentifier: string | null;
+    applicationGroups: string[];
+    xpcServiceIdentifiers: string[];
+    durationMs: number;
+    stdoutSnippet: string | null;
+    stderrSnippet: string | null;
+  };
+  durationMs: number;
+  diagnosticMessage: string;
+};
 ```
 
 ## Contracts
@@ -129,6 +163,7 @@ export type ComputerUseHostContractDiagnosticsResult = {
 - host-contract diagnostics affordance 只允许在 activation result 明确返回 `failureKind = "host_incompatible"` 后显示。
 - `host_incompatible` 后 SHOULD 隐藏重复 activation CTA，并引导用户进入 host-contract diagnostics；diagnostics 不得自动链式运行。
 - host-contract diagnostics result MUST 明确展示 diagnostic-only notice，不得暗示 conversation runtime 已启用。
+- host-contract diagnostics result MUST 展示 official parent handoff discovery evidence；`handoff_candidate_found` 只能表达候选证据，不得渲染为 runtime enabled。
 - Phase 1 文案 MUST 明确说明：
   - 这是 `status-only`
   - 不调用官方 helper
@@ -154,6 +189,8 @@ export type ComputerUseHostContractDiagnosticsResult = {
 | repeated host-contract diagnostics calls before re-render | service 只被调用一次 |
 | out-of-order status refresh responses | 只保留最新 refresh 结果 |
 | `host_incompatible` activation result | 展示 host-contract diagnostics CTA，隐藏重复 activation CTA |
+| official parent handoff `requires_official_parent` | 展示 parent team / application group / bundle id，并保持 blocked |
+| official parent handoff `handoff_candidate_found` | 展示 candidate methods，但不展示 ready 或 runtime enabled |
 
 ## Good / Base / Bad Cases
 
@@ -186,6 +223,7 @@ export type ComputerUseHostContractDiagnosticsResult = {
   - `getComputerUseBridgeStatus` 调用正确 command name
   - activation CTA gating、result rendering、refresh reset
   - host-contract CTA gating、evidence rendering、refresh reset
+  - official parent handoff discovery evidence rendering
   - activation duplicate trigger guard
   - host-contract duplicate trigger guard
   - status stale response guard

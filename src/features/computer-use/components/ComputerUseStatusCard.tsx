@@ -16,6 +16,7 @@ import type {
   ComputerUseBridgeStatus,
   ComputerUseGuidanceCode,
   ComputerUseHostContractDiagnosticsKind,
+  ComputerUseOfficialParentHandoffKind,
 } from "../../../types";
 import {
   ENABLE_COMPUTER_USE_BRIDGE,
@@ -49,8 +50,16 @@ function hostContractKindKey(kind: ComputerUseHostContractDiagnosticsKind) {
   return `settings.computerUse.hostContract.kind.${kind}`;
 }
 
+function officialParentHandoffKindKey(kind: ComputerUseOfficialParentHandoffKind) {
+  return `settings.computerUse.hostContract.officialParent.kind.${kind}`;
+}
+
 function booleanLabel(value: boolean, t: (key: string) => string) {
   return value ? t("settings.computerUse.value.yes") : t("settings.computerUse.value.no");
+}
+
+function joinedList(values: string[]) {
+  return values.length > 0 ? values.join(", ") : null;
 }
 
 function renderCodeRow(label: string, value: string | null | undefined) {
@@ -396,6 +405,110 @@ export function ComputerUseStatusCard() {
                     t("settings.computerUse.hostContract.stderrSnippet"),
                     hostContractResult.evidence.stderrSnippet,
                   )}
+                </div>
+
+                <div className="space-y-3 rounded-md border px-3 py-3">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">
+                      {t("settings.computerUse.hostContract.officialParent.title")}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {t("settings.computerUse.hostContract.officialParent.notice")}
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {t("settings.computerUse.hostContract.officialParent.kindLabel")}
+                      </div>
+                      <div className="text-sm">
+                        {t(
+                          officialParentHandoffKindKey(
+                            hostContractResult.evidence.officialParentHandoff.kind,
+                          ),
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {t("settings.computerUse.hostContract.officialParent.duration")}
+                      </div>
+                      <div className="text-sm">
+                        {hostContractResult.evidence.officialParentHandoff.durationMs}ms
+                      </div>
+                    </div>
+                  </div>
+
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.officialParent.message"),
+                    hostContractResult.evidence.officialParentHandoff.diagnosticMessage,
+                  )}
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.parentTeam"),
+                      hostContractResult.evidence.officialParentHandoff.evidence
+                        .parentTeamIdentifier,
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.applicationGroups"),
+                      joinedList(
+                        hostContractResult.evidence.officialParentHandoff.evidence
+                          .applicationGroups,
+                      ),
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.codexUrlSchemes"),
+                      joinedList(
+                        hostContractResult.evidence.officialParentHandoff.evidence
+                          .codexUrlSchemes,
+                      ),
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.serviceBundleId"),
+                      hostContractResult.evidence.officialParentHandoff.evidence
+                        .serviceBundleIdentifier,
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.helperBundleId"),
+                      hostContractResult.evidence.officialParentHandoff.evidence
+                        .helperBundleIdentifier,
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.parentRequirementPath"),
+                      hostContractResult.evidence.officialParentHandoff.evidence
+                        .parentCodeRequirementPath,
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.mcpDescriptorPath"),
+                      hostContractResult.evidence.officialParentHandoff.evidence
+                        .mcpDescriptorPath,
+                    )}
+                    {renderCodeRow(
+                      t("settings.computerUse.hostContract.officialParent.xpcServices"),
+                      joinedList(
+                        hostContractResult.evidence.officialParentHandoff.evidence
+                          .xpcServiceIdentifiers,
+                      ),
+                    )}
+                  </div>
+
+                  {hostContractResult.evidence.officialParentHandoff.methods.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {t("settings.computerUse.hostContract.officialParent.methods")}
+                      </div>
+                      <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        {hostContractResult.evidence.officialParentHandoff.methods.map(
+                          (method) => (
+                            <li key={`${method.method}:${method.identifier}`}>
+                              {method.method} / {method.identifier} / {method.confidence}
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
