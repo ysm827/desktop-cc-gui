@@ -1514,3 +1514,59 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 164: 归档 Codex 实时画布去重提案
+
+**Date**: 2026-04-24
+**Task**: 归档 Codex 实时画布去重提案
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+归档 OpenSpec 提案并同步主 specs
+
+### Main Changes
+
+任务目标：
+- 按 OpenSpec workflow 归档 fix-codex-realtime-canvas-duplicate-messages 提案。
+- 归档后将该提案相关 OpenSpec 文件单独提交，避免混入现有未提交代码改动。
+
+主要改动：
+- 执行 openspec archive，将 change 移动到 openspec/changes/archive/2026-04-23-fix-codex-realtime-canvas-duplicate-messages/。
+- 同步 delta specs 到主 specs，新增 codex-realtime-canvas-message-idempotency，并更新 conversation-lifecycle-contract 的 Codex duplicate alias convergence 场景。
+- 修正 OpenSpec CLI 生成的新主 spec Purpose，占位的 TBD 改为明确的 idempotency contract 描述。
+
+涉及模块：
+- openspec/changes/archive/2026-04-23-fix-codex-realtime-canvas-duplicate-messages/
+- openspec/specs/codex-realtime-canvas-message-idempotency/spec.md
+- openspec/specs/conversation-lifecycle-contract/spec.md
+
+验证结果：
+- openspec status --change fix-codex-realtime-canvas-duplicate-messages --json：artifacts 全部 done。
+- openspec validate fix-codex-realtime-canvas-duplicate-messages --strict：通过。
+- openspec validate codex-realtime-canvas-message-idempotency --strict：通过。
+- openspec validate conversation-lifecycle-contract --strict：通过。
+- openspec validate --specs --strict：175 passed, 0 failed。
+
+后续事项：
+- 当前仓库仍存在本次任务之外的未提交代码/规范修改，未纳入归档提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dc88b4b2875f2bb81d0a74464deef6caff7bac24` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
