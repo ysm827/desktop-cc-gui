@@ -116,6 +116,11 @@ Any client-side realtime CPU optimization MUST preserve conversation lifecycle s
 - **THEN** lifecycle state MUST leave processing mode deterministically
 - **AND** the thread MUST NOT remain in stuck pseudo-processing state
 
+#### Scenario: duplicate codex assistant aliases converge before terminal settlement
+- **WHEN** a Codex realtime turn observes equivalent assistant content through multiple event aliases or fallback ids
+- **THEN** lifecycle consumers MUST converge those observations into one completed assistant message
+- **AND** terminal settlement MUST NOT leave duplicate assistant bubbles in the conversation state
+
 ### Requirement: Foreground Turn MUST Exit Pseudo-Processing When Recovery Progress Stalls
 
 在统一会话生命周期契约下，queue fusion 发起的 continuation 若未真正接续成功，也 MUST 以有界、可恢复的方式离开 pseudo-processing。
@@ -336,3 +341,4 @@ The system MUST distinguish between restoring workspace/thread UI state and acqu
 - **WHEN** 系统发现 `activeThreadIdByWorkspace` 中保存的是已知 stale `threadId`
 - **THEN** 系统 MUST 将其收敛为 canonical `threadId` 或显式清空
 - **AND** 生命周期读取方 MUST 看到一致的 current active binding
+
