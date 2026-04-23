@@ -869,3 +869,77 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 152: 落地 Computer Use helper bridge 显式验证通道
+
+**Date**: 2026-04-23
+**Task**: 落地 Computer Use helper bridge 显式验证通道
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 按 OpenSpec change add-codex-computer-use-activation-bridge 落地 Computer Use Bridge Phase 2。
+- 在不污染聊天、设置保存、MCP 管理等主流程的前提下，新增显式 helper bridge activation/probe lane。
+- 根据 macOS 实机反馈修正 nested helper direct exec 触发 SkyComputerUseClient crash report 的风险，并补齐回退与边界测试。
+
+主要改动：
+- 新增 OpenSpec proposal/design/tasks/delta specs 与 2026-04-23 macOS 手测矩阵。
+- Rust backend 新增 run_computer_use_activation_probe command、ComputerUseActivationResult/Outcome/FailureKind 类型、session-scoped verification cache、single-flight guard 和 timeout。
+- backend status 增加 activationEnabled，并支持 MOSSX_DISABLE_COMPUTER_USE_ACTIVATION=1|true|yes|on kill switch。
+- macOS helper descriptor 按 .mcp.json command/cwd/args 解析 launch contract，优先 mcpServers["computer-use"]，拒绝 ambiguous server、空 command、非法 args。
+- helper present 改为 is_file()，避免目录误判为可执行 helper。
+- nested app-bundle helper 在非官方 Codex parent host 下改为 diagnostics-only fallback，返回 host_incompatible，避免重复系统 crash report。
+- frontend 新增 useComputerUseActivation hook、activation CTA、结果面板、失败分类展示和中英文 i18n。
+- frontend hook 增加 request-id/mounted guard，修复重复点击、stale response、刷新后旧 activation result 覆盖的问题。
+- 同步 services/tauri typed facade、shared types、组件测试、hook 测试和 command mapping 测试。
+- 更新 .trellis/spec/backend/computer-use-bridge.md 与 .trellis/spec/frontend/computer-use-bridge.md，固化本次 executable contracts。
+
+涉及模块：
+- backend: src-tauri/src/computer_use/**, src-tauri/src/state.rs, src-tauri/src/command_registry.rs
+- frontend: src/features/computer-use/**, src/services/tauri.ts, src/services/tauri/computerUse.ts, src/types.ts
+- i18n: src/i18n/locales/en.part1.ts, src/i18n/locales/zh.part1.ts
+- specs: openspec/changes/add-codex-computer-use-activation-bridge/**, openspec/docs/computer-use-activation-bridge-manual-test-matrix-2026-04-23.md, .trellis/spec/**/computer-use-bridge.md
+
+验证结果：
+- openspec validate add-codex-computer-use-activation-bridge --type change --strict --no-interactive 通过。
+- cargo test --manifest-path src-tauri/Cargo.toml computer_use -- --nocapture 通过，Computer Use 15 tests passed。
+- cargo test --manifest-path src-tauri/Cargo.toml 通过。
+- npx vitest run src/features/computer-use/hooks/useComputerUseActivation.test.tsx src/features/computer-use/hooks/useComputerUseBridgeStatus.test.tsx src/features/computer-use/components/ComputerUseStatusCard.test.tsx src/services/tauri.test.ts 通过，91 tests passed。
+- npm run typecheck 通过。
+- npm run lint 通过。
+- npm run check:runtime-contracts 通过。
+- npm run doctor:strict 通过。
+- node --test scripts/check-heavy-test-noise.test.mjs 通过。
+- npm run check:heavy-test-noise 通过，348 test files completed，act/stdout/stderr payload noise 为 0。
+- npm run check:large-files:near-threshold 仅既有 watchlist warning；npm run check:large-files:gate found=0。
+- git diff --check 通过。
+
+后续事项：
+- Windows 按用户要求暂不纳入本轮实机验证；后续若恢复 Windows scope，需要补 Phase 2 surface 无 activation affordance 的截图或等价证据。
+- 当前 macOS 结论是“安全失败路径通过”：host_incompatible + diagnostics-only fallback，不是完整 helper verified。
+- 如要进入归档，需要后续执行 OpenSpec archive 流程。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `62bfbff2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
