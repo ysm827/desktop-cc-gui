@@ -181,3 +181,68 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 175: 修复 Codex 历史会话空白页并补加载态
+
+**Date**: 2026-04-24
+**Task**: 修复 Codex 历史会话空白页并补加载态
+**Branch**: `feature/v0.4.9`
+
+### Summary
+
+为 Codex 历史会话首开补齐显式 loading，修复空白页判定错误，并收窄 loading 触发范围到真正的历史恢复路径。
+
+### Main Changes
+
+任务目标:
+- 避免首次打开 Codex 历史会话时消息区落入空白页。
+- 仅在未加载的 Codex 历史线程恢复期间显示 loading。
+- 保持 Claude、Gemini、OpenCode 与实时线程行为不受影响。
+
+主要改动:
+- 在 Messages / MessagesTimeline 中改为空态基于真实 active user input request 判定，避免被 RequestUserInputMessage 的 truthy React element 短路。
+- 在线程层新增 historyLoadingByThreadId 状态，并通过 app shell、layout、messages 透传到消息区渲染。
+- 将历史 loading 触发收窄到未加载的原生 Codex 历史线程选择路径，排除 shared、claude、gemini、opencode 以及 codex-pending 线程。
+- 为历史 loading 新增中英文 i18n 文案与样式。
+- 新增 Messages.history-loading.test.tsx，并在 useThreads.sidebar-cache.test.tsx 中补充正常加载、pending 误判和 resume 失败清理回归测试。
+- 记录 Trellis 任务 04-24-show-codex-history-loading-state。
+
+涉及模块:
+- src/features/messages/components
+- src/features/threads/hooks
+- src/features/layout/hooks
+- src/app-shell.tsx 与 src/app-shell-parts/useAppShellLayoutNodesSection.tsx
+- src/i18n/locales
+- src/styles/messages.part1.css
+- .trellis/tasks/04-24-show-codex-history-loading-state
+
+验证结果:
+- npm exec vitest run src/features/messages/components/Messages.test.tsx src/features/messages/components/Messages.history-loading.test.tsx src/features/threads/hooks/useThreads.sidebar-cache.test.tsx
+- npm run typecheck
+- npm exec eslint src/features/threads/hooks/useThreads.ts src/features/threads/hooks/useThreads.sidebar-cache.test.tsx src/features/messages/components/Messages.tsx src/features/messages/components/MessagesTimeline.tsx src/features/messages/components/Messages.history-loading.test.tsx src/features/threads/hooks/useThreadActions.ts src/features/layout/hooks/useLayoutNodes.tsx src/app-shell.tsx src/app-shell-parts/useAppShellLayoutNodesSection.tsx src/i18n/locales/en.part1.ts src/i18n/locales/zh.part1.ts
+- npm run check:large-files
+- npm run check:large-files:near-threshold
+- git diff --check
+
+后续事项:
+- 如需进一步优化体验，可继续把 Codex 历史恢复拆成“本地 transcript 快路径 + 后台 resume 补全”。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c3f5c27bf6f19fae08b05def52a531d09a40d144` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

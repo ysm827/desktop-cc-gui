@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-6.md`
-- **Total Sessions**: 174
+- **Total Sessions**: 175
 - **Last Active**: 2026-04-24
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-6.md` | ~183 | Active |
+| `journal-6.md` | ~248 | Active |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
@@ -34,6 +34,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 175 | 2026-04-24 | 修复 Codex 历史会话空白页并补加载态 | `c3f5c27bf6f19fae08b05def52a531d09a40d144` | `feature/v0.4.9` |
 | 174 | 2026-04-24 | 归档已验证的 Claude 稳定性提案 | `5c91e83d8311bf5b67d0de7c869e0a1a4314de68` | `feature/v-0.4.8` |
 | 173 | 2026-04-24 | 补充 v0.4.8 发布说明 | `55be1cdbea349c971585e82b361dbf97ce854456` | `feature/v-0.4.8` |
 | 172 | 2026-04-24 | 记录 Windows Claude 流式可见卡顿抢修 | `ef9876e8` | `feature/v-0.4.8` |
