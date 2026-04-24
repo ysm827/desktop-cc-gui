@@ -2038,6 +2038,13 @@ const zhPart1 = {
     // 提交操作
     enterCommitMessage: "输入提交信息",
     noChangesToCommit: "无更改需要提交",
+    selectFilesToCommit: "请先选择要提交的文件",
+    selectedFilesForCommit: "本次将提交 {{count}} 个文件",
+    selectedFilesForCommit_other: "本次将提交 {{count}} 个文件",
+    commitSelectedChanges: "提交已选更改",
+    commitSelectionToggleFile: "切换本次提交选择：{{path}}",
+    commitSelectionToggleScope: "切换本次提交选择：{{path}}",
+    commitRestoreSelectionFailed: "提交已完成，但恢复被排除的已暂存文件失败：{{error}}",
     generateCommitMessageStaged: "从已暂存的更改生成提交信息",
     generateCommitMessageUnstaged: "从未暂存的更改生成提交信息",
     generateCommitMessage: "生成提交信息",

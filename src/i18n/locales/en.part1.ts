@@ -2039,6 +2039,13 @@ const enPart1 = {
     // Commit operations
     enterCommitMessage: "Enter a commit message",
     noChangesToCommit: "No changes to commit",
+    selectFilesToCommit: "Select files to commit first",
+    selectedFilesForCommit: "{{count}} file selected for commit",
+    selectedFilesForCommit_other: "{{count}} files selected for commit",
+    commitSelectedChanges: "Commit selected changes",
+    commitSelectionToggleFile: "Toggle commit selection: {{path}}",
+    commitSelectionToggleScope: "Toggle commit selection: {{path}}",
+    commitRestoreSelectionFailed: "Commit completed, but failed to restore excluded staged files: {{error}}",
     generateCommitMessageStaged: "Generate commit message from staged changes",
     generateCommitMessageUnstaged: "Generate commit message from unstaged changes",
     generateCommitMessage: "Generate commit message",
