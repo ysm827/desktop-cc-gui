@@ -576,3 +576,71 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 181: 收口 Codex 幕布归一化与输入响应
+
+**Date**: 2026-04-26
+**Task**: 收口 Codex 幕布归一化与输入响应
+**Branch**: `feature/v0.4.9`
+
+### Summary
+
+完成 Codex 幕布归一化、realtime/history 收敛、输入优先与 staged markdown 收尾验证。
+
+### Main Changes
+
+任务目标：
+- 收口 Codex 幕布 realtime/history 归一化链路，降低重复、尾段整段重刷与输入框卡顿。
+- 在提交前补齐 OpenSpec 与 .trellis/spec，并完成自动化验证与兼容性审查。
+
+主要改动：
+- 新增 conversation normalization / assembler 主链，把 Codex realtime 与 history hydrate 收到统一 contract。
+- 调整 realtime adapter 与 thread reducer，使 assistant snapshot 按 snapshot 语义进入 assembler。
+- 优化 message render：Codex live row 支持 staged markdown throttle，避免 streaming 期间整段 plain-text/final markdown 突变。
+- 优化 composer 输入响应：对高频 live props 做统一 deferred snapshot，ChatInputBoxAdapter 增加结构化 comparator，减少输入子树无意义重渲染。
+- 补充 frontend code-spec 与 OpenSpec，明确 input-priority、staged markdown、realtime/history convergence contract。
+- 提交前修正两处收尾问题：RateLimitWindow 字段名 drift（resetsAt），以及 skill payload parser 的 any 边界。
+
+涉及模块：
+- src/features/threads/**
+- src/features/messages/**
+- src/features/composer/**
+- src/features/layout/hooks/useLayoutNodes.tsx
+- src/features/settings/hooks/useAppSettings.ts
+- .trellis/spec/frontend/**
+- openspec/changes/complete-conversation-curtain-assembler/**
+- openspec/changes/unify-conversation-curtain-normalization/**
+
+验证结果：
+- npm run lint 通过
+- npm run typecheck 通过
+- npm run check:large-files:gate 通过
+- openspec validate complete-conversation-curtain-assembler --type change --strict --no-interactive 通过
+- npx vitest run（9 个相关测试文件）166 tests 通过
+- npm run test 通过，batched runner 完成 360 test files
+- Computer Use 自动化探针验证：Codex streaming 期间输入框可继续接字，探针文本不会被后续 render 冲掉
+- Win/mac 兼容性审查：未发现新的路径分隔符、CRLF、平台 API 假设 blocker
+
+后续事项：
+- 其他引擎暂未复用 Codex 的 staged rendering 规则，后续如扩展需按 adapter/parity test 单独接入。
+- 如果后面继续动 Composer/ChatInputBox 高频 props，需要遵守这次补进 spec 的 comparator/defer 规则，避免输入链路回退。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9de08c06` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-6.md`
-- **Total Sessions**: 180
-- **Last Active**: 2026-04-25
+- **Total Sessions**: 181
+- **Last Active**: 2026-04-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-6.md` | ~578 | Active |
+| `journal-6.md` | ~646 | Active |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
@@ -34,6 +34,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 181 | 2026-04-26 | 收口 Codex 幕布归一化与输入响应 | `9de08c06` | `feature/v0.4.9` |
 | 180 | 2026-04-25 | 评审最近12条提交并修复跨平台边界问题 | `db492ad3` | `feature/v0.4.9` |
 | 179 | 2026-04-25 | 修复 Codex 生成图片展示与占位链路 | `44907b6c` | `feature/v0.4.9` |
 | 178 | 2026-04-25 | 收口 Claude 会话连续性与审批线程作用域 | `50a3fd774fa485590a823ad119cf8e880c3fc8e4` | `feature/v0.4.9` |
