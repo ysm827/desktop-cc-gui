@@ -1593,3 +1593,54 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 198: 补充 v0.4.9 发布说明
+
+**Date**: 2026-04-27
+**Task**: 补充 v0.4.9 发布说明
+**Branch**: `feature/v0.4.9`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 按用户要求为 CHANGELOG.md 的 v0.4.9 区块追加更详细的补充内容。
+- 使用中文 Conventional Commit 提交，并保留中英文双语发布说明结构。
+
+主要改动：
+- 在 v0.4.9 中文 Improvements / Fixes 中追加 P0/P1 大文件拆分治理、Computer Use P0 阈值、Runtime Pool 首屏恢复、Claude Windows 流式诊断、Claude 长线程实时渲染成本、Codex 多轮 Explored、Codex 协作工具历史 schema、Linux Nix flake 打包等补充条目。
+- 在 v0.4.9 English Improvements / Fixes 中追加对应英文条目，保持双语内容对齐。
+- 未修改运行时代码、规范结构或其他版本 changelog 区块。
+
+涉及模块：
+- CHANGELOG.md
+
+验证结果：
+- git diff --check -- CHANGELOG.md 通过。
+- 提交前确认本次业务 diff 仅包含 CHANGELOG.md，新增 24 行。
+
+后续事项：
+- 如发版前继续合入 v0.4.9 修复，需要再次按提交范围增量补充 changelog。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `decec32b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

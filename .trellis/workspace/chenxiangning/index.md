@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-6.md`
-- **Total Sessions**: 197
+- **Total Sessions**: 198
 - **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-6.md` | ~1595 | Active |
+| `journal-6.md` | ~1646 | Active |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
@@ -34,6 +34,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 198 | 2026-04-27 | 补充 v0.4.9 发布说明 | `decec32b` | `feature/v0.4.9` |
 | 197 | 2026-04-27 | 记录 Nix npmDepsHash 刷新 | `d844034632db71cf8d412778ac69b358aad7187b` | `feature/v0.4.9` |
 | 196 | 2026-04-27 | 记录 Claude 流式与 Runtime Pool 修复 | `823727fe`, `4c377c1c`, `37cbdfe8` | `feature/v0.4.9` |
 | 195 | 2026-04-27 | OpenSpec 回写并归档已验证提案 | `74347a25` | `feature/v0.4.9` |
