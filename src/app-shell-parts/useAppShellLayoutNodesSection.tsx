@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { MainHeaderActions } from "../features/app/components/MainHeaderActions";
+import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
 import { normalizeSharedSessionEngine } from "../features/shared-session/utils/sharedSessionEngines";
 import {
@@ -10,9 +11,28 @@ import {
   shouldSuppressManualRecoveryResendUserMessage,
 } from "./manualThreadRecovery";
 import { OPENCODE_VARIANT_OPTIONS } from "./utils";
+import type { WorkspaceInfo } from "../types";
+
+type WorkspaceAliasPromptState = {
+  workspaceId: string;
+  workspaceName: string;
+  alias: string;
+  originalAlias: string;
+  error: string | null;
+  isSaving: boolean;
+};
+
+function formatWorkspaceAliasError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 export function useAppShellLayoutNodesSection(ctx: any) {
   const clientUiVisibility = useClientUiVisibility();
+  const [workspaceAliasPrompt, setWorkspaceAliasPrompt] =
+    useState<WorkspaceAliasPromptState | null>(null);
   const {
     GitHubPanelData, RECENT_THREAD_LIMIT, SettingsView, accessMode, accountByWorkspace, accountSwitching, activeAccount, activeDiffError,
     activeDiffLoading, activeDiffs, activeDraft, activeEditorFilePath, activeEditorLineRange, activeEngine, activeFusingMessageId, activeGitRoot, activeImages,
@@ -141,6 +161,87 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     activeWorkspace &&
       activeEditorFilePath,
   );
+  const handleRenameWorkspaceAlias = useCallback(
+    (workspace: WorkspaceInfo) => {
+      const currentAlias =
+        typeof workspace?.settings?.projectAlias === "string"
+          ? workspace.settings.projectAlias
+          : "";
+      setWorkspaceAliasPrompt({
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        alias: currentAlias,
+        originalAlias: currentAlias.trim(),
+        error: null,
+        isSaving: false,
+      });
+    },
+    [],
+  );
+  const handleWorkspaceAliasPromptChange = useCallback((alias: string) => {
+    setWorkspaceAliasPrompt((prev) =>
+      prev
+        ? {
+            ...prev,
+            alias,
+            error: null,
+          }
+        : prev,
+    );
+  }, []);
+  const handleWorkspaceAliasPromptCancel = useCallback(() => {
+    setWorkspaceAliasPrompt((prev) => (prev?.isSaving ? prev : null));
+  }, []);
+  const handleWorkspaceAliasPromptConfirm = useCallback(async () => {
+    if (!workspaceAliasPrompt || workspaceAliasPrompt.isSaving) {
+      return;
+    }
+    const nextAlias = workspaceAliasPrompt.alias.trim();
+    if (nextAlias === workspaceAliasPrompt.originalAlias) {
+      setWorkspaceAliasPrompt(null);
+      return;
+    }
+    setWorkspaceAliasPrompt((prev) =>
+      prev
+        ? {
+            ...prev,
+            error: null,
+            isSaving: true,
+          }
+        : prev,
+    );
+    try {
+      await updateWorkspaceSettings(workspaceAliasPrompt.workspaceId, {
+        projectAlias: nextAlias || null,
+      });
+      setWorkspaceAliasPrompt(null);
+    } catch (error) {
+      const message = formatWorkspaceAliasError(error);
+      setWorkspaceAliasPrompt((prev) =>
+        prev && prev.workspaceId === workspaceAliasPrompt.workspaceId
+          ? {
+              ...prev,
+              error: message,
+              isSaving: false,
+            }
+          : prev,
+      );
+      alertError(error);
+    }
+  }, [alertError, updateWorkspaceSettings, workspaceAliasPrompt]);
+  const workspaceAliasPromptNode = workspaceAliasPrompt ? (
+    <WorkspaceAliasPrompt
+      workspaceName={workspaceAliasPrompt.workspaceName}
+      alias={workspaceAliasPrompt.alias}
+      error={workspaceAliasPrompt.error}
+      isBusy={workspaceAliasPrompt.isSaving}
+      onChange={handleWorkspaceAliasPromptChange}
+      onCancel={handleWorkspaceAliasPromptCancel}
+      onConfirm={() => {
+        void handleWorkspaceAliasPromptConfirm();
+      }}
+    />
+  ) : null;
   const mainHeaderSidebarToggleProps = {
     ...sidebarToggleProps,
     rightPanelAvailable:
@@ -404,6 +505,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onDeleteWorktree: (workspaceId) => {
       void removeWorktree(workspaceId);
     },
+    onRenameWorkspaceAlias: handleRenameWorkspaceAlias,
     onLoadOlderThreads: (workspaceId) => {
       const workspace = workspacesById.get(workspaceId);
       if (!workspace) {
@@ -838,5 +940,6 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     sidebarNode, messagesNode, composerNode, approvalToastsNode, updateToastNode, errorToastsNode, globalRuntimeNoticeDockNode, homeNode, mainHeaderNode,
     desktopTopbarLeftNode, tabletNavNode, tabBarNode, rightPanelToolbarNode, gitDiffPanelNode, gitDiffViewerNode, fileViewPanelNode, planPanelNode,
     debugPanelNode, debugPanelFullNode, terminalDockNode, compactEmptyCodexNode, compactEmptySpecNode, compactEmptyGitNode, compactGitBackNode,
+    workspaceAliasPromptNode,
   };
 }

@@ -15,6 +15,10 @@ vi.mock("react-i18next", () => ({
         "sidebar.toggleSearch": "Toggle search",
         "sidebar.searchProjects": "Search projects",
         "sidebar.activateWorkspace": "Open in main panel",
+        "sidebar.setWorkspaceAlias": "Set alias",
+        "sidebar.workspaceAliasPrompt": "Alias prompt",
+        "sidebar.workspaceAliasBadge": "A",
+        "sidebar.workspaceAliasBadgeTitle": "Workspace alias. Original name: service",
         "sidebar.emptyWorkspaceSessions": "No sessions yet.",
         "sidebar.quickNewThread": "Home",
         "sidebar.quickAutomation": "Automation",
@@ -106,6 +110,7 @@ const baseProps = {
   onAutoNameThread: vi.fn(),
   onDeleteWorkspace: vi.fn(),
   onDeleteWorktree: vi.fn(),
+  onRenameWorkspaceAlias: vi.fn(),
   onLoadOlderThreads: vi.fn(),
   onReloadWorkspaceThreads: vi.fn(),
   onQuickReloadWorkspaceThreads: vi.fn(),
@@ -504,6 +509,114 @@ describe("Sidebar", () => {
     expect(projectIcon?.classList.contains("is-session-running")).toBe(true);
     const worktreeIcon = container.querySelector(".worktree-node-icon");
     expect(worktreeIcon?.classList.contains("is-session-running")).toBe(true);
+  });
+
+  it("uses project alias only for the sidebar workspace label", () => {
+    const workspace = {
+      id: "ws-alias",
+      name: "service",
+      path: "/legacy/a/service",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: true,
+        worktreeSetupScript: null,
+        projectAlias: "Billing Legacy",
+      },
+    };
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Billing Legacy")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Workspace alias. Original name: service"),
+    ).toBeTruthy();
+    expect(screen.queryByText("service")).toBeNull();
+  });
+
+  it("does not show alias badge when project alias equals the original name", () => {
+    const workspace = {
+      id: "ws-alias-same",
+      name: "service",
+      path: "/legacy/a/service",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: true,
+        worktreeSetupScript: null,
+        projectAlias: "service",
+      },
+    };
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("service")).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Workspace alias. Original name: service"),
+    ).toBeNull();
+  });
+
+  it("triggers workspace alias prompt from the workspace menu", async () => {
+    const workspace = {
+      id: "ws-alias-menu",
+      name: "service",
+      path: "/legacy/a/service",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: true,
+        worktreeSetupScript: null,
+      },
+    };
+    const onRenameWorkspaceAlias = vi.fn();
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace],
+          },
+        ]}
+        onRenameWorkspaceAlias={onRenameWorkspaceAlias}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "New Session" }));
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Set alias" }));
+
+    expect(onRenameWorkspaceAlias).toHaveBeenCalledTimes(1);
+    expect(onRenameWorkspaceAlias).toHaveBeenCalledWith(workspace);
   });
 
   it("shows an empty session message instead of a loading skeleton for empty workspaces", () => {

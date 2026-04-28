@@ -44,8 +44,13 @@ import House from "lucide-react/dist/esm/icons/house";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Lock from "lucide-react/dist/esm/icons/lock";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import {
+  getWorkspaceSidebarAlias,
+  getWorkspaceSidebarLabel,
+} from "../utils/workspaceSidebarLabel";
 
 type WorkspaceGroupSection = {
   id: string | null;
@@ -123,6 +128,7 @@ type SidebarProps = {
   onAutoNameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onRenameWorkspaceAlias: (workspace: WorkspaceInfo) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
@@ -205,6 +211,7 @@ export function Sidebar({
   onAutoNameThread,
   onDeleteWorkspace,
   onDeleteWorktree,
+  onRenameWorkspaceAlias,
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
   onQuickReloadWorkspaceThreads,
@@ -286,6 +293,7 @@ export function Sidebar({
       onReloadWorkspaceThreads,
       onDeleteWorkspace,
       onDeleteWorktree,
+      onRenameWorkspaceAlias,
       onAddWorktreeAgent,
       onAddCloneAgent,
     });
@@ -321,6 +329,8 @@ export function Sidebar({
         return <RefreshCw size={13} />;
       case "new-shared":
         return <SharedSessionIcon size={13} />;
+      case "alias":
+        return <Pencil size={13} />;
       case "remove":
         return <Trash2 size={13} />;
       case "new-worktree":
@@ -766,11 +776,13 @@ export function Sidebar({
     const hasPrimaryActiveThread =
       entry.id === activeWorkspaceId && Boolean(activeThreadId);
     const hasRunningSession = hasRunningSessionByProjectId.get(entry.id) ?? false;
+    const workspaceSidebarAlias = getWorkspaceSidebarAlias(entry);
     return (
       <WorkspaceCard
         key={entry.id}
         workspace={entry}
-        workspaceName={renderHighlightedName(entry.name)}
+        workspaceName={renderHighlightedName(getWorkspaceSidebarLabel(entry))}
+        workspaceAliasOriginalName={workspaceSidebarAlias ? entry.name : null}
         isActive={entry.id === activeWorkspaceId}
         isThreadListDegraded={isThreadListDegraded}
         isThreadListRefreshing={isThreadListRefreshing}

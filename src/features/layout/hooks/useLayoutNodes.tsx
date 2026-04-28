@@ -269,6 +269,7 @@ type LayoutNodesOptions = {
   onAutoNameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onRenameWorkspaceAlias: (workspace: WorkspaceInfo) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
@@ -1270,6 +1271,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onAutoNameThread={options.onAutoNameThread}
       onDeleteWorkspace={options.onDeleteWorkspace}
       onDeleteWorktree={options.onDeleteWorktree}
+      onRenameWorkspaceAlias={options.onRenameWorkspaceAlias}
       onLoadOlderThreads={options.onLoadOlderThreads}
       onReloadWorkspaceThreads={options.onReloadWorkspaceThreads}
       onQuickReloadWorkspaceThreads={options.onQuickReloadWorkspaceThreads}
