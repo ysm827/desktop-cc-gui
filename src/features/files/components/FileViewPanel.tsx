@@ -67,6 +67,10 @@ import { useFileDocumentState } from "../hooks/useFileDocumentState";
 import { useFileExternalSync } from "../hooks/useFileExternalSync";
 import { useFileNavigation } from "../hooks/useFileNavigation";
 import { useFilePreviewPayload } from "../hooks/useFilePreviewPayload";
+import {
+  isThemeMutationAttribute,
+  readDocumentThemeAppearance,
+} from "../../theme/utils/themeAppearance";
 
 type FileViewPanelProps = {
   workspaceId: string;
@@ -119,18 +123,7 @@ const EXTERNAL_CHANGE_POLL_INTERVAL_MS = 2_000;
 type EditorTheme = "light" | "dark";
 
 function resolveEditorTheme(): EditorTheme {
-  if (typeof document === "undefined") {
-    return "dark";
-  }
-  const dataTheme = document.documentElement.dataset.theme;
-  if (dataTheme === "light") return "light";
-  if (dataTheme === "dark" || dataTheme === "dim") return "dark";
-  if (typeof window !== "undefined" && window.matchMedia) {
-    return window.matchMedia("(prefers-color-scheme: light)").matches
-      ? "light"
-      : "dark";
-  }
-  return "dark";
+  return readDocumentThemeAppearance();
 }
 
 function formatFileSize(bytes: number): string {
@@ -605,7 +598,7 @@ export function FileViewPanel({
     };
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.attributeName === "data-theme") {
+        if (isThemeMutationAttribute(mutation.attributeName)) {
           updateTheme();
           return;
         }

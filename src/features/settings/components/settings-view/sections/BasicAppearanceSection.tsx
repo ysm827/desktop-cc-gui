@@ -1,7 +1,7 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Monitor, Moon, Palette, RotateCcw, Sun, Type, MessageCircle, Info, PanelsLeftRight } from "lucide-react";
-import type { AppSettings } from "../../../../../types";
+import type { AppSettings, ThemePresetId } from "../../../../../types";
 import { clampUiScale } from "../../../../../utils/uiScale";
 import {
   CODE_FONT_SIZE_DEFAULT,
@@ -15,6 +15,9 @@ import { LanguageSelector } from "../../LanguageSelector";
 type BasicAppearanceSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  activeThemePresetId: ThemePresetId;
+  themePresetOptions: ReadonlyArray<{ id: ThemePresetId; label: string }>;
+  onThemePresetChange: (presetId: ThemePresetId) => Promise<void>;
   uiScaleDraft: number;
   clampedUiScale: number;
   uiScaleDraftPercentLabel: string;
@@ -50,6 +53,9 @@ type BasicAppearanceSectionProps = {
 export function BasicAppearanceSection({
   appSettings,
   onUpdateAppSettings,
+  activeThemePresetId,
+  themePresetOptions,
+  onThemePresetChange,
   uiScaleDraft,
   clampedUiScale,
   uiScaleDraftPercentLabel,
@@ -153,8 +159,55 @@ export function BasicAppearanceSection({
               </span>
               <span>{t("settings.themeDark")}</span>
             </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={appSettings.theme === "custom"}
+              className={`settings-basic-theme-option ${
+                appSettings.theme === "custom" ? "active" : ""
+              }`}
+              onClick={() =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  theme: "custom",
+                  customThemePresetId: activeThemePresetId,
+                })
+              }
+            >
+              <span className="settings-basic-theme-icon settings-basic-theme-icon-custom">
+                <Palette size={14} />
+              </span>
+              <span>{t("settings.themeCustom")}</span>
+            </button>
           </div>
         </div>
+        {appSettings.theme === "custom" ? (
+          <div className="settings-field settings-basic-item">
+            <div className="settings-basic-field-header">
+              <Palette className="settings-basic-field-icon" aria-hidden />
+              <span className="settings-basic-field-label">{t("settings.themePreset")}</span>
+            </div>
+            <div className="settings-control settings-basic-theme-preset-control">
+              <div className="settings-select-wrap settings-basic-theme-preset-select-wrap">
+                <select
+                  className="settings-select settings-basic-theme-preset-select"
+                  aria-label={t("settings.themePreset")}
+                  value={activeThemePresetId}
+                  onChange={(event) =>
+                    void onThemePresetChange(event.target.value as ThemePresetId)
+                  }
+                >
+                  {themePresetOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="settings-help">{t("settings.themePresetDescription")}</div>
+          </div>
+        ) : null}
         <LanguageSelector rowClassName="settings-basic-item" />
         <div className="settings-field settings-basic-item">
           <div className="settings-basic-field-header">
