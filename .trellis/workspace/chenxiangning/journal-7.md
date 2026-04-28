@@ -614,3 +614,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 215: 记录 Codex 会话泄漏修复提交
+
+**Date**: 2026-04-28
+**Task**: 记录 Codex 会话泄漏修复提交
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+- 任务目标：提交 Codex background/helper 会话泄漏、被动历史加载和 review 边界修复。
+- 主要改动：新增 helper prompt 识别，后端 unified Codex 列表过滤辅助会话；被动选择 Codex 历史时优先读取本地 JSONL；修复 history loading 竞态、local fallback 重复 warning、response_item string content 解析。
+- 涉及模块：openspec/changes/fix-codex-background-rollout-session-leak、src-tauri/src/codex、src-tauri/src/local_usage、threads hooks/loaders/utils。
+- 验证结果：targeted Vitest、全量 batched frontend tests、heavy-test-noise、typecheck、cargo lib tests、large-file gate 均已通过。
+- 后续事项：无；runtime-required actions 仍保留显式 runtime acquisition 路径。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6413418c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
