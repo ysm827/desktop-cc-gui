@@ -7,6 +7,10 @@ import {
   updateAppSettings,
 } from "../../../services/tauri";
 import {
+  CODEX_AUTO_COMPACTION_THRESHOLD_DEFAULT_PERCENT,
+  normalizeCodexAutoCompactionThresholdPercent,
+} from "../../codex/constants/codexAutoCompactionThreshold";
+import {
   clampUiScale,
   sanitizeUiScale,
   UI_SCALE_DEFAULT,
@@ -204,6 +208,8 @@ const defaultSettings: AppSettings = {
   codexMaxHotRuntimes: 1,
   codexMaxWarmRuntimes: 1,
   codexWarmTtlSeconds: 7200,
+  codexAutoCompactionEnabled: true,
+  codexAutoCompactionThresholdPercent: CODEX_AUTO_COMPACTION_THRESHOLD_DEFAULT_PERCENT,
 };
 
 const CODEX_WARM_TTL_DEFAULT_SECONDS = 7200;
@@ -287,6 +293,10 @@ function normalizeAppSettings(
         ? Math.max(CODEX_WARM_TTL_DEFAULT_SECONDS, normalized)
         : normalized;
     })(),
+    codexAutoCompactionThresholdPercent: normalizeCodexAutoCompactionThresholdPercent(
+      settings.codexAutoCompactionThresholdPercent,
+    ),
+    codexAutoCompactionEnabled: settings.codexAutoCompactionEnabled !== false,
     codeFontSize: clampCodeFontSize(settings.codeFontSize),
     notificationSoundId: ALLOWED_NOTIFICATION_SOUND_IDS.has(settings.notificationSoundId)
       ? settings.notificationSoundId

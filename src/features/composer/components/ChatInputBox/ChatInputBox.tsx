@@ -146,6 +146,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       contextDualViewEnabled = false,
       dualContextUsage = null,
       onRequestContextCompaction,
+      codexAutoCompactionEnabled = true,
+      codexAutoCompactionThresholdPercent = 92,
+      onCodexAutoCompactionSettingsChange,
       accountRateLimits,
       usageShowRemaining = false,
       onRefreshAccountRateLimits,
@@ -192,6 +195,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       statusPanelExpanded = true,
       showStatusPanelToggle = true,
       onToggleStatusPanel,
+      completionEmailSelected,
+      completionEmailDisabled,
+      onToggleCompletionEmail,
       workspaceId,
       sdkInstalled = true, // Default to true to avoid disabling input box on initial state
       sdkStatusLoading = false, // SDK status loading state
@@ -1484,6 +1490,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
             contextDualViewEnabled={contextDualViewEnabled}
             dualContextUsage={dualContextUsage}
             onRequestContextCompaction={onRequestContextCompaction}
+            codexAutoCompactionEnabled={codexAutoCompactionEnabled}
+            codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
+            onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
             isLoading={isLoading}
             onClearFile={onClearContext}
             onAddAttachment={handleAddAttachment}
@@ -1498,6 +1507,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
             statusPanelExpanded={statusPanelExpanded}
             showStatusPanelToggle={showStatusPanelToggle}
             onToggleStatusPanel={onToggleStatusPanel}
+            completionEmailSelected={completionEmailSelected}
+            completionEmailDisabled={completionEmailDisabled}
+            onToggleCompletionEmail={onToggleCompletionEmail}
           />
         )}
       </div>

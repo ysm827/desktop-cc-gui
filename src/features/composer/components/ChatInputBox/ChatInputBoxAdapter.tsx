@@ -305,6 +305,12 @@ export interface ChatInputBoxAdapterProps {
   contextDualViewEnabled?: boolean;
   dualContextUsage?: DualContextUsageViewModel | null;
   onRequestContextCompaction?: () => Promise<void> | void;
+  codexAutoCompactionEnabled?: boolean;
+  codexAutoCompactionThresholdPercent?: number;
+  onCodexAutoCompactionSettingsChange?: (patch: {
+    enabled?: boolean;
+    thresholdPercent?: number;
+  }) => Promise<void> | void;
   accountRateLimits?: RateLimitSnapshot | null;
   usageShowRemaining?: boolean;
   onRefreshAccountRateLimits?: () => Promise<void> | void;
@@ -356,6 +362,9 @@ export interface ChatInputBoxAdapterProps {
   statusPanelExpanded?: boolean;
   showStatusPanelToggle?: boolean;
   onToggleStatusPanel?: () => void;
+  completionEmailSelected?: boolean;
+  completionEmailDisabled?: boolean;
+  onToggleCompletionEmail?: () => void;
 }
 
 /**
@@ -719,6 +728,9 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       contextDualViewEnabled = false,
       dualContextUsage,
       onRequestContextCompaction,
+      codexAutoCompactionEnabled,
+      codexAutoCompactionThresholdPercent,
+      onCodexAutoCompactionSettingsChange,
       accountRateLimits,
       usageShowRemaining,
       onRefreshAccountRateLimits,
@@ -758,6 +770,9 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       statusPanelExpanded,
       showStatusPanelToggle,
       onToggleStatusPanel,
+      completionEmailSelected,
+      completionEmailDisabled,
+      onToggleCompletionEmail,
     } = props;
     const { t } = useTranslation();
     const chatInputRef = useRef<ChatInputBoxHandle>(null);
@@ -1491,6 +1506,9 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         statusPanelExpanded={statusPanelExpanded}
         showStatusPanelToggle={showStatusPanelToggle}
         onToggleStatusPanel={onToggleStatusPanel}
+        completionEmailSelected={completionEmailSelected}
+        completionEmailDisabled={completionEmailDisabled}
+        onToggleCompletionEmail={onToggleCompletionEmail}
         usagePercentage={usagePercentage}
         usageUsedTokens={contextUsage?.used}
         usageMaxTokens={contextUsage?.total}
@@ -1498,6 +1516,9 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         contextDualViewEnabled={contextDualViewEnabled}
         dualContextUsage={dualContextUsage}
         onRequestContextCompaction={onRequestContextCompaction}
+        codexAutoCompactionEnabled={codexAutoCompactionEnabled}
+        codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
+        onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
         accountRateLimits={accountRateLimits}
         usageShowRemaining={usageShowRemaining}
         onRefreshAccountRateLimits={onRefreshAccountRateLimits}

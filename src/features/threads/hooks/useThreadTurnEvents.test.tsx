@@ -1560,6 +1560,77 @@ describe("useThreadTurnEvents", () => {
     nowSpy.mockRestore();
   });
 
+  it("writes a visible Codex compaction message and settles it on completion", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(5555);
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onContextCompacting("ws-1", "thread-1", {
+        usagePercent: 96,
+        thresholdPercent: 92,
+        targetPercent: 70,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "threads.codexCompactionStarted",
+    });
+
+    dispatch.mockClear();
+
+    act(() => {
+      result.current.onContextCompacted("ws-1", "thread-1", "turn-10");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "threads.codexCompactionCompleted",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "appendContextCompacted" }),
+    );
+
+    nowSpy.mockRestore();
+  });
+
+  it("writes the same visible message for manual Codex compaction", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onContextCompacting("ws-1", "thread-1", {
+        usagePercent: null,
+        thresholdPercent: null,
+        targetPercent: null,
+        auto: false,
+        manual: true,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "threads.codexCompactionStarted",
+    });
+
+    dispatch.mockClear();
+
+    act(() => {
+      result.current.onContextCompacted("ws-1", "thread-1", "manual-turn");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "threads.codexCompactionCompleted",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "appendContextCompacted" }),
+    );
+  });
+
   it("falls back to synthetic turn id when context compacted event has no turn id", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(3333);
     const { result, dispatch } = makeOptions();

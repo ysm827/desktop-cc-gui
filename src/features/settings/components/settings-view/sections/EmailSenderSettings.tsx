@@ -327,7 +327,7 @@ export function EmailSenderSettings({
                 id="email-sender-name"
                 value={draft.senderName}
                 onChange={(event) => updateDraft({ senderName: event.target.value })}
-                placeholder="mossx"
+                placeholder="Moss"
               />
             </div>
             <div className="settings-field">

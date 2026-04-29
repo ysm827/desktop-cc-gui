@@ -89,9 +89,19 @@ type AppServerEventHandlers = {
       usagePercent: number | null;
       thresholdPercent: number | null;
       targetPercent: number | null;
+      auto?: boolean | null;
+      manual?: boolean | null;
     },
   ) => void;
-  onContextCompacted?: (workspaceId: string, threadId: string, turnId: string) => void;
+  onContextCompacted?: (
+    workspaceId: string,
+    threadId: string,
+    turnId: string,
+    payload?: {
+      auto?: boolean | null;
+      manual?: boolean | null;
+    },
+  ) => void;
   onContextCompactionFailed?: (
     workspaceId: string,
     threadId: string,
@@ -184,6 +194,31 @@ type UseAppServerEventsOptions = {
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value ? String(value) : "";
+}
+
+function parseOptionalBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") {
+      return true;
+    }
+    if (normalized === "false") {
+      return false;
+    }
+  }
+  return null;
+}
+
+function extractCompactionSourceFlags(params: Record<string, unknown>) {
+  const auto = parseOptionalBoolean(params.auto ?? params.automatic);
+  const manual = parseOptionalBoolean(params.manual);
+  if (auto === null && manual === null) {
+    return null;
+  }
+  return { auto, manual };
 }
 
 function asStringArray(value: unknown): string[] {
@@ -1579,7 +1614,12 @@ export function useAppServerEvents(
         const threadId = sharedBridge?.sharedThreadId ?? String(params.threadId ?? params.thread_id ?? "");
         const turnId = String(params.turnId ?? params.turn_id ?? "");
         if (threadId) {
-          handlers.onContextCompacted?.(workspace_id, threadId, turnId);
+          const sourceFlags = extractCompactionSourceFlags(params);
+          if (sourceFlags) {
+            handlers.onContextCompacted?.(workspace_id, threadId, turnId, sourceFlags);
+          } else {
+            handlers.onContextCompacted?.(workspace_id, threadId, turnId);
+          }
         }
         return;
       }
@@ -1593,13 +1633,27 @@ export function useAppServerEvents(
             params.thresholdPercent ?? params.threshold_percent,
           );
           const targetPercentRaw = Number(params.targetPercent ?? params.target_percent);
-          handlers.onContextCompacting?.(workspace_id, threadId, {
+          const sourceFlags = extractCompactionSourceFlags(params);
+          const compactionPayload: {
+            usagePercent: number | null;
+            thresholdPercent: number | null;
+            targetPercent: number | null;
+            auto?: boolean | null;
+            manual?: boolean | null;
+          } = {
             usagePercent: Number.isFinite(usagePercentRaw) ? usagePercentRaw : null,
             thresholdPercent: Number.isFinite(thresholdPercentRaw)
               ? thresholdPercentRaw
               : null,
             targetPercent: Number.isFinite(targetPercentRaw) ? targetPercentRaw : null,
-          });
+          };
+          if (sourceFlags?.auto !== null && sourceFlags?.auto !== undefined) {
+            compactionPayload.auto = sourceFlags.auto;
+          }
+          if (sourceFlags?.manual !== null && sourceFlags?.manual !== undefined) {
+            compactionPayload.manual = sourceFlags.manual;
+          }
+          handlers.onContextCompacting?.(workspace_id, threadId, compactionPayload);
         }
         return;
       }

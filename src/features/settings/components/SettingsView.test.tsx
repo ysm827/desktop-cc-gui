@@ -181,6 +181,8 @@ const baseSettings: AppSettings = {
   codexMaxHotRuntimes: 1,
   codexMaxWarmRuntimes: 1,
   codexWarmTtlSeconds: 7200,
+  codexAutoCompactionEnabled: true,
+  codexAutoCompactionThresholdPercent: 92,
   preloadGitDiffs: true,
   experimentalCollabEnabled: false,
   experimentalCollaborationModesEnabled: false,

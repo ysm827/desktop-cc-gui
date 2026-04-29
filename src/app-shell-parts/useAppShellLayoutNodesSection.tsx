@@ -45,7 +45,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     clearCloneCopiesFolder, clearDebugEntries, clearDictationError, clearDictationHint, clearDictationTranscript, clearDraftForThread, clearGitRootCandidates, clonePrompt,
     closePlanPanel, closeReleaseNotes, closeReviewPrompt, closeSearchPalette, closeSettings, closeTerminalPanel, closeWorktreeCreateResult, codexComposerModeRef,
     collaborationModePayload, collaborationModes, collaborationModesEnabled, collaborationRuntimeModeByThread, collaborationUiModeByThread, collapseRightPanel, collapseSidebar, commands,
-    commitError, commitLoading, commitMessage, commitMessageError, commitMessageLoading, completionTrackerBySessionRef, completionTrackerReadyRef, composerEditorSettings,
+    commitError, commitLoading, commitMessage, commitMessageError, commitMessageLoading, completionEmailIntentByThread, completionTrackerBySessionRef, completionTrackerReadyRef, composerEditorSettings,
     composerInputRef, composerInsert, composerKanbanContextMode, composerLinkedKanbanPanels, composerSendLabel, confirmBranch, confirmClonePrompt, confirmCommit,
     confirmCustom, confirmRenameWorktreeUpstream, confirmWorktreePrompt, connectWorkspace, createBranch, createPrompt, createWorkspaceGroup, debugEntries,
     debugOpen, debugPanelHeight, defaultModel, deletePrompt, deleteThreadPrompt, deleteWorkspaceGroup, deletingWorktreeIds, delta,
@@ -122,7 +122,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     targetThread, targetWorkspaceIds, task, taskProcessingMap, taskWs, terminalOpen, terminalPanelHeight, terminalState,
     terminalTabs, textareaHeight, threadAccessMode, threadChanged, threadId, threadItemsByThread, threadListCursorByWorkspace, threadListLoadingByWorkspace,
     threadListPagingByWorkspace, threadMode, threadParentById, threadStatusById, historyLoadingByThreadId, threads, threadsByWorkspace, timelinePlan, title,
-    toggleSoloMode, tokenUsageByThread, triggerAutoThreadTitle, trimmed, uiMode, uncachedWorkspaceIds, ungroupedLabel, uniquePaths,
+    toggleCompletionEmailIntent, toggleSoloMode, tokenUsageByThread, triggerAutoThreadTitle, trimmed, uiMode, uncachedWorkspaceIds, ungroupedLabel, uniquePaths,
     unpinThread, updateCloneCopyName, updateCustomInstructions, updatePrompt, updateSharedSessionEngineSelection, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch,
     updateWorktreePublishToOrigin, updateWorktreeSetupScript, updatedAt, updaterState, useSuggestedCloneCopiesFolder, userInputRequests, validModel, viewportHeight,
     wasProcessing, workspace, workspaceActivity, workspaceDropTargetRef, workspaceFilesPollingEnabled, workspaceGroups, workspaceHomeWorkspaceId, workspaceId,
@@ -755,6 +755,15 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onSend: handleComposerSendWithEditorFallback,
     onQueue: handleComposerQueueWithEditorFallback,
     onStop: interruptTurn,
+    completionEmailSelected: Boolean(
+      activeThreadId && completionEmailIntentByThread?.[activeThreadId],
+    ),
+    completionEmailDisabled: !activeThreadId,
+    onToggleCompletionEmail: () => {
+      if (activeThreadId) {
+        toggleCompletionEmailIntent(activeThreadId);
+      }
+    },
     onRewind: handleRewindFromMessage,
     canStop: canInterrupt,
     isReviewing,
@@ -781,6 +790,17 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onReviewPromptConfirmCustom: confirmCustom,
     activeTokenUsage,
     contextDualViewEnabled: activeEngine === "codex",
+    codexAutoCompactionEnabled: appSettings.codexAutoCompactionEnabled,
+    codexAutoCompactionThresholdPercent: appSettings.codexAutoCompactionThresholdPercent,
+    onCodexAutoCompactionSettingsChange: async (patch) => {
+      await queueSaveSettings({
+        ...appSettings,
+        codexAutoCompactionEnabled:
+          patch.enabled ?? appSettings.codexAutoCompactionEnabled,
+        codexAutoCompactionThresholdPercent:
+          patch.thresholdPercent ?? appSettings.codexAutoCompactionThresholdPercent,
+      });
+    },
     activeQueue,
     draftText: activeDraft,
     onDraftChange: handleDraftChange,

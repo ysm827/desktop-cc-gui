@@ -200,6 +200,11 @@ export type ThreadAction =
       isCompacting: boolean;
       timestamp?: number;
     }
+  | {
+      type: "upsertCodexCompactionMessage";
+      threadId: string;
+      text: string;
+    }
   | { type: "markHeartbeat"; threadId: string; pulse: number }
   | { type: "markContinuationEvidence"; threadId: string }
   | { type: "markTerminalSettlement"; threadId: string }
@@ -2070,6 +2075,44 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         itemsByThread: {
           ...state.itemsByThread,
           [action.threadId]: prepareThreadItems([...list, compactedMessage]),
+        },
+      };
+    }
+    case "upsertCodexCompactionMessage": {
+      const list = state.itemsByThread[action.threadId] ?? [];
+      const id = `context-compacted-codex-compact-${action.threadId}`;
+      const compactionMessage: ConversationItem = {
+        id,
+        kind: "message",
+        role: "assistant",
+        text: action.text,
+        engineSource: "codex",
+      };
+      const existingIndex = list.findIndex((entry) => entry.id === id);
+      if (existingIndex >= 0) {
+        const existingItem = list[existingIndex];
+        if (
+          existingItem?.kind === "message" &&
+          existingItem.text === action.text
+        ) {
+          return state;
+        }
+        const next = list.map((entry, index) =>
+          index === existingIndex ? compactionMessage : entry,
+        );
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: prepareThreadItems(next),
+          },
+        };
+      }
+      return {
+        ...state,
+        itemsByThread: {
+          ...state.itemsByThread,
+          [action.threadId]: prepareThreadItems([...list, compactionMessage]),
         },
       };
     }

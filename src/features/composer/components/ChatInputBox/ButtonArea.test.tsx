@@ -157,4 +157,5 @@ describe("ButtonArea custom model storage refresh", () => {
     expect(onRefreshModelConfig).toHaveBeenCalledWith("gemini");
     expect(screen.getByTestId("model-refreshing").textContent).toBe("yes");
   });
+
 });

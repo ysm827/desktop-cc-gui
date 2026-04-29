@@ -1,7 +1,7 @@
 export const CLIENT_UI_VISIBILITY_STORE = "app";
 export const CLIENT_UI_VISIBILITY_KEY = "clientUiVisibility";
 export const CLIENT_UI_VISIBILITY_CHANGED_EVENT =
-  "mossx:client-ui-visibility-changed";
+  "app:client-ui-visibility-changed";
 
 export const CLIENT_UI_PANEL_IDS = [
   "topSessionTabs",

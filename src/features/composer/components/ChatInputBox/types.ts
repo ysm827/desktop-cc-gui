@@ -507,6 +507,15 @@ export interface ChatInputBoxProps {
   dualContextUsage?: DualContextUsageViewModel | null;
   /** Request context compaction (codex only) */
   onRequestContextCompaction?: () => Promise<void> | void;
+  /** Whether Codex auto compaction is enabled */
+  codexAutoCompactionEnabled?: boolean;
+  /** Codex auto compaction high-watermark */
+  codexAutoCompactionThresholdPercent?: number;
+  /** Update Codex auto compaction settings */
+  onCodexAutoCompactionSettingsChange?: (patch: {
+    enabled?: boolean;
+    thresholdPercent?: number;
+  }) => Promise<void> | void;
   /** Account rate limits snapshot for codex usage panel */
   accountRateLimits?: AccountRateLimitsInfo | null;
   /** Show remaining limits instead of used */
@@ -613,6 +622,12 @@ export interface ChatInputBoxProps {
   showStatusPanelToggle?: boolean;
   /** Toggle StatusPanel expand/collapse */
   onToggleStatusPanel?: () => void;
+  /** Whether the current thread has one-shot completion email armed */
+  completionEmailSelected?: boolean;
+  /** Whether completion email toggle is disabled */
+  completionEmailDisabled?: boolean;
+  /** Toggle one-shot completion email for current thread */
+  onToggleCompletionEmail?: () => void;
 
   /** SDK installed status (disable input when not installed) */
   sdkInstalled?: boolean;

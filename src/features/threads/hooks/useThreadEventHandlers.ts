@@ -354,6 +354,12 @@ type ThreadEventHandlersOptions = {
     threadId: string;
     turnId: string;
   }) => void;
+  onTurnTerminalExternal?: (payload: {
+    workspaceId: string;
+    threadId: string;
+    turnId: string;
+    status: "completed" | "error" | "stalled";
+  }) => void;
   onCollaborationModeResolved?: (
     event: CollaborationModeResolvedRequest,
   ) => void;
@@ -428,6 +434,7 @@ export function useThreadEventHandlers({
   renamePendingMemoryCaptureKey,
   onAgentMessageCompletedExternal,
   onTurnCompletedExternal,
+  onTurnTerminalExternal,
   onCollaborationModeResolved,
   onExitPlanModeToolCompleted,
 }: ThreadEventHandlersOptions) {
@@ -1518,6 +1525,12 @@ export function useThreadEventHandlers({
       const handled = onTurnCompleted(workspaceId, threadId, turnId);
       if (handled) {
         onTurnCompletedExternal?.({ workspaceId, threadId, turnId });
+        onTurnTerminalExternal?.({
+          workspaceId,
+          threadId,
+          turnId,
+          status: "completed",
+        });
       }
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
       if (diagnostic && diagnostic.turnId !== turnId) {
@@ -1525,7 +1538,7 @@ export function useThreadEventHandlers({
       }
       finalizeTurnDiagnostic(threadId, "completed");
     },
-    [finalizeTurnDiagnostic, onTurnCompleted, onTurnCompletedExternal],
+    [finalizeTurnDiagnostic, onTurnCompleted, onTurnCompletedExternal, onTurnTerminalExternal],
   );
 
   const onTurnErrorTracked = useCallback(
@@ -1551,6 +1564,12 @@ export function useThreadEventHandlers({
         "turn/error",
         payload.engine,
       );
+      onTurnTerminalExternal?.({
+        workspaceId,
+        threadId,
+        turnId,
+        status: "error",
+      });
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
       if (diagnostic && diagnostic.turnId !== turnId) {
         return;
@@ -1560,7 +1579,7 @@ export function useThreadEventHandlers({
         willRetry: payload.willRetry,
       });
     },
-    [finalizeTurnDiagnostic, onTurnError, quarantineCodexTurn],
+    [finalizeTurnDiagnostic, onTurnError, onTurnTerminalExternal, quarantineCodexTurn],
   );
 
   const onTurnStalledTracked = useCallback(
@@ -1587,6 +1606,12 @@ export function useThreadEventHandlers({
         payload.source || "turn/stalled",
         payload.engine,
       );
+      onTurnTerminalExternal?.({
+        workspaceId,
+        threadId,
+        turnId,
+        status: "stalled",
+      });
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
       if (diagnostic && diagnostic.turnId !== turnId) {
         return;
@@ -1601,7 +1626,7 @@ export function useThreadEventHandlers({
         timeoutMs: payload.timeoutMs,
       });
     },
-    [finalizeTurnDiagnostic, onTurnStalled, quarantineCodexTurn],
+    [finalizeTurnDiagnostic, onTurnStalled, onTurnTerminalExternal, quarantineCodexTurn],
   );
 
   settleCodexNoProgressTurnRef.current = (threadId: string) => {

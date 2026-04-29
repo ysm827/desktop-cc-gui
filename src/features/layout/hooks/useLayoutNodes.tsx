@@ -500,6 +500,9 @@ type LayoutNodesOptions = {
     options?: MessageSendOptions,
   ) => void | Promise<void>;
   onStop: () => void;
+  completionEmailSelected?: boolean;
+  completionEmailDisabled?: boolean;
+  onToggleCompletionEmail?: () => void;
   onRewind?: (
     userMessageId: string,
     options?: { mode?: "messages-and-files" | "messages-only" | "files-only" },
@@ -535,6 +538,12 @@ type LayoutNodesOptions = {
   onReviewPromptConfirmCustom: () => Promise<void>;
   activeTokenUsage: ThreadTokenUsage | null;
   contextDualViewEnabled?: boolean;
+  codexAutoCompactionEnabled?: boolean;
+  codexAutoCompactionThresholdPercent?: number;
+  onCodexAutoCompactionSettingsChange?: (patch: {
+    enabled?: boolean;
+    thresholdPercent?: number;
+  }) => Promise<void> | void;
   activeQueue: QueuedMessage[];
   draftText: string;
   onDraftChange: (next: string) => void;
@@ -1451,11 +1460,17 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onSend={options.onSend}
         onQueue={options.onQueue}
         onStop={options.onStop}
+        completionEmailSelected={options.completionEmailSelected}
+        completionEmailDisabled={options.completionEmailDisabled}
+        onToggleCompletionEmail={options.onToggleCompletionEmail}
         onRewind={options.onRewind}
         canStop={options.canStop}
         disabled={options.isReviewing}
         contextUsage={deferredComposerLiveInputs.tokenUsage}
         contextDualViewEnabled={options.contextDualViewEnabled}
+        codexAutoCompactionEnabled={options.codexAutoCompactionEnabled}
+        codexAutoCompactionThresholdPercent={options.codexAutoCompactionThresholdPercent}
+        onCodexAutoCompactionSettingsChange={options.onCodexAutoCompactionSettingsChange}
         isContextCompacting={
           deferredComposerActiveThreadStatus?.isContextCompacting ??
           activeThreadStatus?.isContextCompacting ??
