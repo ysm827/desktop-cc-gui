@@ -1707,3 +1707,69 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 234: 修正分支更新的无上游提示与边界处理
+
+**Date**: 2026-04-30
+**Task**: 修正分支更新的无上游提示与边界处理
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 对 commit f5c183a5 的分支更新能力做客观 review，重点检查边界条件、跨平台兼容性、大文件门禁与测试噪声门禁。
+- 修复 current/non-current branch 在没有 upstream 时的更新体验问题。
+- 提升 stale_ref guardrail 在不同 Git 版本和不同系统环境下的识别稳定性。
+
+主要改动:
+- 后端在 update_git_branch 进入 pull 路径前统一检查 upstream 完整性，缺失时返回 blocked/no_upstream 结构化结果。
+- Tauri command 与 cc_gui_daemon command path 同步收敛 no_upstream guardrail，保持运行模式一致。
+- update-ref 失败后新增 ref 状态复读，优先基于实际 OID 变化识别 stale_ref，再回退到 stderr 文案匹配。
+- 前端分支菜单对本地 branch 的 Update 不再提前禁用 no_upstream 场景，统一调用 updateGitBranch，并显示明确 blocked notice。
+- 更新中英文 no_upstream 提示文案，明确引导“先绑定 upstream 后再重试”。
+- 补齐 Rust 与 GitHistoryPanel 回归测试，并将 current branch update 的前端断言收口到 updateGitBranch。
+
+涉及模块:
+- src-tauri/src/git/commands_branch.rs
+- src-tauri/src/bin/cc_gui_daemon/git.rs
+- src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelInteractions.tsx
+- src/features/git-history/components/GitHistoryPanel.test.tsx
+- src/i18n/locales/en.part1.ts
+- src/i18n/locales/zh.part1.ts
+
+验证结果:
+- cargo test --manifest-path src-tauri/Cargo.toml commands_branch::tests -- --nocapture 通过
+- npx vitest run src/features/git-history/components/GitHistoryPanel.test.tsx 通过
+- npm run typecheck 通过
+- npm run lint 通过
+- npm run check:large-files:near-threshold 通过（仅 watch，无新增越线）
+- npm run check:large-files:gate 通过
+- npm run check:heavy-test-noise 通过，391 test files 跑完，stdout/stderr payload lines 均为 0
+
+后续事项:
+- 若产品要进一步提升体验，可单独补一个“为当前分支绑定 upstream”的明确交互入口与后端 command。
+- 当前工作树仍存在 unrelated 改动 src/features/threads/hooks/useThreadTurnEvents.ts，本次未触碰。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3adf51af0ceff9597930e4f85435ef99f4fa96a8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
