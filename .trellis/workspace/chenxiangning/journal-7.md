@@ -1457,3 +1457,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 230: 合并 PR #448 自定义主题预设
+
+**Date**: 2026-04-29
+**Task**: 合并 PR #448 自定义主题预设
+**Branch**: `integrate/pr-448-theme-presets`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 PR #448 的自定义主题预设能力合入当前本地集成分支，并解决与 feature/v0.4.11 的 settings/theme 冲突。
+
+主要改动：
+- 创建并使用本地集成分支 integrate/pr-448-theme-presets。
+- 合入 upstream/pr-448，保留 custom theme preset、VS Code preset token、frontend/Rust settings sanitize 与 runtime appearance contract。
+- 语义解决 BasicAppearanceSection.tsx 冲突，同时保留当前分支 client UI visibility 设置项与 PR 的 theme preset selector。
+- 语义解决 useAppSettings.test.ts 冲突，同时保留 global search shortcut 测试与 dim theme preset sanitize 测试。
+- 创建合并提交 feat(theme): 合并自定义主题预设能力。
+
+涉及模块：
+- frontend settings UI
+- frontend settings hook tests
+- theme preset utils
+- runtime theme appearance
+- Rust app settings sanitize
+- OpenSpec/Trellis metadata
+
+验证结果：
+- npx vitest run src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx src/features/theme/utils/themePreset.test.ts src/features/theme/utils/mapVsCodeColorsToTokens.test.ts 通过，4 个文件 61 个测试通过。
+- npm run typecheck 通过。
+- npm run lint 通过。
+- git diff --name-only --diff-filter=U 为空，无未解决冲突。
+
+后续事项：
+- 可在 integrate/pr-448-theme-presets 上继续人工调试自定义主题 preset 行为。
+- 若调试通过，可将集成分支合回 feature/v0.4.11。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bc7f575d03e37b7750b12753ce069e5c5044fbd8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
