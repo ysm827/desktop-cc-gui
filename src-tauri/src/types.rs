@@ -1018,6 +1018,16 @@ pub(crate) struct AppSettings {
         rename = "codexWarmTtlSeconds"
     )]
     pub(crate) codex_warm_ttl_seconds: u16,
+    #[serde(
+        default = "default_codex_auto_compaction_threshold_percent",
+        rename = "codexAutoCompactionThresholdPercent"
+    )]
+    pub(crate) codex_auto_compaction_threshold_percent: u16,
+    #[serde(
+        default = "default_codex_auto_compaction_enabled",
+        rename = "codexAutoCompactionEnabled"
+    )]
+    pub(crate) codex_auto_compaction_enabled: bool,
     /// Default engine type: "claude", "codex", or "opencode". If not set, auto-detect.
     #[serde(default, rename = "defaultEngine")]
     pub(crate) default_engine: Option<String>,
@@ -1359,6 +1369,18 @@ fn default_codex_warm_ttl_seconds() -> u16 {
     7200
 }
 
+fn default_codex_auto_compaction_threshold_percent() -> u16 {
+    92
+}
+
+fn default_codex_auto_compaction_enabled() -> bool {
+    true
+}
+
+fn is_allowed_codex_auto_compaction_threshold_percent(value: u16) -> bool {
+    value == 92 || ((100..=200).contains(&value) && value % 10 == 0)
+}
+
 impl AppSettings {
     pub(crate) fn normalize_unified_exec_policy(&mut self) {
         self.codex_unified_exec_policy = CodexUnifiedExecPolicy::Inherit;
@@ -1373,6 +1395,12 @@ impl AppSettings {
         self.codex_max_hot_runtimes = self.codex_max_hot_runtimes.clamp(0, 8);
         self.codex_max_warm_runtimes = self.codex_max_warm_runtimes.clamp(0, 16);
         self.codex_warm_ttl_seconds = self.codex_warm_ttl_seconds.clamp(15, 14400);
+        if !is_allowed_codex_auto_compaction_threshold_percent(
+            self.codex_auto_compaction_threshold_percent,
+        ) {
+            self.codex_auto_compaction_threshold_percent =
+                default_codex_auto_compaction_threshold_percent();
+        }
     }
 
     pub(crate) fn upgrade_runtime_pool_settings_for_startup(&mut self) {
@@ -1472,6 +1500,9 @@ impl Default for AppSettings {
             codex_max_hot_runtimes: default_codex_max_hot_runtimes(),
             codex_max_warm_runtimes: default_codex_max_warm_runtimes(),
             codex_warm_ttl_seconds: default_codex_warm_ttl_seconds(),
+            codex_auto_compaction_threshold_percent:
+                default_codex_auto_compaction_threshold_percent(),
+            codex_auto_compaction_enabled: default_codex_auto_compaction_enabled(),
         }
     }
 }
@@ -1655,6 +1686,7 @@ mod tests {
         assert_eq!(settings.selected_open_app_id, "vscode");
         assert_eq!(settings.open_app_targets.len(), 6);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
+        assert!(settings.codex_auto_compaction_enabled);
     }
 
     #[test]
@@ -1690,12 +1722,26 @@ mod tests {
         settings.codex_max_hot_runtimes = 200;
         settings.codex_max_warm_runtimes = 99;
         settings.codex_warm_ttl_seconds = 20_000;
+        settings.codex_auto_compaction_threshold_percent = 93;
 
         settings.sanitize_runtime_pool_settings();
 
         assert_eq!(settings.codex_max_hot_runtimes, 8);
         assert_eq!(settings.codex_max_warm_runtimes, 16);
         assert_eq!(settings.codex_warm_ttl_seconds, 14_400);
+        assert_eq!(settings.codex_auto_compaction_threshold_percent, 92);
+    }
+
+    #[test]
+    fn app_settings_sanitize_runtime_pool_settings_keeps_allowed_compaction_thresholds() {
+        for threshold in [92, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200] {
+            let mut settings = AppSettings::default();
+            settings.codex_auto_compaction_threshold_percent = threshold;
+
+            settings.sanitize_runtime_pool_settings();
+
+            assert_eq!(settings.codex_auto_compaction_threshold_percent, threshold);
+        }
     }
 
     #[test]

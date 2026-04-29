@@ -431,6 +431,15 @@ export type SendTestEmailRequest = {
   recipient?: string | null;
 };
 
+export type SendConversationCompletionEmailRequest = {
+  workspaceId: string;
+  threadId: string;
+  turnId: string;
+  subject: string;
+  textBody: string;
+  recipient?: string | null;
+};
+
 export type EmailSendErrorCode =
   | "disabled"
   | "not_configured"
@@ -555,6 +564,8 @@ export type AppSettings = {
   codexMaxHotRuntimes: number;
   codexMaxWarmRuntimes: number;
   codexWarmTtlSeconds: number;
+  codexAutoCompactionEnabled: boolean;
+  codexAutoCompactionThresholdPercent: number;
   streamingEnabled?: boolean;
   autoOpenFileEnabled?: boolean;
   diffExpandedByDefault?: boolean;

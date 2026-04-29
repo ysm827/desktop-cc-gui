@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
@@ -32,7 +32,7 @@ use self::mcp_config::{
 use self::model_selection::{normalize_model_id, pick_model_from_model_list_response};
 use self::run_metadata::{extract_json_value, sanitize_run_worktree_name};
 use self::thread_listing::{build_unified_codex_thread_page, resolve_workspace_fallback_model};
-use crate::backend::app_server::spawn_workspace_session as spawn_workspace_session_inner;
+use crate::backend::app_server::spawn_workspace_session_with_auto_compaction_threshold as spawn_workspace_session_inner;
 pub(crate) use crate::backend::app_server::{ResumePendingSource, WorkspaceSession};
 use crate::backend::events::AppServerEvent;
 use crate::engine::SendMessageParams;
@@ -238,6 +238,14 @@ pub(crate) async fn spawn_workspace_session(
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
+    let (auto_compaction_threshold_percent, auto_compaction_enabled) = {
+        let state = app_handle.state::<AppState>();
+        let settings = state.app_settings.lock().await;
+        (
+            f64::from(settings.codex_auto_compaction_threshold_percent),
+            settings.codex_auto_compaction_enabled,
+        )
+    };
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
@@ -245,6 +253,8 @@ pub(crate) async fn spawn_workspace_session(
         codex_args,
         codex_home,
         client_version,
+        auto_compaction_threshold_percent,
+        auto_compaction_enabled,
         event_sink,
     )
     .await

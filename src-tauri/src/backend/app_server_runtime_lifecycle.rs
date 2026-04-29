@@ -400,8 +400,19 @@ async fn process_workspace_stdout_value<E: EventSink>(
 
     let event_method = extract_event_method(&value).map(ToString::to_string);
     let thread_id = extract_thread_id(&value);
+    let usage_percent = extract_compaction_usage_percent(&value);
 
     dispatch_workspace_stdout_value(session, event_sink, workspace_id, value).await;
+
+    maybe_trigger_auto_compaction(
+        session,
+        event_sink,
+        workspace_id,
+        event_method.as_deref(),
+        thread_id.as_deref(),
+        usage_percent,
+    )
+    .await;
 
     if let Some(extra_event) = synthetic_plan_event {
         emit_workspace_event(session, event_sink, workspace_id, extra_event).await;
@@ -412,6 +423,79 @@ async fn process_workspace_stdout_value<E: EventSink>(
     session
         .clear_terminal_plan_turn_state(thread_id.as_deref(), event_method.as_deref())
         .await;
+}
+
+async fn maybe_trigger_auto_compaction<E: EventSink>(
+    session: &Arc<WorkspaceSession>,
+    event_sink: &E,
+    workspace_id: &str,
+    method: Option<&str>,
+    thread_id: Option<&str>,
+    usage_percent: Option<f64>,
+) {
+    let Some(method) = method else {
+        return;
+    };
+    let Some(thread_id) = thread_id else {
+        return;
+    };
+    if !is_codex_thread_id(thread_id) {
+        return;
+    }
+
+    let should_trigger = {
+        let mut states = session.auto_compaction_thread_state.lock().await;
+        let state = states.entry(thread_id.to_string()).or_default();
+        evaluate_auto_compaction_state(
+            state,
+            method,
+            usage_percent,
+            session.auto_compaction_threshold_percent(),
+            session.auto_compaction_enabled(),
+            now_millis(),
+        )
+    };
+    if !should_trigger {
+        return;
+    }
+
+    let params = json!({ "threadId": thread_id });
+    match session
+        .fire_and_forget_request("thread/compact/start", params)
+        .await
+    {
+        Ok(()) => {
+            emit_workspace_event(
+                session,
+                event_sink,
+                workspace_id,
+                json!({
+                    "method": "thread/compacting",
+                    "params": {
+                        "threadId": thread_id,
+                        "thread_id": thread_id,
+                        "thresholdPercent": session.auto_compaction_threshold_percent(),
+                        "threshold_percent": session.auto_compaction_threshold_percent(),
+                        "auto": true,
+                        "manual": false,
+                    }
+                }),
+            )
+            .await;
+        }
+        Err(error) => {
+            {
+                let mut states = session.auto_compaction_thread_state.lock().await;
+                if let Some(state) = states.get_mut(thread_id) {
+                    state.in_flight = false;
+                }
+            }
+            eprintln!(
+                "[codex] auto compaction dispatch failed workspace={} thread={}: {}",
+                workspace_id, thread_id, error
+            );
+        }
+    }
 }
 
 pub(super) fn spawn_workspace_session_runtime_tasks<E: EventSink>(

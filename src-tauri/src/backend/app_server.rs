@@ -28,6 +28,9 @@ use event_helpers::*;
 #[path = "app_server_plan_enforcement.rs"]
 mod plan_enforcement;
 use plan_enforcement::*;
+#[path = "app_server_auto_compaction.rs"]
+mod app_server_auto_compaction;
+use app_server_auto_compaction::*;
 #[path = "app_server_runtime_lifecycle.rs"]
 mod runtime_lifecycle;
 use runtime_lifecycle::*;
@@ -162,29 +165,14 @@ pub use crate::backend::app_server_cli::{
     get_cli_debug_info,
 };
 
-#[cfg(test)]
-const AUTO_COMPACTION_THRESHOLD_PERCENT: f64 = 92.0;
-#[cfg(test)]
-const AUTO_COMPACTION_TARGET_PERCENT: f64 = 70.0;
-#[cfg(test)]
-const AUTO_COMPACTION_COOLDOWN_MS: u64 = 90_000;
-#[cfg(test)]
-const AUTO_COMPACTION_INFLIGHT_TIMEOUT_MS: u64 = 120_000;
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 300;
 const DEFAULT_INITIAL_TURN_START_TIMEOUT_MS: u64 = 120_000;
 const MIN_INITIAL_TURN_START_TIMEOUT_MS: u64 = 30_000;
 const MAX_INITIAL_TURN_START_TIMEOUT_MS: u64 = 240_000;
 const DEFAULT_RESUME_AFTER_USER_INPUT_TIMEOUT_MS: u64 = 45_000;
 const MIN_RESUME_AFTER_USER_INPUT_TIMEOUT_MS: u64 = 10_000;
-const MAX_RESUME_AFTER_USER_INPUT_TIMEOUT_MS: u64 = 180_000;
-const TIMED_OUT_REQUEST_GRACE_MS: u64 = 180_000;
-#[cfg(test)]
-#[derive(Debug, Default, Clone)]
-struct AutoCompactionThreadState {
-    is_processing: bool,
-    in_flight: bool,
-    last_triggered_at_ms: u64,
-}
+const MAX_RESUME_AFTER_USER_INPUT_TIMEOUT_MS: u64 = 600_000;
+const TIMED_OUT_REQUEST_GRACE_MS: u64 = 600_000;
 
 #[derive(Debug, Clone)]
 struct TimedOutRequest {
@@ -377,109 +365,6 @@ fn extract_request_thread_id(params: &Value) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-#[cfg(test)]
-fn read_number_field(obj: &Value, keys: &[&str]) -> Option<f64> {
-    keys.iter().find_map(|key| {
-        obj.get(*key).and_then(|value| {
-            value
-                .as_f64()
-                .or_else(|| value.as_i64().map(|v| v as f64))
-                .or_else(|| value.as_u64().map(|v| v as f64))
-                .or_else(|| value.as_str().and_then(|v| v.trim().parse::<f64>().ok()))
-        })
-    })
-}
-
-#[cfg(test)]
-fn extract_compaction_usage_percent(value: &Value) -> Option<f64> {
-    let method = extract_event_method(value)?;
-    let params = value.get("params")?;
-    let (used_tokens, context_window) = if method == "token_count" {
-        let info = params.get("info")?;
-        let last_usage = info
-            .get("last_token_usage")
-            .or_else(|| info.get("lastTokenUsage"))
-            .filter(|usage| usage.is_object());
-        // Require last/current snapshot for compaction decisions.
-        // total_* fields are cumulative session stats and can stay high after compaction.
-        let usage = last_usage?;
-        let input_tokens =
-            read_number_field(usage, &["input_tokens", "inputTokens"]).unwrap_or(0.0);
-        let cached_tokens = read_number_field(
-            usage,
-            &[
-                "cached_input_tokens",
-                "cache_read_input_tokens",
-                "cachedInputTokens",
-                "cacheReadInputTokens",
-            ],
-        )
-        .unwrap_or(0.0);
-        let used_tokens = input_tokens + cached_tokens;
-        let context_window = read_number_field(
-            usage,
-            &[
-                "model_context_window",
-                "modelContextWindow",
-                "context_window",
-            ],
-        )
-        .or_else(|| read_number_field(info, &["model_context_window", "modelContextWindow"]))
-        .unwrap_or(200_000.0);
-        (used_tokens, context_window)
-    } else if method == "thread/tokenUsage/updated" {
-        let usage = params
-            .get("tokenUsage")
-            .or_else(|| params.get("token_usage"))
-            .unwrap_or(&Value::Null);
-        // Require last/current snapshot for auto-compaction decisions.
-        let snapshot = usage.get("last").filter(|value| value.is_object())?;
-        let input_tokens =
-            read_number_field(snapshot, &["inputTokens", "input_tokens"]).unwrap_or(0.0);
-        let cached_tokens = read_number_field(
-            snapshot,
-            &[
-                "cachedInputTokens",
-                "cached_input_tokens",
-                "cacheReadInputTokens",
-                "cache_read_input_tokens",
-            ],
-        )
-        .unwrap_or(0.0);
-        let used_tokens = input_tokens + cached_tokens;
-        let context_window = read_number_field(
-            usage,
-            &[
-                "modelContextWindow",
-                "model_context_window",
-                "context_window",
-            ],
-        )
-        .unwrap_or(200_000.0);
-        (used_tokens, context_window)
-    } else {
-        return None;
-    };
-    if context_window <= 0.0 {
-        return None;
-    }
-    Some((used_tokens / context_window) * 100.0)
-}
-
-#[cfg(test)]
-fn is_codex_thread_id(thread_id: &str) -> bool {
-    let normalized = thread_id.trim();
-    if normalized.is_empty() {
-        return false;
-    }
-    !normalized.starts_with("claude:")
-        && !normalized.starts_with("claude-pending-")
-        && !normalized.starts_with("opencode:")
-        && !normalized.starts_with("opencode-pending-")
-        && !normalized.starts_with("gemini:")
-        && !normalized.starts_with("gemini-pending-")
-}
-
 fn should_skip_codex_stderr_line(line: &str) -> bool {
     let normalized = line.trim().to_ascii_lowercase();
     if normalized.is_empty() {
@@ -488,57 +373,6 @@ fn should_skip_codex_stderr_line(line: &str) -> bool {
     normalized.contains("rmcp::transport::worker")
         && normalized.contains("transport channel closed")
         && normalized.contains("authrequired(")
-}
-
-#[cfg(test)]
-fn evaluate_auto_compaction_state(
-    state: &mut AutoCompactionThreadState,
-    method: &str,
-    usage_percent: Option<f64>,
-    now: u64,
-) -> bool {
-    match method {
-        "turn/started" => {
-            state.is_processing = true;
-        }
-        "turn/completed" | "turn/error" => {
-            state.is_processing = false;
-        }
-        "thread/compacted" => {
-            state.is_processing = false;
-            state.in_flight = false;
-        }
-        "thread/compactionFailed" => {
-            state.in_flight = false;
-        }
-        _ => {}
-    }
-
-    if let Some(percent) = usage_percent {
-        if percent <= AUTO_COMPACTION_TARGET_PERCENT {
-            return false;
-        }
-        if percent < AUTO_COMPACTION_THRESHOLD_PERCENT {
-            return false;
-        }
-    }
-
-    if state.in_flight
-        && now.saturating_sub(state.last_triggered_at_ms) > AUTO_COMPACTION_INFLIGHT_TIMEOUT_MS
-    {
-        state.in_flight = false;
-    }
-
-    if state.in_flight || state.is_processing {
-        return false;
-    }
-    if now.saturating_sub(state.last_triggered_at_ms) < AUTO_COMPACTION_COOLDOWN_MS {
-        return false;
-    }
-
-    state.in_flight = true;
-    state.last_triggered_at_ms = now;
-    true
 }
 
 pub(crate) struct WorkspaceSession {
@@ -557,6 +391,9 @@ pub(crate) struct WorkspaceSession {
     pub(crate) thread_mode_state: ThreadModeState,
     pub(crate) mode_enforcement_enabled: AtomicBool,
     pub(crate) collaboration_mode_supported: AtomicBool,
+    auto_compaction_threshold_percent: f64,
+    auto_compaction_enabled: bool,
+    auto_compaction_thread_state: Mutex<HashMap<String, AutoCompactionThreadState>>,
     plan_turn_state: Mutex<HashMap<String, PlanTurnState>>,
     local_user_input_requests: Mutex<HashMap<String, String>>,
     local_request_seq: AtomicU64,
@@ -901,14 +738,46 @@ impl WorkspaceSession {
         self.write_message(json!({ "id": id, "method": method, "params": params }))
             .await
     }
+
+    fn auto_compaction_threshold_percent(&self) -> f64 {
+        self.auto_compaction_threshold_percent
+    }
+
+    fn auto_compaction_enabled(&self) -> bool {
+        self.auto_compaction_enabled
+    }
 }
 
+#[allow(dead_code)]
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
     client_version: String,
+    event_sink: E,
+) -> Result<Arc<WorkspaceSession>, String> {
+    spawn_workspace_session_with_auto_compaction_threshold(
+        entry,
+        default_codex_bin,
+        codex_args,
+        codex_home,
+        client_version,
+        AUTO_COMPACTION_THRESHOLD_PERCENT,
+        true,
+        event_sink,
+    )
+    .await
+}
+
+pub(crate) async fn spawn_workspace_session_with_auto_compaction_threshold<E: EventSink>(
+    entry: WorkspaceEntry,
+    default_codex_bin: Option<String>,
+    codex_args: Option<String>,
+    codex_home: Option<PathBuf>,
+    client_version: String,
+    auto_compaction_threshold_percent: f64,
+    auto_compaction_enabled: bool,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let codex_bin = entry
@@ -925,6 +794,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             codex_args,
             codex_home,
             client_version,
+            auto_compaction_threshold_percent,
+            auto_compaction_enabled,
             event_sink,
             &launch_context,
         )
@@ -936,6 +807,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         codex_args,
         codex_home,
         client_version,
+        auto_compaction_threshold_percent,
+        auto_compaction_enabled,
         event_sink,
         &launch_context,
         CodexAppServerLaunchOptions::primary(),
@@ -948,6 +821,8 @@ async fn spawn_workspace_session_with_wrapper_fallback<E: EventSink>(
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
     client_version: String,
+    auto_compaction_threshold_percent: f64,
+    auto_compaction_enabled: bool,
     event_sink: E,
     launch_context: &CodexLaunchContext,
 ) -> Result<Arc<WorkspaceSession>, String> {
@@ -957,6 +832,8 @@ async fn spawn_workspace_session_with_wrapper_fallback<E: EventSink>(
         codex_args.clone(),
         codex_home.clone(),
         client_version.clone(),
+        auto_compaction_threshold_percent,
+        auto_compaction_enabled,
         primary_sink.clone(),
         launch_context,
         CodexAppServerLaunchOptions::primary(),
@@ -981,6 +858,8 @@ async fn spawn_workspace_session_with_wrapper_fallback<E: EventSink>(
                 codex_args,
                 codex_home,
                 client_version,
+                auto_compaction_threshold_percent,
+                auto_compaction_enabled,
                 event_sink,
                 launch_context,
                 CodexAppServerLaunchOptions::wrapper_compatibility_retry(),
@@ -1000,6 +879,8 @@ async fn spawn_workspace_session_once<E: EventSink>(
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
     client_version: String,
+    auto_compaction_threshold_percent: f64,
+    auto_compaction_enabled: bool,
     event_sink: E,
     launch_context: &CodexLaunchContext,
     launch_options: CodexAppServerLaunchOptions,
@@ -1038,6 +919,9 @@ async fn spawn_workspace_session_once<E: EventSink>(
         thread_mode_state: ThreadModeState::default(),
         mode_enforcement_enabled: AtomicBool::new(true),
         collaboration_mode_supported: AtomicBool::new(true),
+        auto_compaction_threshold_percent,
+        auto_compaction_enabled,
+        auto_compaction_thread_state: Mutex::new(HashMap::new()),
         plan_turn_state: Mutex::new(HashMap::new()),
         local_user_input_requests: Mutex::new(HashMap::new()),
         local_request_seq: AtomicU64::new(1),
@@ -1170,6 +1054,9 @@ pub(crate) async fn make_test_workspace_session(id: &str) -> Arc<WorkspaceSessio
         thread_mode_state: crate::codex::thread_mode_state::ThreadModeState::default(),
         mode_enforcement_enabled: AtomicBool::new(false),
         collaboration_mode_supported: AtomicBool::new(false),
+        auto_compaction_threshold_percent: AUTO_COMPACTION_THRESHOLD_PERCENT,
+        auto_compaction_enabled: true,
+        auto_compaction_thread_state: Mutex::new(HashMap::new()),
         plan_turn_state: Mutex::new(HashMap::new()),
         local_user_input_requests: Mutex::new(HashMap::new()),
         local_request_seq: AtomicU64::new(1),
@@ -1206,9 +1093,9 @@ mod tests {
         should_skip_codex_stderr_line, visible_console_fallback_enabled_from_env,
         wrapper_kind_for_binary, AutoCompactionThreadState, DeferredStartupEventSink,
         PlanTurnState, RuntimeShutdownSource, TimedOutRequest, WorkspaceSession,
-        MODE_BLOCKED_PLAN_REASON, MODE_BLOCKED_PLAN_SUGGESTION, MODE_BLOCKED_REASON,
-        MODE_BLOCKED_REASON_CODE_PLAN_READONLY, MODE_BLOCKED_REASON_CODE_REQUEST_USER_INPUT,
-        MODE_BLOCKED_SUGGESTION,
+        AUTO_COMPACTION_THRESHOLD_PERCENT, MODE_BLOCKED_PLAN_REASON, MODE_BLOCKED_PLAN_SUGGESTION,
+        MODE_BLOCKED_REASON, MODE_BLOCKED_REASON_CODE_PLAN_READONLY,
+        MODE_BLOCKED_REASON_CODE_REQUEST_USER_INPUT, MODE_BLOCKED_SUGGESTION,
     };
     use crate::backend::events::{AppServerEvent, EventSink, TerminalOutput};
     use crate::runtime::RuntimeManager;
@@ -1352,6 +1239,9 @@ mod tests {
             thread_mode_state: crate::codex::thread_mode_state::ThreadModeState::default(),
             mode_enforcement_enabled: AtomicBool::new(false),
             collaboration_mode_supported: AtomicBool::new(false),
+            auto_compaction_threshold_percent: AUTO_COMPACTION_THRESHOLD_PERCENT,
+            auto_compaction_enabled: true,
+            auto_compaction_thread_state: Mutex::new(HashMap::new()),
             plan_turn_state: Mutex::new(HashMap::new()),
             local_user_input_requests: Mutex::new(HashMap::new()),
             local_request_seq: AtomicU64::new(1),
@@ -1542,6 +1432,8 @@ mod tests {
             &mut state,
             "turn/started",
             Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             10_000,
         ));
         assert!(state.is_processing);
@@ -1549,18 +1441,24 @@ mod tests {
             &mut state,
             "token_count",
             Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             20_000,
         ));
         assert!(!evaluate_auto_compaction_state(
             &mut state,
             "turn/completed",
             None,
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             30_000,
         ));
         assert!(evaluate_auto_compaction_state(
             &mut state,
             "token_count",
             Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             100_000,
         ));
         assert!(state.in_flight);
@@ -1568,26 +1466,71 @@ mod tests {
             &mut state,
             "token_count",
             Some(96.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             100_500,
         ));
         assert!(!evaluate_auto_compaction_state(
             &mut state,
             "thread/compacted",
             None,
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             101_000,
         ));
         assert!(!evaluate_auto_compaction_state(
             &mut state,
             "token_count",
             Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             110_000,
         ));
         assert!(evaluate_auto_compaction_state(
             &mut state,
             "token_count",
             Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            true,
             200_000,
         ));
+    }
+
+    #[test]
+    fn evaluate_auto_compaction_state_uses_configured_threshold() {
+        let mut state = AutoCompactionThreadState::default();
+
+        assert!(!evaluate_auto_compaction_state(
+            &mut state,
+            "token_count",
+            Some(115.0),
+            120.0,
+            true,
+            100_000,
+        ));
+        assert!(evaluate_auto_compaction_state(
+            &mut state,
+            "token_count",
+            Some(120.0),
+            120.0,
+            true,
+            200_000,
+        ));
+    }
+
+    #[test]
+    fn evaluate_auto_compaction_state_respects_disabled_setting() {
+        let mut state = AutoCompactionThreadState::default();
+
+        assert!(!evaluate_auto_compaction_state(
+            &mut state,
+            "token_count",
+            Some(95.0),
+            AUTO_COMPACTION_THRESHOLD_PERCENT,
+            false,
+            100_000,
+        ));
+        assert!(!state.in_flight);
     }
 
     #[test]

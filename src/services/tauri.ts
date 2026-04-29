@@ -5,6 +5,7 @@ import type {
   EmailSendError,
   EmailSenderSettingsView,
   EmailSendResult,
+  SendConversationCompletionEmailRequest,
   SendTestEmailRequest,
   UpdateEmailSenderSettingsRequest,
   LocalUsageSnapshot,
@@ -1331,6 +1332,12 @@ export async function sendTestEmail(
   request: SendTestEmailRequest,
 ): Promise<EmailSendResult> {
   return invokeEmailCommand<EmailSendResult>("send_test_email", { request });
+}
+
+export async function sendConversationCompletionEmail(
+  request: SendConversationCompletionEmailRequest,
+): Promise<EmailSendResult> {
+  return invokeEmailCommand<EmailSendResult>("send_conversation_completion_email", { request });
 }
 
 export type WebServerStatus = {

@@ -50,6 +50,7 @@ async fn spawn_reloaded_codex_sessions(
         return Ok(Vec::new());
     }
     let app_settings_snapshot = state.app_settings.lock().await.clone();
+    let auto_compaction_enabled = app_settings_snapshot.codex_auto_compaction_enabled;
     let mut staged_sessions: Vec<(String, Arc<crate::backend::app_server::WorkspaceSession>)> =
         Vec::new();
 
@@ -66,12 +67,14 @@ async fn spawn_reloaded_codex_sessions(
             Some(&app_settings_snapshot),
         );
         let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-        let new_session = match crate::backend::app_server::spawn_workspace_session(
+        let new_session = match crate::backend::app_server::spawn_workspace_session_with_auto_compaction_threshold(
             entry.clone(),
             default_bin,
             codex_args,
             codex_home,
             env!("CARGO_PKG_VERSION").to_string(),
+            f64::from(app_settings_snapshot.codex_auto_compaction_threshold_percent),
+            auto_compaction_enabled,
             TauriEventSink::new(window.app_handle().clone()),
         )
         .await
@@ -115,18 +118,23 @@ pub(crate) async fn update_app_settings(
     let updated =
         update_app_settings_core(settings, &state.app_settings, &state.settings_path).await?;
     if app_settings_change_requires_codex_restart(&previous, &updated) {
+        let auto_compaction_threshold_percent =
+            f64::from(updated.codex_auto_compaction_threshold_percent);
+        let auto_compaction_enabled = updated.codex_auto_compaction_enabled;
         if let Err(error) = restart_codex_sessions_for_app_settings_change_core(
             &state.workspaces,
             &state.sessions,
             &state.app_settings,
             Some(&state.runtime_manager),
             |entry, default_bin, codex_args, codex_home| {
-                crate::backend::app_server::spawn_workspace_session(
+                crate::backend::app_server::spawn_workspace_session_with_auto_compaction_threshold(
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
                     env!("CARGO_PKG_VERSION").to_string(),
+                    auto_compaction_threshold_percent,
+                    auto_compaction_enabled,
                     crate::event_sink::TauriEventSink::new(window.app_handle().clone()),
                 )
             },

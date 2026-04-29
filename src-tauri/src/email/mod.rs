@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use lettre::message::Mailbox;
@@ -9,12 +10,11 @@ use tauri::State;
 use tokio::sync::Mutex;
 
 use crate::state::AppState;
-use crate::storage::write_settings;
+use crate::storage::{read_json_file, write_json_file, write_settings};
 use crate::types::{AppSettings, EmailSenderProvider, EmailSenderSecurity, EmailSenderSettings};
 
-const EMAIL_SECRET_SERVICE: &str = "mossx.email-sender";
-const EMAIL_SECRET_ACCOUNT: &str = "default";
-const TEST_EMAIL_SUBJECT: &str = "mossx email test";
+const EMAIL_SECRET_FILE_NAME: &str = "email-sender-secret.json";
+const TEST_EMAIL_SUBJECT: &str = "Moss email test";
 const SEND_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -38,6 +38,18 @@ pub(crate) struct UpdateEmailSenderSettingsRequest {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SendTestEmailRequest {
+    #[serde(default)]
+    pub(crate) recipient: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SendConversationCompletionEmailRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) thread_id: String,
+    pub(crate) turn_id: String,
+    pub(crate) subject: String,
+    pub(crate) text_body: String,
     #[serde(default)]
     pub(crate) recipient: Option<String>,
 }
@@ -83,44 +95,70 @@ trait EmailSecretStore {
     fn clear(&self) -> Result<(), EmailSendError>;
 }
 
-struct KeyringEmailSecretStore;
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct EmailSecretFile {
+    #[serde(default)]
+    secret: Option<String>,
+}
 
-impl KeyringEmailSecretStore {
-    fn entry() -> Result<keyring::Entry, EmailSendError> {
-        keyring::Entry::new(EMAIL_SECRET_SERVICE, EMAIL_SECRET_ACCOUNT)
-            .map_err(|_| secret_store_unavailable())
+struct FileEmailSecretStore {
+    path: PathBuf,
+}
+
+impl FileEmailSecretStore {
+    fn from_settings_path(settings_path: &Path) -> Self {
+        let root = settings_path.parent().unwrap_or_else(|| Path::new("."));
+        Self {
+            path: root.join(EMAIL_SECRET_FILE_NAME),
+        }
+    }
+
+    fn write_secret_file(&self, value: EmailSecretFile) -> Result<(), EmailSendError> {
+        write_json_file(&self.path, &value).map_err(|_| secret_store_unavailable())?;
+        set_owner_only_file_permissions(&self.path);
+        Ok(())
     }
 }
 
-impl EmailSecretStore for KeyringEmailSecretStore {
+impl EmailSecretStore for FileEmailSecretStore {
     fn get(&self) -> Result<Option<String>, EmailSendError> {
-        match Self::entry()?.get_password() {
-            Ok(secret) if secret.trim().is_empty() => Ok(None),
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(secret_store_unavailable()),
-        }
+        let file = read_json_file::<EmailSecretFile>(&self.path)
+            .map_err(|_| secret_store_unavailable())?
+            .unwrap_or_default();
+        Ok(file
+            .secret
+            .map(|secret| secret.trim().to_string())
+            .filter(|secret| !secret.is_empty()))
     }
 
     fn set(&self, secret: &str) -> Result<(), EmailSendError> {
-        Self::entry()?
-            .set_password(secret)
-            .map_err(|_| secret_store_unavailable())
+        self.write_secret_file(EmailSecretFile {
+            secret: Some(secret.trim().to_string()),
+        })
     }
 
     fn clear(&self) -> Result<(), EmailSendError> {
-        match Self::entry()?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => Err(secret_store_unavailable()),
-        }
+        self.write_secret_file(EmailSecretFile { secret: None })
     }
 }
+
+#[cfg(unix)]
+fn set_owner_only_file_permissions(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+}
+
+#[cfg(not(unix))]
+fn set_owner_only_file_permissions(_path: &Path) {}
 
 #[tauri::command]
 pub(crate) async fn get_email_sender_settings(
     state: State<'_, AppState>,
 ) -> Result<EmailSenderSettingsView, String> {
-    get_email_sender_settings_core(&state.app_settings, &KeyringEmailSecretStore)
+    let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
+    get_email_sender_settings_core(&state.app_settings, &secret_store)
         .await
         .map_err(encode_email_error)
 }
@@ -130,11 +168,12 @@ pub(crate) async fn update_email_sender_settings(
     request: UpdateEmailSenderSettingsRequest,
     state: State<'_, AppState>,
 ) -> Result<EmailSenderSettingsView, String> {
+    let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
     update_email_sender_settings_core(
         request,
         &state.app_settings,
         &state.settings_path,
-        &KeyringEmailSecretStore,
+        &secret_store,
     )
     .await
     .map_err(encode_email_error)
@@ -146,7 +185,20 @@ pub(crate) async fn send_test_email(
     state: State<'_, AppState>,
 ) -> Result<EmailSendResult, String> {
     let settings = state.app_settings.lock().await.email_sender.clone();
-    send_test_email_core(settings, request, &KeyringEmailSecretStore)
+    let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
+    send_test_email_core(settings, request, &secret_store)
+        .await
+        .map_err(encode_email_error)
+}
+
+#[tauri::command]
+pub(crate) async fn send_conversation_completion_email(
+    request: SendConversationCompletionEmailRequest,
+    state: State<'_, AppState>,
+) -> Result<EmailSendResult, String> {
+    let settings = state.app_settings.lock().await.email_sender.clone();
+    let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
+    send_conversation_completion_email_core(settings, request, &secret_store)
         .await
         .map_err(encode_email_error)
 }
@@ -223,23 +275,65 @@ async fn send_test_email_core(
         ));
     }
 
-    let recipient = request
-        .recipient
-        .as_deref()
-        .unwrap_or(settings.recipient_email.as_str())
-        .trim();
+    let recipient = resolve_requested_recipient(
+        request.recipient.as_deref(),
+        settings.recipient_email.as_str(),
+    );
     validate_recipient(recipient)?;
 
     let secret = secret_store.get()?.ok_or_else(missing_secret)?;
     let send_request = EmailSendRequest {
         to: recipient.to_string(),
         subject: TEST_EMAIL_SUBJECT.to_string(),
-        text_body: "This is a mossx test email. If you received it, your SMTP settings work."
+        text_body: "This is a Moss test email. If you received it, your SMTP settings work."
             .to_string(),
     };
     send_email(settings, &secret, send_request).await
 }
 
+async fn send_conversation_completion_email_core(
+    settings: EmailSenderSettings,
+    request: SendConversationCompletionEmailRequest,
+    secret_store: &impl EmailSecretStore,
+) -> Result<EmailSendResult, EmailSendError> {
+    let (settings, secret, send_request) =
+        prepare_conversation_completion_email(settings, request, secret_store)?;
+    send_email(settings, &secret, send_request).await
+}
+
+fn prepare_conversation_completion_email(
+    settings: EmailSenderSettings,
+    request: SendConversationCompletionEmailRequest,
+    secret_store: &impl EmailSecretStore,
+) -> Result<(EmailSenderSettings, String, EmailSendRequest), EmailSendError> {
+    if !settings.enabled {
+        return Err(email_error(
+            EmailSendErrorCode::Disabled,
+            false,
+            "Email sender is disabled.",
+        ));
+    }
+
+    validate_conversation_completion_metadata(&request)?;
+    let recipient = resolve_requested_recipient(
+        request.recipient.as_deref(),
+        settings.recipient_email.as_str(),
+    );
+    validate_recipient(recipient)?;
+
+    let subject = validate_email_subject(request.subject.as_str())?;
+    let text_body = validate_email_text_body(request.text_body.as_str())?;
+
+    let secret = secret_store.get()?.ok_or_else(missing_secret)?;
+    let send_request = EmailSendRequest {
+        to: recipient.to_string(),
+        subject,
+        text_body,
+    };
+    Ok((settings, secret, send_request))
+}
+
+#[derive(Debug)]
 struct EmailSendRequest {
     to: String,
     subject: String,
@@ -397,6 +491,52 @@ fn validate_recipient(recipient: &str) -> Result<(), EmailSendError> {
     Ok(())
 }
 
+fn resolve_requested_recipient<'a>(requested: Option<&'a str>, fallback: &'a str) -> &'a str {
+    requested
+        .map(str::trim)
+        .filter(|recipient| !recipient.is_empty())
+        .unwrap_or_else(|| fallback.trim())
+}
+
+fn validate_email_subject(subject: &str) -> Result<String, EmailSendError> {
+    let trimmed = subject.trim();
+    if trimmed.is_empty() {
+        return Err(empty_conversation_completion_email_content());
+    }
+    if trimmed.contains('\r') || trimmed.contains('\n') {
+        return Err(email_error(
+            EmailSendErrorCode::NotConfigured,
+            false,
+            "Conversation completion email subject is invalid.",
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
+fn validate_email_text_body(text_body: &str) -> Result<String, EmailSendError> {
+    let trimmed = text_body.trim();
+    if trimmed.is_empty() {
+        return Err(empty_conversation_completion_email_content());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn validate_conversation_completion_metadata(
+    request: &SendConversationCompletionEmailRequest,
+) -> Result<(), EmailSendError> {
+    if request.workspace_id.trim().is_empty()
+        || request.thread_id.trim().is_empty()
+        || request.turn_id.trim().is_empty()
+    {
+        return Err(email_error(
+            EmailSendErrorCode::NotConfigured,
+            false,
+            "Conversation completion email metadata is incomplete.",
+        ));
+    }
+    Ok(())
+}
+
 fn classify_smtp_error(raw_error: &str) -> EmailSendError {
     let lower = raw_error.to_lowercase();
     if lower.contains("authentication") || lower.contains("auth") || lower.contains("credentials") {
@@ -473,6 +613,14 @@ fn invalid_recipient() -> EmailSendError {
         EmailSendErrorCode::InvalidRecipient,
         false,
         "Recipient email address is invalid.",
+    )
+}
+
+fn empty_conversation_completion_email_content() -> EmailSendError {
+    email_error(
+        EmailSendErrorCode::NotConfigured,
+        false,
+        "Conversation completion email content is empty.",
     )
 }
 
@@ -567,7 +715,7 @@ mod tests {
             .expect("system clock")
             .as_nanos();
         let root = std::env::temp_dir().join(format!(
-            "mossx-email-{test_name}-{}-{unique}",
+            "moss-email-{test_name}-{}-{unique}",
             std::process::id()
         ));
         fs::create_dir_all(&root).expect("create temp settings root");
@@ -623,6 +771,39 @@ mod tests {
     fn validation_rejects_invalid_recipient_before_smtp() {
         let error = validate_recipient("not-an-email").expect_err("invalid recipient");
         assert_eq!(error.code, EmailSendErrorCode::InvalidRecipient);
+    }
+
+    #[test]
+    fn file_secret_store_persists_trims_and_clears_secret() {
+        let (root, settings_path) = temp_settings_path("file-secret-store");
+        let store = FileEmailSecretStore::from_settings_path(&settings_path);
+        assert!(store.get().expect("missing secret").is_none());
+
+        store.set("  stored-secret  ").expect("set secret");
+        assert_eq!(
+            store.get().expect("saved secret").as_deref(),
+            Some("stored-secret")
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let secret_path = settings_path
+                .parent()
+                .expect("settings parent")
+                .join(EMAIL_SECRET_FILE_NAME);
+            let mode = fs::metadata(secret_path)
+                .expect("secret file metadata")
+                .permissions()
+                .mode()
+                & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+
+        store.clear().expect("clear secret");
+        assert!(store.get().expect("cleared secret").is_none());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[tokio::test]
@@ -788,6 +969,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn send_test_email_blank_request_recipient_falls_back_to_saved_recipient() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            provider: EmailSenderProvider::Custom,
+            sender_email: "sender@example.com".to_string(),
+            smtp_host: "smtp.example.com".to_string(),
+            username: "sender@example.com".to_string(),
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let error = send_test_email_core(
+            settings,
+            SendTestEmailRequest {
+                recipient: Some("   ".to_string()),
+            },
+            &MemoryEmailSecretStore::default(),
+        )
+        .await
+        .expect_err("missing secret after saved recipient fallback");
+
+        assert_eq!(error.code, EmailSendErrorCode::MissingSecret);
+    }
+
+    #[tokio::test]
     async fn send_test_email_blocks_missing_secret_before_smtp() {
         let settings = EmailSenderSettings {
             enabled: true,
@@ -807,5 +1012,196 @@ mod tests {
         .await
         .expect_err("missing secret");
         assert_eq!(error.code, EmailSendErrorCode::MissingSecret);
+    }
+
+    #[test]
+    fn conversation_completion_email_disabled_does_not_read_secret_store() {
+        let store = MemoryEmailSecretStore::with_secret("stored-secret");
+        let error = prepare_conversation_completion_email(
+            EmailSenderSettings::default(),
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation completed".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: None,
+            },
+            &store,
+        )
+        .expect_err("disabled sender should stop before secret lookup");
+
+        assert_eq!(error.code, EmailSendErrorCode::Disabled);
+        assert!(store.calls().is_empty());
+    }
+
+    #[test]
+    fn conversation_completion_email_rejects_invalid_recipient_before_secret_lookup() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            recipient_email: "not-an-email".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let store = MemoryEmailSecretStore::with_secret("stored-secret");
+        let error = prepare_conversation_completion_email(
+            settings,
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation completed".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: None,
+            },
+            &store,
+        )
+        .expect_err("invalid recipient");
+
+        assert_eq!(error.code, EmailSendErrorCode::InvalidRecipient);
+        assert!(store.calls().is_empty());
+    }
+
+    #[test]
+    fn conversation_completion_email_requires_secret_after_validation() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            provider: EmailSenderProvider::Custom,
+            sender_email: "sender@example.com".to_string(),
+            smtp_host: "smtp.example.com".to_string(),
+            username: "sender@example.com".to_string(),
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let store = MemoryEmailSecretStore::default();
+        let error = prepare_conversation_completion_email(
+            settings,
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation completed".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: None,
+            },
+            &store,
+        )
+        .expect_err("missing secret");
+
+        assert_eq!(error.code, EmailSendErrorCode::MissingSecret);
+        assert_eq!(store.calls(), vec!["get"]);
+    }
+
+    #[test]
+    fn conversation_completion_email_builds_send_request_from_saved_recipient() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            provider: EmailSenderProvider::Custom,
+            sender_email: "sender@example.com".to_string(),
+            smtp_host: "smtp.example.com".to_string(),
+            username: "sender@example.com".to_string(),
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let (prepared_settings, secret, send_request) = prepare_conversation_completion_email(
+            settings.clone(),
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "  Moss conversation completed  ".to_string(),
+                text_body: "  User: hi\nAssistant: done  ".to_string(),
+                recipient: None,
+            },
+            &MemoryEmailSecretStore::with_secret("stored-secret"),
+        )
+        .expect("prepared conversation email");
+
+        assert_eq!(prepared_settings.recipient_email, settings.recipient_email);
+        assert_eq!(secret, "stored-secret");
+        assert_eq!(send_request.to, "saved-recipient@example.com");
+        assert_eq!(send_request.subject, "Moss conversation completed");
+        assert_eq!(send_request.text_body, "User: hi\nAssistant: done");
+    }
+
+    #[test]
+    fn conversation_completion_email_request_recipient_overrides_saved_recipient() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            provider: EmailSenderProvider::Custom,
+            sender_email: "sender@example.com".to_string(),
+            smtp_host: "smtp.example.com".to_string(),
+            username: "sender@example.com".to_string(),
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let (_, _, send_request) = prepare_conversation_completion_email(
+            settings,
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation completed".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: Some("override@example.com".to_string()),
+            },
+            &MemoryEmailSecretStore::with_secret("stored-secret"),
+        )
+        .expect("prepared conversation email");
+
+        assert_eq!(send_request.to, "override@example.com");
+    }
+
+    #[test]
+    fn conversation_completion_email_blank_request_recipient_falls_back_to_saved_recipient() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            provider: EmailSenderProvider::Custom,
+            sender_email: "sender@example.com".to_string(),
+            smtp_host: "smtp.example.com".to_string(),
+            username: "sender@example.com".to_string(),
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let (_, _, send_request) = prepare_conversation_completion_email(
+            settings,
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation completed".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: Some("   ".to_string()),
+            },
+            &MemoryEmailSecretStore::with_secret("stored-secret"),
+        )
+        .expect("prepared conversation email");
+
+        assert_eq!(send_request.to, "saved-recipient@example.com");
+    }
+
+    #[test]
+    fn conversation_completion_email_rejects_multiline_subject_before_secret_lookup() {
+        let settings = EmailSenderSettings {
+            enabled: true,
+            recipient_email: "saved-recipient@example.com".to_string(),
+            ..EmailSenderSettings::default()
+        };
+        let store = MemoryEmailSecretStore::with_secret("stored-secret");
+        let error = prepare_conversation_completion_email(
+            settings,
+            SendConversationCompletionEmailRequest {
+                workspace_id: "workspace-1".to_string(),
+                thread_id: "thread-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                subject: "Moss conversation\ncompleted".to_string(),
+                text_body: "Assistant answer".to_string(),
+                recipient: None,
+            },
+            &store,
+        )
+        .expect_err("multiline subject should be rejected");
+
+        assert_eq!(error.code, EmailSendErrorCode::NotConfigured);
+        assert_eq!(store.calls(), Vec::<&'static str>::new());
     }
 }

@@ -12,6 +12,7 @@ pub(crate) fn invoke_handler(
         crate::email::get_email_sender_settings,
         crate::email::update_email_sender_settings,
         crate::email::send_test_email,
+        crate::email::send_conversation_completion_email,
         crate::computer_use::get_computer_use_bridge_status,
         crate::computer_use::run_computer_use_activation_probe,
         crate::computer_use::run_computer_use_host_contract_diagnostics,
