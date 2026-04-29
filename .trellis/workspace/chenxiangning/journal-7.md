@@ -1773,3 +1773,64 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 235: 修复 Codex 压缩文案生命周期边界问题
+
+**Date**: 2026-04-30
+**Task**: 修复 Codex 压缩文案生命周期边界问题
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+完成 Codex compaction 生命周期边界修复与规范同步
+
+### Main Changes
+
+任务目标
+- 对当前工作区做一次围绕 Codex compaction 的全面 review，重点补齐边界条件、跨事件生命周期与平台兼容性问题。
+- 修复 /compact 手动触发、自动 compaction、completion-only 回调之间的幕布文案一致性。
+
+主要改动
+- 在 useThreadMessagingSessionTooling 中为 manual Codex compact 增加 in-flight guard，避免重复 RPC 与重复 started 文案。
+- 在 compact RPC 立即失败时回滚最近一次 started 文案，并补发错误消息，消除假进行中状态残留。
+- 在 useThreadsReducer 中拆分 append / settle / discard 三类 compaction reducer action，保证 completed 优先结算最近 started，completion-only 时按 fallback message id 单次追加。
+- 在 useThreadTurnEvents 中统一收口 canonical thread alias 与 in-flight 状态映射，覆盖 compacting、compacted、failed 三条事件链路。
+- 在 useAppServerEvents 中增强 payload 容错，支持 nested thread.id/threadId/thread_id，以及 numeric auto/manual 布尔值。
+- 拆分 useThreadsReducer.compaction.test.ts，降低原测试文件体积，保持 large-file governance 门禁通过。
+- 同步 OpenSpec proposal / design / spec 到当前真实实现。
+
+涉及模块
+- frontend threads hooks
+- frontend app server event parsing
+- composer 与 app shell 的 /compact 入口接线
+- OpenSpec codex-context-auto-compaction 规范
+
+验证结果
+- pnpm vitest run src/features/app/hooks/useAppServerEvents.compaction.test.tsx src/features/threads/hooks/useThreadMessaging.test.tsx src/features/threads/hooks/useThreadsReducer.test.ts src/features/threads/hooks/useThreadsReducer.compaction.test.ts src/features/threads/hooks/useThreadTurnEvents.test.tsx
+- pnpm tsc --noEmit
+- npm run check:large-files
+- npm run check:heavy-test-noise
+- 上述检查均已通过。
+
+后续事项
+- 工作区仍保留用户自己的未提交改动：openspec/changes/allow-branch-update-without-checkout/tasks.md，本次未纳入提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `536062ceb85383e060bb83257ac3fb241ba6259e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
