@@ -133,7 +133,14 @@ pub(crate) fn app_settings_change_requires_codex_restart(
         || previous.system_proxy_url != updated.system_proxy_url;
     let unified_exec_policy_changed =
         previous.codex_unified_exec_policy != updated.codex_unified_exec_policy;
-    proxy_changed || unified_exec_policy_changed
+    let auto_compaction_threshold_changed = previous.codex_auto_compaction_threshold_percent
+        != updated.codex_auto_compaction_threshold_percent;
+    let auto_compaction_enabled_changed =
+        previous.codex_auto_compaction_enabled != updated.codex_auto_compaction_enabled;
+    proxy_changed
+        || unified_exec_policy_changed
+        || auto_compaction_threshold_changed
+        || auto_compaction_enabled_changed
 }
 
 pub(crate) fn get_codex_config_path_core() -> Result<String, String> {
@@ -279,6 +286,28 @@ mod tests {
         let previous = AppSettings::default();
         let mut updated = previous.clone();
         updated.codex_unified_exec_policy = CodexUnifiedExecPolicy::ForceEnabled;
+
+        assert!(app_settings_change_requires_codex_restart(
+            &previous, &updated
+        ));
+    }
+
+    #[test]
+    fn app_settings_change_requires_restart_when_auto_compaction_threshold_changes() {
+        let previous = AppSettings::default();
+        let mut updated = previous.clone();
+        updated.codex_auto_compaction_threshold_percent = 120;
+
+        assert!(app_settings_change_requires_codex_restart(
+            &previous, &updated
+        ));
+    }
+
+    #[test]
+    fn app_settings_change_requires_restart_when_auto_compaction_enabled_changes() {
+        let previous = AppSettings::default();
+        let mut updated = previous.clone();
+        updated.codex_auto_compaction_enabled = false;
 
         assert!(app_settings_change_requires_codex_restart(
             &previous, &updated

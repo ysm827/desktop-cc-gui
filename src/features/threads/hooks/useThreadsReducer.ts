@@ -77,6 +77,10 @@ import {
   maybeRenameThreadFromAgent,
   shouldPreferExistingThreadName,
 } from "./threadReducerThreadNaming";
+import type {
+  CodexAcceptedTurnFact,
+  CodexAcceptedTurnRecord,
+} from "../utils/codexConversationLiveness";
 
 const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
@@ -161,6 +165,7 @@ export type ThreadState = {
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
   activeTurnIdByThread: Record<string, string | null>;
+  codexAcceptedTurnByThread: Record<string, CodexAcceptedTurnRecord>;
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
@@ -194,6 +199,11 @@ export type ThreadAction =
       threadId: string;
       isCompacting: boolean;
       timestamp?: number;
+    }
+  | {
+      type: "upsertCodexCompactionMessage";
+      threadId: string;
+      text: string;
     }
   | { type: "markHeartbeat"; threadId: string; pulse: number }
   | { type: "markContinuationEvidence"; threadId: string }
@@ -318,6 +328,13 @@ export type ThreadAction =
       account: AccountSnapshot | null;
     }
   | { type: "setActiveTurnId"; threadId: string; turnId: string | null }
+  | {
+      type: "markCodexAcceptedTurn";
+      threadId: string;
+      fact: CodexAcceptedTurnFact;
+      source: string;
+      timestamp: number;
+    }
   | { type: "setThreadPlan"; threadId: string; plan: TurnPlan | null }
   | {
       type: "settleThreadPlanInProgress";
@@ -354,6 +371,7 @@ export const initialState: ThreadState = {
   threadListPagingByWorkspace: {},
   threadListCursorByWorkspace: {},
   activeTurnIdByThread: {},
+  codexAcceptedTurnByThread: {},
   approvals: [],
   userInputRequests: [],
   tokenUsageByThread: {},
@@ -626,6 +644,13 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             delete newActiveTurnIdByThread[oldThreadId];
           }
 
+          const newCodexAcceptedTurnByThread = { ...state.codexAcceptedTurnByThread };
+          if (newCodexAcceptedTurnByThread[oldThreadId]) {
+            newCodexAcceptedTurnByThread[newThreadId] =
+              newCodexAcceptedTurnByThread[oldThreadId];
+            delete newCodexAcceptedTurnByThread[oldThreadId];
+          }
+
           const newActiveThreadIdByWorkspace = { ...state.activeThreadIdByWorkspace };
           if (newActiveThreadIdByWorkspace[action.workspaceId] === oldThreadId) {
             newActiveThreadIdByWorkspace[action.workspaceId] = newThreadId;
@@ -675,6 +700,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             itemsByThread: newItemsByThread,
             threadStatusById: newThreadStatusById,
             activeTurnIdByThread: newActiveTurnIdByThread,
+            codexAcceptedTurnByThread: newCodexAcceptedTurnByThread,
             activeThreadIdByWorkspace: newActiveThreadIdByWorkspace,
             tokenUsageByThread: newTokenUsageByThread,
             planByThread: newPlanByThread,
@@ -764,6 +790,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const { [action.threadId]: _items, ...restItems } = state.itemsByThread;
       const { [action.threadId]: _status, ...restStatus } = state.threadStatusById;
       const { [action.threadId]: _turns, ...restTurns } = state.activeTurnIdByThread;
+      const { [action.threadId]: _codexAcceptedTurn, ...restCodexAcceptedTurn } =
+        state.codexAcceptedTurnByThread;
       const { [action.threadId]: _plans, ...restPlans } = state.planByThread;
       const { [action.threadId]: _parents, ...restParents } = state.threadParentById;
       const { [action.threadId]: _tokenUsage, ...restTokenUsage } = state.tokenUsageByThread;
@@ -778,6 +806,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         itemsByThread: restItems,
         threadStatusById: restStatus,
         activeTurnIdByThread: restTurns,
+        codexAcceptedTurnByThread: restCodexAcceptedTurn,
         planByThread: restPlans,
         threadParentById: restParents,
         tokenUsageByThread: restTokenUsage,
@@ -1036,6 +1065,32 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           [action.threadId]: action.turnId,
         },
       };
+    case "markCodexAcceptedTurn": {
+      const previous = state.codexAcceptedTurnByThread[action.threadId];
+      if (
+        previous?.fact === "accepted" &&
+        action.fact !== "accepted"
+      ) {
+        return state;
+      }
+      if (
+        previous?.fact === action.fact &&
+        previous.source === action.source
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        codexAcceptedTurnByThread: {
+          ...state.codexAcceptedTurnByThread,
+          [action.threadId]: {
+            fact: action.fact,
+            source: action.source,
+            updatedAt: action.timestamp,
+          },
+        },
+      };
+    }
     case "markReviewing":
       return {
         ...state,
@@ -1792,6 +1847,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         delete newActiveTurnIdByThread[oldThreadId];
       }
 
+      const newCodexAcceptedTurnByThread = { ...state.codexAcceptedTurnByThread };
+      if (newCodexAcceptedTurnByThread[oldThreadId]) {
+        const oldFact = newCodexAcceptedTurnByThread[oldThreadId];
+        const existingFact = newCodexAcceptedTurnByThread[newThreadId];
+        newCodexAcceptedTurnByThread[newThreadId] =
+          existingFact?.fact === "accepted"
+            ? existingFact
+            : oldFact;
+        delete newCodexAcceptedTurnByThread[oldThreadId];
+      }
+
       // Update tokenUsageByThread
       const newTokenUsageByThread = { ...state.tokenUsageByThread };
       if (newTokenUsageByThread[oldThreadId]) {
@@ -1876,6 +1942,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadsByWorkspace: newThreadsByWorkspace,
         threadStatusById: newThreadStatusById,
         activeTurnIdByThread: newActiveTurnIdByThread,
+        codexAcceptedTurnByThread: newCodexAcceptedTurnByThread,
         tokenUsageByThread: newTokenUsageByThread,
         planByThread: newPlanByThread,
         lastAgentMessageByThread: newLastAgentMessageByThread,
@@ -2008,6 +2075,44 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         itemsByThread: {
           ...state.itemsByThread,
           [action.threadId]: prepareThreadItems([...list, compactedMessage]),
+        },
+      };
+    }
+    case "upsertCodexCompactionMessage": {
+      const list = state.itemsByThread[action.threadId] ?? [];
+      const id = `context-compacted-codex-compact-${action.threadId}`;
+      const compactionMessage: ConversationItem = {
+        id,
+        kind: "message",
+        role: "assistant",
+        text: action.text,
+        engineSource: "codex",
+      };
+      const existingIndex = list.findIndex((entry) => entry.id === id);
+      if (existingIndex >= 0) {
+        const existingItem = list[existingIndex];
+        if (
+          existingItem?.kind === "message" &&
+          existingItem.text === action.text
+        ) {
+          return state;
+        }
+        const next = list.map((entry, index) =>
+          index === existingIndex ? compactionMessage : entry,
+        );
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: prepareThreadItems(next),
+          },
+        };
+      }
+      return {
+        ...state,
+        itemsByThread: {
+          ...state.itemsByThread,
+          [action.threadId]: prepareThreadItems([...list, compactionMessage]),
         },
       };
     }

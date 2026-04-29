@@ -159,6 +159,13 @@ describe("useThreadActions", () => {
       engine: "codex",
     });
     expect(dispatch).toHaveBeenCalledWith({
+      type: "markCodexAcceptedTurn",
+      threadId: "thread-1",
+      fact: "empty-draft",
+      source: "thread-start",
+      timestamp: expect.any(Number),
+    });
+    expect(dispatch).toHaveBeenCalledWith({
       type: "setActiveThreadId",
       workspaceId: "ws-1",
       threadId: "thread-1",
@@ -1961,6 +1968,14 @@ describe("useThreadActions", () => {
             preview:
               "You are generating OpenSpec project context. Return ONLY valid JSON with keys:",
             updated_at: 5800,
+            source: "cli",
+          },
+          {
+            id: "thread-memory-writing",
+            cwd: "/tmp/codex",
+            preview:
+              "## Memory Writing Agent: Phase 2 (Consolidation)\n\nConsolidate raw memories.",
+            updated_at: 5750,
             source: "cli",
           },
           {

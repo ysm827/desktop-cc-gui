@@ -2,6 +2,7 @@ export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
   sortOrder?: number | null;
   groupId?: string | null;
+  projectAlias?: string | null;
   gitRoot?: string | null;
   codexHome?: string | null;
   codexArgs?: string | null;
@@ -398,6 +399,74 @@ export type ComputerUseBrokerResult = {
   durationMs: number;
 };
 
+export type EmailSenderProvider = "126" | "163" | "qq" | "custom";
+
+export type EmailSenderSecurity = "ssl_tls" | "start_tls" | "none";
+
+export type EmailSenderSettings = {
+  enabled: boolean;
+  provider: EmailSenderProvider;
+  senderEmail: string;
+  senderName: string;
+  smtpHost: string;
+  smtpPort: number;
+  security: EmailSenderSecurity;
+  username: string;
+  recipientEmail: string;
+};
+
+export type EmailSenderSettingsView = {
+  settings: EmailSenderSettings;
+  secretConfigured: boolean;
+  secret: string | null;
+};
+
+export type UpdateEmailSenderSettingsRequest = {
+  settings: EmailSenderSettings;
+  secret?: string | null;
+  clearSecret?: boolean;
+};
+
+export type SendTestEmailRequest = {
+  recipient?: string | null;
+};
+
+export type SendConversationCompletionEmailRequest = {
+  workspaceId: string;
+  threadId: string;
+  turnId: string;
+  subject: string;
+  textBody: string;
+  recipient?: string | null;
+};
+
+export type EmailSendErrorCode =
+  | "disabled"
+  | "not_configured"
+  | "missing_secret"
+  | "invalid_sender"
+  | "invalid_recipient"
+  | "connect_failed"
+  | "tls_failed"
+  | "authentication_failed"
+  | "send_rejected"
+  | "timeout"
+  | "secret_store_unavailable"
+  | "unknown";
+
+export type EmailSendError = {
+  code: EmailSendErrorCode;
+  retryable: boolean;
+  userMessage: string;
+  detail?: Record<string, string>;
+};
+
+export type EmailSendResult = {
+  provider: EmailSenderProvider;
+  acceptedRecipients: string[];
+  durationMs: number;
+};
+
 export type AppSettings = {
   claudeBin: string | null;
   codexBin: string | null;
@@ -414,15 +483,31 @@ export type AppSettings = {
   composerReasoningShortcut: string | null;
   composerCollaborationShortcut: string | null;
   interruptShortcut: string | null;
+  openSettingsShortcut: string | null;
+  newWindowShortcut: string | null;
   newAgentShortcut: string | null;
   newWorktreeAgentShortcut: string | null;
   newCloneAgentShortcut: string | null;
   archiveThreadShortcut: string | null;
+  openChatShortcut: string | null;
+  openKanbanShortcut: string | null;
+  cycleOpenSessionPrevShortcut: string | null;
+  cycleOpenSessionNextShortcut: string | null;
+  toggleLeftConversationSidebarShortcut: string | null;
+  toggleRightConversationSidebarShortcut: string | null;
   toggleProjectsSidebarShortcut: string | null;
   toggleGitSidebarShortcut: string | null;
   toggleGlobalSearchShortcut: string | null;
   toggleDebugPanelShortcut: string | null;
   toggleTerminalShortcut: string | null;
+  toggleRuntimeConsoleShortcut: string | null;
+  toggleFilesSurfaceShortcut: string | null;
+  saveFileShortcut: string | null;
+  findInFileShortcut: string | null;
+  toggleGitDiffListViewShortcut: string | null;
+  increaseUiScaleShortcut: string | null;
+  decreaseUiScaleShortcut: string | null;
+  resetUiScaleShortcut: string | null;
   cycleAgentNextShortcut: string | null;
   cycleAgentPrevShortcut: string | null;
   cycleWorkspaceNextShortcut: string | null;
@@ -443,6 +528,7 @@ export type AppSettings = {
   notificationSoundId: string;
   notificationSoundCustomPath: string;
   systemNotificationEnabled: boolean;
+  emailSender: EmailSenderSettings;
   preloadGitDiffs: boolean;
   detachedExternalChangeAwarenessEnabled?: boolean;
   detachedExternalChangeWatcherEnabled?: boolean;
@@ -478,6 +564,8 @@ export type AppSettings = {
   codexMaxHotRuntimes: number;
   codexMaxWarmRuntimes: number;
   codexWarmTtlSeconds: number;
+  codexAutoCompactionEnabled: boolean;
+  codexAutoCompactionThresholdPercent: number;
   streamingEnabled?: boolean;
   autoOpenFileEnabled?: boolean;
   diffExpandedByDefault?: boolean;
@@ -504,6 +592,7 @@ export type RuntimePoolRow = {
   engine: string;
   state: RuntimePoolState;
   pid: number | null;
+  runtimeGeneration?: string | null;
   wrapperKind: string | null;
   resolvedBin: string | null;
   startedAtMs: number | null;
