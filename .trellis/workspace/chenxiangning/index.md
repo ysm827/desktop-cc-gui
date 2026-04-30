@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-7.md`
-- **Total Sessions**: 237
+- **Active File**: `journal-8.md`
+- **Total Sessions**: 238
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-7.md` | ~1950 | Active |
+| `journal-8.md` | ~69 | Active |
+| `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
@@ -35,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 238 | 2026-04-30 | 统一提交作用域与历史提交区归一化 | `c2bbf539` | `feature/fix-0.4.12` |
 | 237 | 2026-04-30 | 修复缺失会话删除静默成功语义 | `5970d73dbc295accd31a28cb160f5f85388978a9` | `feature/fix-0.4.12` |
 | 236 | 2026-04-30 | 同步分支更新提案任务完成状态 | `2cc5fef91d95557c0094e8b6c89aff9a116c0016` | `feature/fix-0.4.12` |
 | 235 | 2026-04-30 | 修复 Codex 压缩文案生命周期边界问题 | `536062ceb85383e060bb83257ac3fb241ba6259e` | `feature/fix-0.4.12` |
