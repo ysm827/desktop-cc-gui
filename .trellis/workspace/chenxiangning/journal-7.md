@@ -1885,3 +1885,66 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 237: 修复缺失会话删除静默成功语义
+
+**Date**: 2026-04-30
+**Task**: 修复缺失会话删除静默成功语义
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复新建失败或已丢失会话在删除时仍弹报错、列表残留的问题。
+- 对齐 sidebar 单删、设置页批删与 OpenSpec 提案，确保删除行为幂等且静默成功。
+
+主要改动:
+- 前端单删与 Codex 批删在 session 缺失场景下直接清理本地 sidebar/cache，并返回真正的 success 结果，不再携带错误 message/code。
+- 抽离 threadDelete helper，统一删除错误分类与 settled-success 判定，避免 invalid session id 被误吞为成功。
+- Rust session_management 批量删除同步将真实 missing-session 视为 settled success，并保留 permission denied、workspace not connected、invalid session id 等真实失败。
+- 新增并更新 OpenSpec 变更 fix-idempotent-missing-session-delete，补充 proposal/design/tasks/specs。
+- 补齐前端与 Rust 回归测试。
+
+涉及模块:
+- src/features/threads/hooks/useThreads.ts
+- src/features/threads/utils/threadDelete.ts
+- src-tauri/src/session_management.rs
+- src/features/settings/components/settings-view/sections/SessionManagementSection.test.tsx
+- src/features/threads/hooks/useThreads.engine-source.test.tsx
+- src/features/threads/hooks/useThreads.sidebar-cache.test.tsx
+- openspec/changes/fix-idempotent-missing-session-delete/**
+
+验证结果:
+- pnpm vitest run src/features/threads/hooks/useThreads.engine-source.test.tsx src/features/threads/hooks/useThreads.sidebar-cache.test.tsx src/features/settings/components/settings-view/sections/SessionManagementSection.test.tsx 通过。
+- cargo test --manifest-path src-tauri/Cargo.toml missing_delete_errors_are_treated_as_settled_success 通过。
+- npm run typecheck 通过。
+- npm run check:large-files:gate 通过。
+- npm run check:heavy-test-noise 通过，act/stdout/stderr 噪音门禁为 0。
+- openspec validate fix-idempotent-missing-session-delete --type change --strict 通过。
+
+后续事项:
+- CHANGELOG.md 仍有未提交本地改动，未纳入本次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5970d73dbc295accd31a28cb160f5f85388978a9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
