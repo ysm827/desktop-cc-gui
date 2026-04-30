@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -154,9 +155,11 @@ import { useAppShellSections } from "./app-shell-parts/useAppShellSections";
 import { useAppShellLayoutNodesSection } from "./app-shell-parts/useAppShellLayoutNodesSection";
 import { renderAppShell } from "./app-shell-parts/renderAppShell";
 import {
+  getEffectiveSelectedEffort,
   getEffectiveModels,
   getEffectiveReasoningSupported,
   getEffectiveSelectedModelId,
+  getReasoningOptionsForModel,
   getNextEngineSelectedModelId,
 } from "./app-shell-parts/modelSelection";
 import { useOpenCodeSelection } from "./app-shell-parts/useOpenCodeSelection";
@@ -555,14 +558,13 @@ export function AppShell() {
   const [composerSelectionScopeKey, setComposerSelectionScopeKey] = useState(
     `${activeWorkspaceId ?? "__workspace__unknown__"}:__thread__none__`,
   );
+  const hasActiveComposerThread = !composerSelectionScopeKey.endsWith(":__thread__none__");
   const [threadComposerSelection, setThreadComposerSelection] =
     useState<ComposerSessionSelection | null>(null);
   const {
     models,
     selectedModelId,
     setSelectedModelId,
-    reasoningSupported,
-    reasoningOptions,
     selectedEffort,
     setSelectedEffort,
     refreshModels,
@@ -715,6 +717,15 @@ export function AppShell() {
     [],
   );
 
+  const effectiveSelectedEffort = useMemo(() => {
+    return getEffectiveSelectedEffort({
+      activeEngine,
+      hasActiveThread: hasActiveComposerThread,
+      selectedEffort,
+      activeThreadSelection: threadComposerSelection,
+    });
+  }, [activeEngine, hasActiveComposerThread, selectedEffort, threadComposerSelection]);
+
   const handleSelectModel = useCallback(
     (id: string | null) => {
       if (id === null) {
@@ -726,9 +737,9 @@ export function AppShell() {
           selectedModelId: id,
         });
       }
-      if (activeEngine === "codex") {
+      if (activeEngine === "codex" && !hasActiveComposerThread) {
         setSelectedModelId(id);
-      } else {
+      } else if (activeEngine !== "codex") {
         setEngineSelectedModelIdByType((prev) => ({
           ...prev,
           [activeEngine]: id,
@@ -736,10 +747,16 @@ export function AppShell() {
       }
       persistActiveComposerSelection({
         modelId: id,
-        effort: selectedEffort,
+        effort: effectiveSelectedEffort,
       });
     },
-    [activeEngine, persistActiveComposerSelection, selectedEffort, setSelectedModelId],
+    [
+      activeEngine,
+      effectiveSelectedEffort,
+      hasActiveComposerThread,
+      persistActiveComposerSelection,
+      setSelectedModelId,
+    ],
   );
 
   const effectiveModels = useMemo(() => {
@@ -769,38 +786,50 @@ export function AppShell() {
       activeEngine,
       selectedModelId,
       activeThreadSelectedModelId: threadComposerSelection?.modelId ?? null,
-      hasActiveThread: !composerSelectionScopeKey.endsWith(":__thread__none__"),
+      hasActiveThread: hasActiveComposerThread,
       engineModelsAsOptions,
       engineSelectedModelIdByType,
       defaultClaudeModelId: DEFAULT_CLAUDE_MODEL_ID,
     });
   }, [
     activeEngine,
-    composerSelectionScopeKey,
     engineModelsAsOptions,
     engineSelectedModelIdByType,
+    hasActiveComposerThread,
     selectedModelId,
     threadComposerSelection,
   ]);
-
-  const effectiveReasoningSupported = useMemo(() => {
-    return getEffectiveReasoningSupported(activeEngine, reasoningSupported);
-  }, [activeEngine, reasoningSupported]);
 
   // Derive effective selected model based on active engine
   const effectiveSelectedModel = useMemo(() => {
     return effectiveModels.find((m) => m.id === effectiveSelectedModelId) ?? null;
   }, [effectiveModels, effectiveSelectedModelId]);
 
+  const effectiveReasoningOptions = useMemo(() => {
+    return getReasoningOptionsForModel(effectiveSelectedModel);
+  }, [effectiveSelectedModel]);
+
+  const effectiveReasoningSupported = useMemo(() => {
+    return getEffectiveReasoningSupported(activeEngine, effectiveReasoningOptions.length > 0);
+  }, [activeEngine, effectiveReasoningOptions.length]);
+
   const handleSelectComposerEffort = useCallback(
     (effort: string | null) => {
-      setSelectedEffort(effort);
+      if (!(activeEngine === "codex" && hasActiveComposerThread)) {
+        setSelectedEffort(effort);
+      }
       persistActiveComposerSelection({
         modelId: effectiveSelectedModelId,
         effort,
       });
     },
-    [effectiveSelectedModelId, persistActiveComposerSelection, setSelectedEffort],
+    [
+      activeEngine,
+      effectiveSelectedModelId,
+      hasActiveComposerThread,
+      persistActiveComposerSelection,
+      setSelectedEffort,
+    ],
   );
 
   // Sync accessMode when switching engines (Codex forces full-access, Claude restores saved mode)
@@ -842,8 +871,8 @@ export function AppShell() {
     onSelectCollaborationMode: applySelectedCollaborationMode,
     accessMode,
     onSelectAccessMode: handleSetAccessMode,
-    reasoningOptions,
-    selectedEffort,
+    reasoningOptions: effectiveReasoningOptions,
+    selectedEffort: effectiveSelectedEffort,
     onSelectEffort: handleSelectComposerEffort,
     reasoningSupported: effectiveReasoningSupported,
   });
@@ -857,8 +886,8 @@ export function AppShell() {
     onSelectCollaborationMode: applySelectedCollaborationMode,
     accessMode,
     onSelectAccessMode: handleSetAccessMode,
-    reasoningOptions,
-    selectedEffort,
+    reasoningOptions: effectiveReasoningOptions,
+    selectedEffort: effectiveSelectedEffort,
     onSelectEffort: handleSelectComposerEffort,
     reasoningSupported: effectiveReasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
@@ -950,7 +979,7 @@ export function AppShell() {
   });
 
   const resolvedModel = effectiveSelectedModel?.model ?? effectiveSelectedModelId ?? null;
-  const resolvedEffort = effectiveReasoningSupported ? selectedEffort : null;
+  const resolvedEffort = effectiveReasoningSupported ? effectiveSelectedEffort : null;
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -1005,14 +1034,6 @@ export function AppShell() {
       : gitStatus.files.length > 0
         ? t("git.filesChanged", { count: gitStatus.files.length })
         : t("git.workingTreeClean");
-
-  usePersistComposerSettings({
-    appSettingsLoading,
-    selectedModelId,
-    selectedEffort,
-    setAppSettings,
-    queueSaveSettings,
-  });
 
   const { textareaHeight, onTextareaHeightChange } =
     useComposerEditorState();
@@ -1221,39 +1242,30 @@ export function AppShell() {
     resolveCanonicalThreadId,
     onDebug: addDebugEntry,
   });
+  const currentComposerSelectionScopeKey = `${activeWorkspaceId ?? "__workspace__unknown__"}:${activeThreadId ?? "__thread__none__"}`;
+  const isComposerSelectionScopeSynced =
+    composerSelectionScopeKey === currentComposerSelectionScopeKey;
 
-  useEffect(() => {
-    const nextScopeKey = `${activeWorkspaceId ?? "__workspace__unknown__"}:${activeThreadId ?? "__thread__none__"}`;
+  useLayoutEffect(() => {
+    const nextScopeKey = currentComposerSelectionScopeKey;
     setComposerSelectionScopeKey((current) =>
       current === nextScopeKey ? current : nextScopeKey,
     );
     setThreadComposerSelection(null);
-  }, [activeThreadId, activeWorkspaceId]);
+  }, [currentComposerSelectionScopeKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setThreadComposerSelection(selectedComposerSelection);
   }, [selectedComposerSelection]);
 
-  useEffect(() => {
-    if (activeEngine !== "codex") {
-      return;
-    }
-    const nextModelId = threadComposerSelection?.modelId ?? null;
-    const nextEffort = threadComposerSelection?.effort ?? null;
-    if (nextModelId && nextModelId !== selectedModelId) {
-      setSelectedModelId(nextModelId);
-    }
-    if (nextEffort !== null && nextEffort !== selectedEffort) {
-      setSelectedEffort(nextEffort);
-    }
-  }, [
-    activeEngine,
-    selectedEffort,
+  usePersistComposerSettings({
+    enabled: !hasActiveComposerThread && isComposerSelectionScopeSynced,
+    appSettingsLoading,
     selectedModelId,
-    setSelectedEffort,
-    setSelectedModelId,
-    threadComposerSelection,
-  ]);
+    selectedEffort,
+    setAppSettings,
+    queueSaveSettings,
+  });
 
   const claudeModelRefreshThreadKeyRef = useRef<string | null>(null);
 
@@ -2277,7 +2289,7 @@ export function AppShell() {
     openTerminal, openWorktreePrompt, perfSnapshotRef, persistComposerSelectionForThread, persistProjectCopiesFolder, pickImages, pinThread,
     pinnedThreadsVersion, planByThread, planPanelHeight, prefillDraft,
     prompts, pushError, pushLoading, queueGitStatusRefresh, queueMessage,
-    queueSaveSettings, rateLimitsByWorkspace, reasoningOptions, reasoningSupported, recentThreads, reduceTransparency, refreshAccountInfo,
+    queueSaveSettings, rateLimitsByWorkspace, reasoningOptions: effectiveReasoningOptions, reasoningSupported: effectiveReasoningSupported, recentThreads, reduceTransparency, refreshAccountInfo,
     refreshAccountRateLimits, refreshEngines, refreshFiles, refreshGitDiffs, refreshGitLog, refreshGitStatus, refreshThread, refreshWorkspaces, releaseNotesActiveIndex,
     releaseNotesEntries, releaseNotesError, releaseNotesLoading, releaseNotesOpen, reloadSelectedAgent, removeImage, removeImagesForThread, removeThread, removeThreads,
     removeWorkspace, removeWorktree, renamePrompt, renameThread, renameWorkspaceGroup, renameWorktree, renameWorktreeNotice, renameWorktreePrompt,
@@ -2286,9 +2298,9 @@ export function AppShell() {
     retryReleaseNotesLoad, reviewPrompt, rightPanelCollapsed, rightPanelWidth, runtimeRunState,
     scaleShortcutText, scaleShortcutTitle, scanGitRoots, scopedKanbanTasks, searchContentFilters, searchPaletteQuery, searchPaletteSelectedIndex,
     searchResults, searchScope, selectBranch, selectBranchAtIndex, selectCommit, selectCommitAtIndex, selectHome, selectWorkspace,
-    selectedAgent, selectedCollaborationMode, selectedCollaborationModeId, selectedCommitSha, selectedDiffPath, selectedEffort,
+    selectedAgent, selectedCollaborationMode, selectedCollaborationModeId, selectedCommitSha, selectedDiffPath, selectedEffort: effectiveSelectedEffort,
     selectedAgentRef,
-    selectedKanbanTaskId, selectedModelId, selectedOpenCodeAgent, selectedOpenCodeVariant, selectedPullRequest, sendUserMessage,
+    selectedKanbanTaskId, selectedModelId: effectiveSelectedModelId, selectedOpenCodeAgent, selectedOpenCodeVariant, selectedPullRequest, sendUserMessage,
     sendUserMessageToThread, setAccessMode, setActiveEditorLineRange, setActiveEngine, setActiveTab, setActiveThreadId, setActiveWorkspaceId,
     setAppMode, setAppSettings, setCenterMode, setCodexCollaborationMode, setCollaborationRuntimeModeByThread, setCollaborationUiModeByThread, setComposerInsert, setDebugOpen,
     setDiffSource, setEditorSplitLayout, setEngineSelectedModelIdByType, setFilePanelMode, setFileReferenceMode, setGitDiffListView, setGitDiffViewStyle, setGitHistoryPanelHeight,
