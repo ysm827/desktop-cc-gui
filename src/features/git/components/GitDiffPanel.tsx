@@ -334,6 +334,7 @@ function DiffTreeSection({
   isCommitPathLocked,
   onSetCommitSelection,
   onFileClick,
+  onOpenInlinePreview,
   onOpenFilePreview,
   onShowFileMenu,
   collapsedFolders,
@@ -634,6 +635,7 @@ function DiffTreeSection({
                     treeParentFolderKey={parentKey ?? folder.key}
                     onClick={(event) => onFileClick(event, file.path, section)}
                     onKeySelect={() => onSelectFile?.(file.path)}
+                    onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                     onOpenPreview={() => onOpenFilePreview?.(file, section)}
                     onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
                     onStageFile={onStageFile}
@@ -651,6 +653,7 @@ function DiffTreeSection({
     [
       collapsedFolders,
       onFileClick,
+      onOpenInlinePreview,
       onOpenFilePreview,
       onSelectFile,
       onShowFileMenu,
@@ -821,6 +824,7 @@ function DiffTreeSection({
                       treeParentFolderKey={rootFolderKey}
                       onClick={(event) => onFileClick(event, file.path, section)}
                       onKeySelect={() => onSelectFile?.(file.path)}
+                      onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                       onOpenPreview={() => onOpenFilePreview?.(file, section)}
                       onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
                       onStageFile={onStageFile}
@@ -861,6 +865,7 @@ function DiffTreeSection({
                   treeParentFolderKey={rootFolderKey}
                   onClick={(event) => onFileClick(event, file.path, section)}
                   onKeySelect={() => onSelectFile?.(file.path)}
+                  onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                   onOpenPreview={() => onOpenFilePreview?.(file, section)}
                   onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
                   onStageFile={onStageFile}
@@ -898,6 +903,7 @@ function DiffTreeSection({
                   treeDepth={1}
                   onClick={(event) => onFileClick(event, file.path, section)}
                   onKeySelect={() => onSelectFile?.(file.path)}
+                  onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                   onOpenPreview={() => onOpenFilePreview?.(file, section)}
                   onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
                   onStageFile={onStageFile}
@@ -1104,6 +1110,15 @@ export function GitDiffPanel({
     setPreviewFile(null);
     setIsPreviewModalMaximized(false);
   }, []);
+
+  const handleOpenInlinePreview = useCallback(
+    (path: string) => {
+      setSelectedFiles(new Set([path]));
+      setLastClickedFile(path);
+      onSelectFile?.(path);
+    },
+    [onSelectFile],
+  );
 
   const handleOpenFilePreview = useCallback((file: DiffFile, section: "staged" | "unstaged") => {
     setIsPreviewModalMaximized(false);
@@ -2190,6 +2205,7 @@ export function GitDiffPanel({
                     isCommitPathLocked={isCommitPathLocked}
                     onSetCommitSelection={setCommitSelection}
                     onFileClick={handleFileClick}
+                    onOpenInlinePreview={handleOpenInlinePreview}
                     onOpenFilePreview={handleOpenFilePreview}
                     onShowFileMenu={showFileMenu}
                     collapsedFolders={collapsedFolders}
@@ -2215,6 +2231,7 @@ export function GitDiffPanel({
                     isCommitPathLocked={isCommitPathLocked}
                     onSetCommitSelection={setCommitSelection}
                     onFileClick={handleFileClick}
+                    onOpenInlinePreview={handleOpenInlinePreview}
                     onOpenFilePreview={handleOpenFilePreview}
                     onShowFileMenu={showFileMenu}
                   />
@@ -2241,6 +2258,7 @@ export function GitDiffPanel({
                     isCommitPathLocked={isCommitPathLocked}
                     onSetCommitSelection={setCommitSelection}
                     onFileClick={handleFileClick}
+                    onOpenInlinePreview={handleOpenInlinePreview}
                     onOpenFilePreview={handleOpenFilePreview}
                     onShowFileMenu={showFileMenu}
                     collapsedFolders={collapsedFolders}
@@ -2267,6 +2285,7 @@ export function GitDiffPanel({
                     isCommitPathLocked={isCommitPathLocked}
                     onSetCommitSelection={setCommitSelection}
                     onFileClick={handleFileClick}
+                    onOpenInlinePreview={handleOpenInlinePreview}
                     onOpenFilePreview={handleOpenFilePreview}
                     onShowFileMenu={showFileMenu}
                   />
