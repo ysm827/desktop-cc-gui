@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 247
+- **Total Sessions**: 248
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~617 | Active |
+| `journal-8.md` | ~676 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 248 | 2026-05-01 | 补充 PR#480 启动恢复与线程作用域持久化修复 | `2fc04893` | `feature/fix-0.4.12` |
 | 247 | 2026-05-01 | 补充修复 PR#480 composer 线程作用域回归 | `33082cea` | `feature/fix-0.4.12` |
 | 246 | 2026-05-01 | 修复便签池空态布局 | `c60e6d1b` | `feature/fix-0.4.12` |
 | 245 | 2026-05-01 | 修复便签引用幕布实时与历史重复展示 | `178accb3f751f061ca50d6adca7f0765646c4b0b` | `feature/fix-0.4.12` |

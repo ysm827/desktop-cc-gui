@@ -615,3 +615,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 248: 补充 PR#480 启动恢复与线程作用域持久化修复
+
+**Date**: 2026-05-01
+**Task**: 补充 PR#480 启动恢复与线程作用域持久化修复
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 为 PR#480 相关 composer 线程作用域修复补充更接近真实启动链路的 AppShell 级回归保护。
+- 修正启动首帧线程作用域尚未同步时，可能误触发全局 composer 默认值持久化的问题。
+
+主要改动:
+- 在 src/app-shell.tsx 中新增 composer selection scope 同步门闩，仅在作用域键与当前 activeWorkspaceId/activeThreadId 对齐后才允许 usePersistComposerSettings 持久化全局 composer 设置。
+- 调整 codex 线程场景下 model 与 reasoning effort 的选择写回逻辑，避免线程内切换继续回写全局 useModels 选择态。
+- 在 src/app-shell-parts/modelSelection.ts 中补充 getReasoningOptionsForModel，统一从 supportedReasoningEfforts / defaultReasoningEffort 派生 reasoning 选项。
+- 在 src/app-shell-parts/modelSelection.test.ts 中补充 reasoning options 推导边界测试。
+- 新增 src/app-shell.startup.test.tsx，最小挂载真实 AppShell，覆盖“已有活动 codex 线程恢复线程级 composer 选择”和“无线程回退全局默认值”两条启动路径，并验证不出现 Maximum update depth exceeded。
+
+涉及模块:
+- src/app-shell.tsx
+- src/app-shell.startup.test.tsx
+- src/app-shell-parts/modelSelection.ts
+- src/app-shell-parts/modelSelection.test.ts
+
+验证结果:
+- npm exec vitest run src/app-shell.startup.test.tsx
+- npm exec vitest run src/app-shell.startup.test.tsx src/app-shell-parts/modelSelection.test.ts src/app-shell-parts/useSelectedComposerSession.test.tsx src/features/models/hooks/useModels.test.tsx src/features/app/hooks/usePersistComposerSettings.test.tsx
+- npm run lint
+- npm run typecheck
+以上命令均已通过。
+
+后续事项:
+- 建议继续结合人工启动验证，重点确认已有 codex 线程打开时 model/effort 恢复正确，且退回无线程场景后全局默认值不会被意外清空。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2fc04893` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
