@@ -643,9 +643,26 @@ const enPart2 = {
     controlCenter: "Control Center",
     maximizeArtifacts: "Maximize Artifacts",
     restoreArtifacts: "Restore Layout",
+    openInWindow: "Open in Window",
+    changePane: {
+      collapse: "Collapse changes pane",
+      expand: "Expand changes pane",
+      resize: "Resize changes pane",
+    },
     actions: "Actions",
     project: "Project",
     timeline: "Timeline",
+    readerOutline: {
+      title: "Reader Outline",
+      empty: "No navigable structure is available for this artifact.",
+      linkedSpecs: "Linked Specs",
+      expand: "Expand reader outline",
+      collapse: "Collapse reader outline",
+    },
+    detached: {
+      unavailableTitle: "Unable to restore the Spec Hub window",
+      unavailableBody: "The latest reader session is missing, invalid, or no longer available.",
+    },
     actionCenterTitle: "Action Orchestrator",
     actionCenterHint: "Use one engine for all actions on this page.",
     sharedExecutor: {
@@ -837,6 +854,7 @@ const enPart2 = {
     filter: {
       all: "All",
       active: "Active",
+      backlog: "Backlog",
       blocked: "Blocked",
       archived: "Archived",
     },
@@ -849,6 +867,17 @@ const enPart2 = {
     },
     noChanges: "No active changes found.",
     noChangesHint: "Create or sync a change under openspec/changes first.",
+    noBacklogChanges: "No backlog changes yet.",
+    noBacklogChangesHint: "Move changes here when they are worth keeping but not part of the current working set.",
+    changeBacklogBadge: "Backlog",
+    changeBacklogHint: "This change is parked in backlog pool.",
+    changeRowAriaLabelBacklog:
+      "{{id}}, status {{status}}, currently in backlog. Available action: {{action}}.",
+    changeAction: {
+      menuLabel: "Change actions",
+      moveToBacklog: "Move to backlog pool",
+      removeFromBacklog: "Remove from backlog pool",
+    },
     selectChange: "Select a change to inspect details.",
     selectChangeHint: "Pick a change from the left to inspect artifacts and actions.",
     blockers: {

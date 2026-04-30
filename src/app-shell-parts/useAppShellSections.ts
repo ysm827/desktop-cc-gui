@@ -8,7 +8,7 @@ import {
 } from "react";
 import { homeDir } from "@tauri-apps/api/path";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { ensureWorkspacePathDir, isWebServiceRuntime } from "../services/tauri";
+import { ensureWorkspacePathDir, getWorkspaceFiles, isWebServiceRuntime } from "../services/tauri";
 import { pushErrorToast } from "../services/toasts";
 import {
   isKanbanThreadCompatibleWithEngine,
@@ -42,6 +42,10 @@ import { useMenuLocalization } from "../features/app/hooks/useMenuLocalization";
 import { runWithLoadingProgress } from "../features/app/utils/loadingProgressActions";
 import { isDefaultWorkspacePath } from "../features/workspaces/utils/defaultWorkspace";
 import { normalizeSharedSessionEngine } from "../features/shared-session/utils/sharedSessionEngines";
+import {
+  buildDetachedSpecHubSession,
+  openOrFocusDetachedSpecHub,
+} from "../features/spec/detachedSpecHub";
 import type { WorkspaceHomeDeleteResult } from "../features/workspaces/components/WorkspaceHome";
 import type { EngineType, MessageSendOptions, WorkspaceInfo } from "../types";
 import type { KanbanContextMode } from "../features/kanban/utils/contextMode";
@@ -2140,11 +2144,33 @@ export function useAppShellSections(ctx: any) {
   );
 
   const handleOpenSpecHub = useCallback(() => {
+    if (!activeWorkspace) {
+      pushErrorToast({
+        title: t("sidebar.specHub"),
+        message: t("specHub.runtime.selectWorkspaceFirst"),
+      });
+      return;
+    }
     closeSettings();
-    setAppMode("chat");
-    setCenterMode("chat");
-    setActiveTab((current) => (current === "spec" ? "codex" : "spec"));
-  }, [closeSettings, setActiveTab, setAppMode, setCenterMode]);
+    setActiveTab((current) => (current === "spec" ? "codex" : current));
+    void getWorkspaceFiles(activeWorkspace.id)
+      .then((result) =>
+        openOrFocusDetachedSpecHub(
+          buildDetachedSpecHubSession({
+            workspaceId: activeWorkspace.id,
+            workspaceName: activeWorkspace.name,
+            files: result.files,
+            directories: result.directories,
+          }),
+        ),
+      )
+      .catch((error) => {
+        pushErrorToast({
+          title: t("sidebar.specHub"),
+          message: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }, [activeWorkspace, closeSettings, setActiveTab, t]);
 
   const handleOpenWorkspaceHome = useCallback(() => {
     exitDiffView();

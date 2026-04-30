@@ -23,6 +23,13 @@
 - 错误信息要可追踪、可读、可反馈。
 - 关键行为变更必须补 tests 或 contract check。
 
+## Large Tree / Commit Scope 性能约束
+
+- tree-based Git / worktree surface 的 descendant file 集合必须先在 topology helper 中预聚合，再交给 render 消费。
+- folder/root row render 禁止递归扫描整棵子树重新收集 paths；需要的 `descendantPaths` 应来自 memoized/precomputed topology。
+- staged/unstaged 合并后的 commit selection 状态应尽量单轮派生，避免对同一批路径多次 `filter/map/every` 叠加。
+- 镜像 surface 做 parity 修复时，优先抽 feature-local pure helper，禁止在两个面板各写一套等价遍历逻辑。
+
 ## 标准验证命令
 
 ```bash

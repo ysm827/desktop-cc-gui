@@ -625,9 +625,26 @@ const zhPart2 = {
     controlCenter: "执行台",
     maximizeArtifacts: "最大化产物",
     restoreArtifacts: "恢复布局",
+    openInWindow: "独立窗口打开",
+    changePane: {
+      collapse: "折叠变更区",
+      expand: "展开变更区",
+      resize: "调整变更区宽度",
+    },
     actions: "动作",
     project: "项目",
     timeline: "时间",
+    readerOutline: {
+      title: "阅读导航",
+      empty: "当前产物没有可导航的结构。",
+      linkedSpecs: "关联规格",
+      expand: "展开阅读导航",
+      collapse: "折叠阅读导航",
+    },
+    detached: {
+      unavailableTitle: "无法恢复 Spec Hub 窗口",
+      unavailableBody: "上一次的阅读上下文缺失、损坏，或当前工作区已不可用。",
+    },
     actionCenterTitle: "动作编排",
     actionCenterHint: "统一选择执行引擎并触发动作。",
     sharedExecutor: {
@@ -815,6 +832,7 @@ const zhPart2 = {
     filter: {
       all: "全部",
       active: "活跃",
+      backlog: "需求池",
       blocked: "阻塞",
       archived: "归档",
     },
@@ -827,6 +845,17 @@ const zhPart2 = {
     },
     noChanges: "未发现活跃变更。",
     noChangesHint: "可先在 openspec/changes 下创建或同步一个变更。",
+    noBacklogChanges: "需求池里还没有变更。",
+    noBacklogChangesHint: "把暂时不做、但又不该归档的变更移到这里，保持当前工作集更干净。",
+    changeBacklogBadge: "需求池",
+    changeBacklogHint: "该变更当前已移入需求池。",
+    changeRowAriaLabelBacklog:
+      "{{id}}，状态 {{status}}，当前位于需求池。可用动作：{{action}}。",
+    changeAction: {
+      menuLabel: "变更操作",
+      moveToBacklog: "移到需求池",
+      removeFromBacklog: "移出需求池",
+    },
     selectChange: "请选择一个变更查看详情。",
     selectChangeHint: "先在左侧选中变更，然后查看产物并执行动作。",
     blockers: {

@@ -20,6 +20,7 @@ import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPan
 import { FileViewPanel } from "../../files/components/FileViewPanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { ProjectMemoryPanel } from "../../project-memory/components/ProjectMemoryPanel";
+import { WorkspaceNoteCardPanel } from "../../note-cards/components/WorkspaceNoteCardPanel";
 import { WorkspaceSessionActivityPanel } from "../../session-activity/components/WorkspaceSessionActivityPanel";
 import { WorkspaceSessionRadarPanel } from "../../session-activity/components/WorkspaceSessionRadarPanel";
 import { DebugPanel } from "../../debug/components/DebugPanel";
@@ -381,8 +382,8 @@ type LayoutNodesOptions = {
   worktreeApplyError: string | null;
   worktreeApplySuccess: boolean;
   onApplyWorktreeChanges?: () => void | Promise<void>;
-  filePanelMode: "git" | "files" | "search" | "prompts" | "memory" | "activity" | "radar";
-  onFilePanelModeChange: (mode: "git" | "files" | "search" | "prompts" | "memory" | "activity" | "radar") => void;
+  filePanelMode: "git" | "files" | "search" | "notes" | "prompts" | "memory" | "activity" | "radar";
+  onFilePanelModeChange: (mode: "git" | "files" | "search" | "notes" | "prompts" | "memory" | "activity" | "radar") => void;
   fileTreeLoading: boolean;
   fileTreeLoadError?: string | null;
   onRefreshFiles?: () => void;
@@ -456,6 +457,7 @@ type LayoutNodesOptions = {
   onGenerateCommitMessage: (
     language?: "zh" | "en",
     engine?: "codex" | "claude" | "gemini" | "opencode",
+    selectedPaths?: string[],
   ) => void | Promise<void>;
   onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
   onCommitAndPush?: (selectedPaths?: string[]) => void | Promise<void>;
@@ -750,6 +752,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     git: clientUiVisibility.isControlVisible("rightToolbar.git"),
     files: clientUiVisibility.isControlVisible("rightToolbar.files"),
     search: clientUiVisibility.isControlVisible("rightToolbar.search"),
+    notes: clientUiVisibility.isControlVisible("rightToolbar.notes"),
   };
   const hasVisibleRightToolbarControl =
     Object.values(rightToolbarVisibleTabs).some(Boolean);
@@ -1576,6 +1579,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         activeFileLineRange={options.activeComposerFileLineRange}
         fileReferenceMode={options.fileReferenceMode}
         activeWorkspaceId={options.activeWorkspaceId}
+        activeWorkspaceName={options.activeWorkspace?.name ?? null}
+        activeWorkspacePath={options.activeWorkspace?.path ?? null}
         rewindWorkspaceGitState={rewindWorkspaceGitState}
         plan={options.plan}
         isPlanMode={options.isPlanMode}
@@ -1785,6 +1790,14 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
         onOpenFile={options.onOpenFile}
+      />
+    );
+  } else if (options.filePanelMode === "notes") {
+    gitDiffPanelNode = (
+      <WorkspaceNoteCardPanel
+        workspaceId={options.activeWorkspace?.id ?? null}
+        workspaceName={options.activeWorkspace?.name ?? null}
+        workspacePath={options.activeWorkspace?.path ?? null}
       />
     );
   } else if (options.filePanelMode === "prompts") {

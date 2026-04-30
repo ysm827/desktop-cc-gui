@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-7.md`
-- **Total Sessions**: 236
+- **Active File**: `journal-8.md`
+- **Total Sessions**: 244
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-7.md` | ~1887 | Active |
+| `journal-8.md` | ~446 | Active |
+| `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
@@ -35,6 +36,14 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 244 | 2026-04-30 | 完善工作区便签引用与跨平台附件兼容 | `8257af6a` | `feature/fix-0.4.12` |
+| 243 | 2026-04-30 | 工作区便签池与上下文引用交付 | `c277c8a3`, `b1434bce` | `feature/fix-0.4.12` |
+| 242 | 2026-04-30 | 归档 Spec Hub 独立阅读窗体 OpenSpec 变更 | `c2ca9e04` | `feature/fix-0.4.12` |
+| 241 | 2026-04-30 | Spec Hub 独立阅读窗体与需求池优化 | `a6dd7b21` | `feature/fix-0.4.12` |
+| 240 | 2026-04-30 | Git 面板显式预览操作 | `da9ea37463ebb530839fdcccf675208f1c306ad6` | `feature/fix-0.4.12` |
+| 239 | 2026-04-30 | 修复 Git 提交区大面板卡死并归档规范 | `df4709b8c110279d3c543feeea1d6156f430a3e9` | `feature/fix-0.4.12` |
+| 238 | 2026-04-30 | 统一提交作用域与历史提交区归一化 | `c2bbf539` | `feature/fix-0.4.12` |
+| 237 | 2026-04-30 | 修复缺失会话删除静默成功语义 | `5970d73dbc295accd31a28cb160f5f85388978a9` | `feature/fix-0.4.12` |
 | 236 | 2026-04-30 | 同步分支更新提案任务完成状态 | `2cc5fef91d95557c0094e8b6c89aff9a116c0016` | `feature/fix-0.4.12` |
 | 235 | 2026-04-30 | 修复 Codex 压缩文案生命周期边界问题 | `536062ceb85383e060bb83257ac3fb241ba6259e` | `feature/fix-0.4.12` |
 | 234 | 2026-04-30 | 修正分支更新的无上游提示与边界处理 | `3adf51af0ceff9597930e4f85435ef99f4fa96a8` | `feature/fix-0.4.12` |
