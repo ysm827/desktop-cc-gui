@@ -17,6 +17,144 @@ type CommitSelectionState = {
   topologyKey: string;
 };
 
+type CommitPathTopology = {
+  orderedCommitPaths: string[];
+  rawCommitPathByNormalizedPath: Map<string, string>;
+  stagedPathSet: Set<string>;
+  lockedHybridPathSet: Set<string>;
+  selectionTopologyKey: string;
+};
+
+type DerivedCommitSelection = {
+  selectedCommitPaths: string[];
+  includedCommitPaths: string[];
+  excludedCommitPaths: string[];
+  partialCommitPaths: string[];
+};
+
+function buildCommitPathTopology(
+  stagedFiles: GitCommitSelectionFile[],
+  unstagedFiles: GitCommitSelectionFile[],
+): CommitPathTopology {
+  const orderedCommitPaths: string[] = [];
+  const rawCommitPathByNormalizedPath = new Map<string, string>();
+  const stagedPathSet = new Set<string>();
+  const unstagedPathSet = new Set<string>();
+  const seenPaths = new Set<string>();
+
+  const recordPath = (rawPath: string) => {
+    const normalizedPath = normalizeGitPath(rawPath);
+    if (!rawCommitPathByNormalizedPath.has(normalizedPath)) {
+      rawCommitPathByNormalizedPath.set(normalizedPath, rawPath);
+    }
+    if (!seenPaths.has(normalizedPath)) {
+      seenPaths.add(normalizedPath);
+      orderedCommitPaths.push(normalizedPath);
+    }
+    return normalizedPath;
+  };
+
+  for (const file of stagedFiles) {
+    stagedPathSet.add(recordPath(file.path));
+  }
+
+  for (const file of unstagedFiles) {
+    unstagedPathSet.add(recordPath(file.path));
+  }
+
+  const lockedHybridPathSet = new Set<string>();
+  for (const path of stagedPathSet) {
+    if (unstagedPathSet.has(path)) {
+      lockedHybridPathSet.add(path);
+    }
+  }
+
+  return {
+    orderedCommitPaths,
+    rawCommitPathByNormalizedPath,
+    stagedPathSet,
+    lockedHybridPathSet,
+    selectionTopologyKey: JSON.stringify({
+      orderedCommitPaths,
+      stagedPaths: Array.from(stagedPathSet).sort(),
+      lockedHybridPaths: Array.from(lockedHybridPathSet).sort(),
+    }),
+  };
+}
+
+function isCommitPathSelectedByState(
+  normalizedPath: string,
+  overrides: Record<string, boolean>,
+  stagedPathSet: Set<string>,
+  lockedHybridPathSet: Set<string>,
+) {
+  if (lockedHybridPathSet.has(normalizedPath)) {
+    return true;
+  }
+  const override = overrides[normalizedPath];
+  if (typeof override === "boolean") {
+    return override;
+  }
+  return stagedPathSet.has(normalizedPath);
+}
+
+function countSelectedCommitPathsForState(
+  orderedCommitPaths: string[],
+  overrides: Record<string, boolean>,
+  stagedPathSet: Set<string>,
+  lockedHybridPathSet: Set<string>,
+) {
+  let selectedCount = 0;
+  for (const path of orderedCommitPaths) {
+    if (
+      isCommitPathSelectedByState(
+        path,
+        overrides,
+        stagedPathSet,
+        lockedHybridPathSet,
+      )
+    ) {
+      selectedCount += 1;
+    }
+  }
+  return selectedCount;
+}
+
+function deriveCommitSelectionState(
+  orderedCommitPaths: string[],
+  overrides: Record<string, boolean>,
+  stagedPathSet: Set<string>,
+  lockedHybridPathSet: Set<string>,
+  rawCommitPathByNormalizedPath: Map<string, string>,
+): DerivedCommitSelection {
+  const selectedCommitPaths: string[] = [];
+  const includedCommitPaths: string[] = [];
+  const excludedCommitPaths: string[] = [];
+
+  for (const path of orderedCommitPaths) {
+    if (
+      isCommitPathSelectedByState(
+        path,
+        overrides,
+        stagedPathSet,
+        lockedHybridPathSet,
+      )
+    ) {
+      includedCommitPaths.push(path);
+      selectedCommitPaths.push(rawCommitPathByNormalizedPath.get(path) ?? path);
+      continue;
+    }
+    excludedCommitPaths.push(path);
+  }
+
+  return {
+    selectedCommitPaths,
+    includedCommitPaths,
+    excludedCommitPaths,
+    partialCommitPaths: Array.from(lockedHybridPathSet),
+  };
+}
+
 export type CommitButtonProps = {
   commitMessage: string;
   selectedCount: number;
@@ -86,65 +224,15 @@ export function useGitCommitSelection({
   stagedFiles,
   unstagedFiles,
 }: UseGitCommitSelectionOptions) {
-  const allFiles = useMemo(
-    () => [
-      ...stagedFiles.map((file) => ({ ...file, section: "staged" as const })),
-      ...unstagedFiles.map((file) => ({ ...file, section: "unstaged" as const })),
-    ],
+  const {
+    orderedCommitPaths,
+    rawCommitPathByNormalizedPath,
+    stagedPathSet,
+    lockedHybridPathSet,
+    selectionTopologyKey,
+  } = useMemo(
+    () => buildCommitPathTopology(stagedFiles, unstagedFiles),
     [stagedFiles, unstagedFiles],
-  );
-
-  const orderedCommitPaths = useMemo(() => {
-    const seenPaths = new Set<string>();
-    const paths: string[] = [];
-    for (const file of allFiles) {
-      const normalizedPath = normalizeGitPath(file.path);
-      if (seenPaths.has(normalizedPath)) {
-        continue;
-      }
-      seenPaths.add(normalizedPath);
-      paths.push(normalizedPath);
-    }
-    return paths;
-  }, [allFiles]);
-
-  const rawCommitPathByNormalizedPath = useMemo(() => {
-    const pathMap = new Map<string, string>();
-    for (const file of allFiles) {
-      const normalizedPath = normalizeGitPath(file.path);
-      if (!pathMap.has(normalizedPath)) {
-        pathMap.set(normalizedPath, file.path);
-      }
-    }
-    return pathMap;
-  }, [allFiles]);
-
-  const stagedPathSet = useMemo(
-    () => new Set(stagedFiles.map((file) => normalizeGitPath(file.path))),
-    [stagedFiles],
-  );
-  const unstagedPathSet = useMemo(
-    () => new Set(unstagedFiles.map((file) => normalizeGitPath(file.path))),
-    [unstagedFiles],
-  );
-  const lockedHybridPathSet = useMemo(() => {
-    const hybridPaths = new Set<string>();
-    for (const path of stagedPathSet) {
-      if (unstagedPathSet.has(path)) {
-        hybridPaths.add(path);
-      }
-    }
-    return hybridPaths;
-  }, [stagedPathSet, unstagedPathSet]);
-
-  const selectionTopologyKey = useMemo(
-    () =>
-      JSON.stringify({
-        orderedCommitPaths,
-        stagedPaths: Array.from(stagedPathSet).sort(),
-        lockedHybridPaths: Array.from(lockedHybridPathSet).sort(),
-      }),
-    [lockedHybridPathSet, orderedCommitPaths, stagedPathSet],
   );
 
   const [commitSelectionState, setCommitSelectionState] =
@@ -158,37 +246,18 @@ export function useGitCommitSelection({
 
   const countSelectedCommitPaths = useCallback(
     (overrides: Record<string, boolean>) =>
-      orderedCommitPaths.filter((path) => {
-        if (lockedHybridPathSet.has(path)) {
-          return true;
-        }
-        const override = overrides[path];
-        if (typeof override === "boolean") {
-          return override;
-        }
-        return stagedPathSet.has(path);
-      }).length,
+      countSelectedCommitPathsForState(
+        orderedCommitPaths,
+        overrides,
+        stagedPathSet,
+        lockedHybridPathSet,
+      ),
     [lockedHybridPathSet, orderedCommitPaths, stagedPathSet],
   );
 
   const isCommitPathLocked = useCallback(
     (path: string) => lockedHybridPathSet.has(normalizeGitPath(path)),
     [lockedHybridPathSet],
-  );
-
-  const isCommitPathSelected = useCallback(
-    (path: string) => {
-      const normalizedPath = normalizeGitPath(path);
-      if (lockedHybridPathSet.has(normalizedPath)) {
-        return true;
-      }
-      const override = commitSelectionOverrides[normalizedPath];
-      if (typeof override === "boolean") {
-        return override;
-      }
-      return stagedPathSet.has(normalizedPath);
-    },
-    [commitSelectionOverrides, lockedHybridPathSet, stagedPathSet],
   );
 
   const setCommitSelection = useCallback(
@@ -228,27 +297,27 @@ export function useGitCommitSelection({
     ],
   );
 
-  const selectedCommitPaths = useMemo(
+  const {
+    selectedCommitPaths,
+    includedCommitPaths,
+    excludedCommitPaths,
+    partialCommitPaths,
+  } = useMemo(
     () =>
-      orderedCommitPaths
-        .filter((path) => isCommitPathSelected(path))
-        .map((path) => rawCommitPathByNormalizedPath.get(path) ?? path),
-    [isCommitPathSelected, orderedCommitPaths, rawCommitPathByNormalizedPath],
-  );
-  const includedCommitPaths = useMemo(
-    () => orderedCommitPaths.filter((path) => isCommitPathSelected(path)),
-    [isCommitPathSelected, orderedCommitPaths],
-  );
-  const excludedCommitPaths = useMemo(
-    () =>
-      orderedCommitPaths.filter(
-        (path) => !lockedHybridPathSet.has(path) && !isCommitPathSelected(path),
+      deriveCommitSelectionState(
+        orderedCommitPaths,
+        commitSelectionOverrides,
+        stagedPathSet,
+        lockedHybridPathSet,
+        rawCommitPathByNormalizedPath,
       ),
-    [isCommitPathSelected, lockedHybridPathSet, orderedCommitPaths],
-  );
-  const partialCommitPaths = useMemo(
-    () => Array.from(lockedHybridPathSet),
-    [lockedHybridPathSet],
+    [
+      commitSelectionOverrides,
+      lockedHybridPathSet,
+      orderedCommitPaths,
+      rawCommitPathByNormalizedPath,
+      stagedPathSet,
+    ],
   );
 
   useEffect(() => {

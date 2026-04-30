@@ -98,6 +98,21 @@
   - 方案 A：把门禁只留在 proposal 文本。
     - 放弃原因：约束不够可执行，实施阶段容易被忽略。
 
+### Decision 6：tree scope topology 必须预聚合，禁止在 render 中反复递归整棵子树
+
+- 选择：
+  - `GitDiffPanelCommitScope` 统一先构建 `orderedCommitPaths / stagedPathSet / lockedHybridPathSet`，再单轮派生 `selected / included / excluded / partial`。
+  - `GitDiffPanel` 与 `GitHistoryWorktreePanel` 的 tree node 统一预聚合 `descendantPaths`，folder/root row render 只消费预计算结果。
+  - folder/root toggle 只在用户交互时惰性筛选 toggleable paths，禁止每次 render 都重新递归收集 descendants。
+- 原因：
+  - 这次用户复现的“切到右侧 Git 面板并打开 Git His 大面板后卡死”本质上是 commit scope tree 在镜像 surface 上做了重复全量扫描，打开大面板后形成明显的 render 热点。
+  - 该问题不会体现在行为 spec 的 happy path 里，但会直接破坏主链路可用性，所以必须作为实现约束显式记录。
+- 备选方案：
+  - 方案 A：只对 `GitHistoryWorktreePanel` 做局部节流或 `useMemo` 包裹。
+    - 放弃原因：热点同时存在于主 Git 面板与 Git His worktree 面板，局部包裹无法保证 parity，也容易留下第二个卡点。
+  - 方案 B：继续保留 render-time `collectTreePaths` 递归，只靠数据量较小时“问题不明显”。
+    - 放弃原因：这是典型的隐性性能债，worktree 一大就会再次卡死。
+
 ## Risks / Trade-offs
 
 - [Risk] frontend scoped commit plan 与 backend scope diff plan 语义不一致  
@@ -108,6 +123,9 @@
 
 - [Risk] 无显式选择时的“生成提交信息”默认范围改变，打断现有 quick-generate 心智  
   → Mitigation：保持既有 baseline：有 staged 时按 staged；没有 staged 时按全部 unstaged；只有在存在显式 selected scope 时才切到 scoped generation。
+
+- [Risk] tree scope parity 修复把每次 render 的路径聚合成本放大，导致右侧 Git / Git His 大面板卡死  
+  → Mitigation：统一预聚合 descendants 与 selection topology，禁止在 folder/root row render 中递归扫描整棵子树。
 
 - [Risk] Windows 路径归一化处理不完整，导致 tree folder toggle 与 selected path matching 偶发失效  
   → Mitigation：显式为 `\\` / `/` 混合路径补前端与后端测试；design/specs 中把 path normalization 写成 requirement。

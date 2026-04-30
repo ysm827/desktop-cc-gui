@@ -12,6 +12,7 @@
 - 目标 2：让 AI 生成提交信息严格遵守当前 commit scope，而不是默认读取整个 workspace diff。
 - 目标 3：以右侧 Git 面板为 canonical surface，对齐 Git History/HUB 提交区的可见能力、提示文案与 enable/disable 语义。
 - 目标 4：把后续实现门禁显式写入本变更规则，避免实现阶段绕过 CI sentry 或引入跨平台路径回归。
+- 目标 5：保证切到右侧 Git 面板并打开 Git His 大面板时仍保持响应，不因 commit scope tree 渲染退化而卡死。
 
 ### 边界
 
@@ -76,6 +77,7 @@
 - 当用户在 Git History/HUB worktree 提交区执行同样的勾选操作时，commit enablement、hint copy、生成结果 scope 与右侧 Git 面板 MUST 保持一致。
 - 当同一路径同时存在 staged 与 unstaged changes 时，系统 MUST 继续保持 partial staged file 的 Git index 语义，不得因为 scope-aware generation 或 surface 对齐而破坏现有提交事实。
 - 当路径来自 Windows 风格 `\\` 分隔符或 POSIX 风格 `/` 分隔符时，folder toggle、file toggle、selected path matching 与 diff targeting MUST 得到一致结果。
+- 当用户切到右侧 Git 面板并打开 Git His 大面板时，提交区 tree 渲染与 scope 计算 MUST 保持响应，MUST NOT 因重复全树遍历导致界面卡死。
 - 后续实现与验证 MUST 明确通过 `.github/workflows/heavy-test-noise-sentry.yml` 对应的噪音规则与 `.github/workflows/large-file-governance.yml` 对应的大文件规则，不得以“只是 UI 小改”绕过门禁。
 
 ## Impact

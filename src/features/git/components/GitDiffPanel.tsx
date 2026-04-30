@@ -249,6 +249,7 @@ function isEditableTarget(target: EventTarget | null) {
 type DiffTreeFolderNode = {
   key: string;
   name: string;
+  descendantPaths: string[];
   folders: Map<string, DiffTreeFolderNode>;
   files: DiffFile[];
 };
@@ -260,6 +261,7 @@ export function buildDiffTree(
   const root: DiffTreeFolderNode = {
     key: `${section}:/`,
     name: "",
+    descendantPaths: [],
     folders: new Map(),
     files: [],
   };
@@ -268,6 +270,7 @@ export function buildDiffTree(
     if (parts.length === 0) {
       continue;
     }
+    root.descendantPaths.push(file.path);
     let node = root;
     for (let index = 0; index < parts.length - 1; index += 1) {
       const segment = parts[index] ?? "";
@@ -277,14 +280,13 @@ export function buildDiffTree(
         child = {
           key: nextKey,
           name: segment,
+          descendantPaths: [],
           folders: new Map(),
           files: [],
         };
         node.folders.set(segment, child);
       }
-      if (!child) {
-        break;
-      }
+      child.descendantPaths.push(file.path);
       node = child;
     }
     node.files.push(file);
@@ -292,11 +294,18 @@ export function buildDiffTree(
   return root;
 }
 
-function collectDiffTreePaths(folder: DiffTreeFolderNode): string[] {
-  return [
-    ...folder.files.map((file) => file.path),
-    ...Array.from(folder.folders.values()).flatMap((child) => collectDiffTreePaths(child)),
-  ];
+function hasToggleableTreePaths(
+  paths: string[],
+  isCommitPathLocked?: (path: string) => boolean,
+) {
+  return paths.some((path) => !isCommitPathLocked?.(path));
+}
+
+function getToggleableTreePaths(
+  paths: string[],
+  isCommitPathLocked?: (path: string) => boolean,
+) {
+  return paths.filter((path) => !isCommitPathLocked?.(path));
 }
 
 type DiffTreeSectionProps = DiffSectionProps & {
@@ -522,8 +531,11 @@ function DiffTreeSection({
     (folder: DiffTreeFolderNode, depth: number, parentKey?: string) => {
       const isCollapsed = collapsedFolders.has(folder.key);
       const hasChildren = folder.folders.size > 0 || folder.files.length > 0;
-      const folderPaths = collectDiffTreePaths(folder);
-      const toggleableFolderPaths = folderPaths.filter((path) => !isCommitPathLocked?.(path));
+      const folderPaths = folder.descendantPaths;
+      const folderHasToggleablePaths = hasToggleableTreePaths(
+        folderPaths,
+        isCommitPathLocked,
+      );
       const folderScopePath = normalizeDiffPath(folder.key.split(":/")[1] ?? "");
       const folderInclusionState = getScopeInclusionState(folderScopePath);
       const treeIndentPx = depth * TREE_INDENT_STEP;
@@ -569,11 +581,11 @@ function DiffTreeSection({
               state={folderInclusionState}
               label={t("git.commitSelectionToggleScope", { path: folder.name })}
               className="git-commit-scope-toggle--folder"
-              disabled={toggleableFolderPaths.length === 0}
+              disabled={!folderHasToggleablePaths}
               stopPropagation
               onToggle={() =>
                 togglePathsForCurrentSection(
-                  toggleableFolderPaths,
+                  getToggleableTreePaths(folderPaths, isCommitPathLocked),
                   folderInclusionState,
                 )
               }
@@ -752,11 +764,11 @@ function DiffTreeSection({
                 state={getScopeInclusionState()}
                 label={t("git.commitSelectionToggleScope", { path: rootFolderName })}
                 className="git-commit-scope-toggle--folder"
-                disabled={toggleableFilePaths.length === 0}
+                disabled={!hasToggleableTreePaths(tree.descendantPaths, isCommitPathLocked)}
                 stopPropagation
                 onToggle={() =>
                   togglePathsForCurrentSection(
-                    toggleableFilePaths,
+                    getToggleableTreePaths(tree.descendantPaths, isCommitPathLocked),
                     getScopeInclusionState(),
                   )
                 }

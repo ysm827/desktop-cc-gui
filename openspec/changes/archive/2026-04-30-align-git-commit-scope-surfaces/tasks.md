@@ -36,3 +36,4 @@
 - [x] 6.2 [依赖: 6.1] 执行 runtime / bridge contract 验证（输入：扩展后的 tauri payload mapping；输出：无 cross-layer contract 回归；验证：`npm run check:runtime-contracts` 通过）。
 - [x] 6.3 [依赖: 4.1,5.3,6.1] 对触碰的大文件执行治理门禁（输入：`GitHistoryWorktreePanel` / `GitDiffPanel` / tests / Rust git files；输出：无 near-threshold 或 gate 失败；验证：`npm run check:large-files:near-threshold` 与 `npm run check:large-files:gate` 通过）。
 - [x] 6.4 [依赖: 6.1,6.2,6.3] 回读 OpenSpec tasks/specs/design 与最终实现，对照验收标准确认 scope-aware generation、surface parity、Win/mac 路径一致性全部落地（输入：最终代码与测试结果；输出：可进入 verify/archive 的完成态；验证：OpenSpec verify 无关键缺口）。
+- [x] 6.5 [依赖: 4.1,4.2,4.4,6.1] 修复右侧 Git / Git His 大面板的 render performance regression：为 tree node 预聚合 descendant paths，并将 commit selection 派生收敛为单轮计算（输入：用户复现的卡死路径；输出：打开大面板不再因重复全树遍历卡死；验证：目标 Vitest、`npm run typecheck` 与人工打开面板自测通过）。

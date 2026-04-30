@@ -77,6 +77,7 @@ type DiffTreeNode = {
   key: string;
   name: string;
   path: string;
+  descendantPaths: string[];
   folders: Map<string, DiffTreeNode>;
   files: GitFileStatus[];
 };
@@ -154,6 +155,20 @@ function diffStatusClass(status: string) {
   }
 }
 
+function hasToggleablePaths(
+  paths: string[],
+  isCommitPathLocked: (path: string) => boolean,
+) {
+  return paths.some((path) => !isCommitPathLocked(path));
+}
+
+function getToggleablePaths(
+  paths: string[],
+  isCommitPathLocked: (path: string) => boolean,
+) {
+  return paths.filter((path) => !isCommitPathLocked(path));
+}
+
 function getTreeLineOpacity(depth: number): string {
   return depth === 1 ? "1" : "0";
 }
@@ -163,6 +178,7 @@ function buildDiffTree(files: GitFileStatus[], section: DiffSection): DiffTreeNo
     key: `${section}:/`,
     name: "",
     path: "",
+    descendantPaths: [],
     folders: new Map(),
     files: [],
   };
@@ -172,6 +188,7 @@ function buildDiffTree(files: GitFileStatus[], section: DiffSection): DiffTreeNo
     if (parts.length === 0) {
       continue;
     }
+    root.descendantPaths.push(file.path);
     let node = root;
     for (let index = 0; index < parts.length - 1; index += 1) {
       const segment = parts[index] ?? "";
@@ -182,24 +199,19 @@ function buildDiffTree(files: GitFileStatus[], section: DiffSection): DiffTreeNo
           key,
           name: segment,
           path: node.path ? `${node.path}/${segment}` : segment,
+          descendantPaths: [],
           folders: new Map(),
           files: [],
         };
         node.folders.set(segment, child);
       }
+      child.descendantPaths.push(file.path);
       node = child;
     }
     node.files.push(file);
   }
 
   return root;
-}
-
-function collectTreePaths(node: DiffTreeNode): string[] {
-  return [
-    ...node.files.map((file) => file.path),
-    ...Array.from(node.folders.values()).flatMap((child) => collectTreePaths(child)),
-  ];
 }
 
 function collapseFolderChain(node: DiffTreeNode): CollapsedFolder {
@@ -255,16 +267,28 @@ function getGroupInclusionState(
   if (paths.length === 0) {
     return "none";
   }
-  const states = paths.map((path) =>
-    getFileInclusionState(path, includedPaths, excludedPaths, partialPaths),
-  );
-  if (states.every((state) => state === "all")) {
-    return "all";
+  let hasIncluded = false;
+  let hasExcluded = false;
+  for (const path of paths) {
+    const state = getFileInclusionState(
+      path,
+      includedPaths,
+      excludedPaths,
+      partialPaths,
+    );
+    if (state === "partial") {
+      return "partial";
+    }
+    if (state === "all") {
+      hasIncluded = true;
+    } else {
+      hasExcluded = true;
+    }
+    if (hasIncluded && hasExcluded) {
+      return "partial";
+    }
   }
-  if (states.every((state) => state === "none")) {
-    return "none";
-  }
-  return "partial";
+  return hasIncluded ? "all" : "none";
 }
 
 export function GitHistoryWorktreePanel({
@@ -850,29 +874,33 @@ export function GitHistoryWorktreePanel({
       const tree = buildDiffTree(files, section);
       const rootFolderKey = `${section}:__repo_root__/`;
       const rootCollapsed = collapsedFolders.has(rootFolderKey);
-      const rootFolderPaths = files.map((file) => file.path);
+      const rootFolderPaths = tree.descendantPaths;
       const rootFolderInclusionState = getGroupInclusionState(
         rootFolderPaths,
         includedCommitPathSet,
         excludedCommitPathSet,
         partialCommitPathSet,
       );
-      const rootToggleablePaths = rootFolderPaths.filter((path) => !isCommitPathLocked(path));
+      const rootHasToggleablePaths = hasToggleablePaths(
+        rootFolderPaths,
+        isCommitPathLocked,
+      );
       const walk = (node: DiffTreeNode, depth: number): ReactNode[] => {
         const rows: ReactNode[] = [];
         const folders = Array.from(node.folders.values()).sort((a, b) => a.name.localeCompare(b.name));
         for (const folder of folders) {
           const collapsedFolder = collapseFolderChain(folder);
           const collapsed = collapsedFolders.has(collapsedFolder.key);
-          const descendantPaths = collectTreePaths(collapsedFolder.node);
+          const descendantPaths = collapsedFolder.node.descendantPaths;
           const folderInclusionState = getGroupInclusionState(
             descendantPaths,
             includedCommitPathSet,
             excludedCommitPathSet,
             partialCommitPathSet,
           );
-          const toggleableDescendantPaths = descendantPaths.filter(
-            (path) => !isCommitPathLocked(path),
+          const folderHasToggleablePaths = hasToggleablePaths(
+            descendantPaths,
+            isCommitPathLocked,
           );
           const treeIndentPx = depth * 16;
           const folderStyle = {
@@ -905,11 +933,11 @@ export function GitHistoryWorktreePanel({
                     path: collapsedFolder.node.path || collapsedFolder.name,
                   })}
                   className="git-commit-scope-toggle--folder"
-                  disabled={toggleableDescendantPaths.length === 0}
+                  disabled={!folderHasToggleablePaths}
                   stopPropagation
                   onToggle={() => {
                     setCommitSelection(
-                      toggleableDescendantPaths,
+                      getToggleablePaths(descendantPaths, isCommitPathLocked),
                       folderInclusionState !== "all",
                     );
                   }}
@@ -971,11 +999,11 @@ export function GitHistoryWorktreePanel({
                 path: resolvedRootFolderName,
               })}
               className="git-commit-scope-toggle--folder"
-              disabled={rootToggleablePaths.length === 0}
+              disabled={!rootHasToggleablePaths}
               stopPropagation
               onToggle={() => {
                 setCommitSelection(
-                  rootToggleablePaths,
+                  getToggleablePaths(rootFolderPaths, isCommitPathLocked),
                   rootFolderInclusionState !== "all",
                 );
               }}
