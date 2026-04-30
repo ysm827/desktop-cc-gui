@@ -705,8 +705,9 @@ const SKILL_SOURCE_PRIORITY: Record<string, number> = {
   project_codex: 2,
   project_agents: 3,
   global_claude: 4,
-  global_codex: 5,
-  global_agents: 6,
+  global_claude_plugin: 5,
+  global_codex: 6,
+  global_agents: 7,
 };
 
 function normalizeSkillName(value: unknown) {
