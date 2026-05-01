@@ -1727,3 +1727,59 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 270: 调整 Codex 会话停滞超时时间
+
+**Date**: 2026-05-02
+**Task**: 调整 Codex 会话停滞超时时间
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 Codex stalled 判断窗口调大，避免正常长等待被过早隔离为 stalled。
+
+主要改动：
+- 将普通 Codex foreground turn 无进展判定从 180_000ms 调整为 600_000ms。
+- 将后端 resume-pending watcher 默认超时从 45_000ms 调整为 360_000ms。
+- 同步相关 Vitest fixture，避免测试仍断言旧的 timeoutMs。
+- 新增 OpenSpec change `adjust-codex-stalled-timeouts`，记录行为契约、范围与验收项。
+
+涉及模块：
+- frontend thread event handling：`src/features/threads/hooks/useThreadEventHandlers.ts`
+- backend app server timeout default：`src-tauri/src/backend/app_server.rs`
+- stalled / resume-pending 相关测试：`src/features/**/hooks/*.test.ts*`
+- OpenSpec behavior proposal：`openspec/changes/adjust-codex-stalled-timeouts/`
+
+验证结果：
+- `openspec validate adjust-codex-stalled-timeouts --strict` 通过。
+- `npm exec vitest run src/features/threads/hooks/useThreadEventHandlers.test.ts src/features/app/hooks/useAppServerEvents.turn-stalled.test.tsx src/features/threads/hooks/useThreadTurnEvents.test.tsx` 通过，3 个文件 76 个测试通过。
+- `npm run typecheck` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml app_server --lib` 通过，76 passed。
+- `rg` 确认相关测试不再残留 `timeoutMs: 180_000` / `timeoutMs: 45_000`。
+
+后续事项：
+- 工作区仍有本次任务外的 OpenSpec archive / Trellis 文档脏改，提交或清理时需要单独处理，避免混入本次变更。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `68ea0d5f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
