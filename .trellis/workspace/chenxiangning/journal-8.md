@@ -1115,3 +1115,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 257: Review 合并 PR 边界修复
+
+**Date**: 2026-05-01
+**Task**: Review 合并 PR 边界修复
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：对已合入的 PR #476/#478/#479/#481 做兜底 review，重点检查边界条件、大文件治理、heavy-test-noise 门禁、Windows/macOS 兼容性，并修复发现的问题。
+主要改动：补强 AskUserQuestion stale response 空/异常 shape 判定，避免 malformed legacy response 触发前端 TypeError；补强 Claude plugin skill discovery 的 symlink 边界，确保 cache/skills 目录发现与后续跳过 symlink 的安全策略一致。
+涉及模块：src/features/threads/hooks/useThreadUserInput.ts；src/features/threads/hooks/useThreadUserInput.test.tsx；src-tauri/src/skills.rs。
+验证结果：npm exec vitest -- run src/features/threads/hooks/useThreadUserInput.test.tsx src/features/composer/components/ChatInputBox/selectors/ModelSelect.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx 通过；cargo test --manifest-path src-tauri/Cargo.toml skills:: 通过；node --test scripts/check-heavy-test-noise.test.mjs 通过；npm run typecheck 通过；npm run check:large-files:near-threshold 通过且仅保留既有 watch 告警；npm run check:large-files:gate 通过；npm run check:heavy-test-noise 完整批跑 403 个 test files 通过；git diff --check 通过。
+后续事项：SettingsView.tsx 仍处于 large-file watch 区间，后续如果继续修改 settings 视图，应优先按模块拆分，避免接近 fail 阈值。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `851c1055` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
