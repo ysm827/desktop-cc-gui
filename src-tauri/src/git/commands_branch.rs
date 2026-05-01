@@ -1055,7 +1055,7 @@ mod tests {
     use std::process::Command;
 
     fn create_temp_dir(label: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("mossx-{label}-{}", uuid::Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("ccgui-{label}-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&path).expect("create temp dir");
         path
     }

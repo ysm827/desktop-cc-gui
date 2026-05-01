@@ -6,6 +6,7 @@ type GetEffectiveSelectedModelIdOptions = {
   selectedModelId: string | null;
   activeThreadSelectedModelId: string | null;
   hasActiveThread: boolean;
+  codexModels: ModelOption[];
   engineModelsAsOptions: ModelOption[];
   engineSelectedModelIdByType: Partial<Record<EngineType, string | null>>;
   defaultClaudeModelId: string;
@@ -22,13 +23,18 @@ type GetEffectiveSelectedEffortOptions = {
   hasActiveThread: boolean;
   selectedEffort: string | null;
   activeThreadSelection: ComposerSessionSelection | null;
+  reasoningOptions: string[];
 };
 
 function findModelById(models: ModelOption[], id: string | null) {
   if (!id) {
     return null;
   }
-  return models.find((model) => model.id === id) ?? null;
+  return (
+    models.find((model) => model.id === id) ??
+    models.find((model) => model.model === id) ??
+    null
+  );
 }
 
 function getDefaultModelId(models: ModelOption[]) {
@@ -70,15 +76,20 @@ export function getEffectiveSelectedModelId({
   selectedModelId,
   activeThreadSelectedModelId,
   hasActiveThread,
+  codexModels,
   engineModelsAsOptions,
   engineSelectedModelIdByType,
   defaultClaudeModelId,
 }: GetEffectiveSelectedModelIdOptions) {
   if (activeEngine === "codex") {
+    const selectedCodexModelId = findModelById(codexModels, selectedModelId)?.id ?? null;
+    const threadCodexModelId =
+      findModelById(codexModels, activeThreadSelectedModelId)?.id ?? null;
+    const defaultCodexModelId = getDefaultModelId(codexModels);
     if (hasActiveThread) {
-      return activeThreadSelectedModelId ?? selectedModelId;
+      return threadCodexModelId ?? selectedCodexModelId ?? defaultCodexModelId;
     }
-    return selectedModelId;
+    return selectedCodexModelId ?? defaultCodexModelId;
   }
   const engineSelection = engineSelectedModelIdByType[activeEngine] ?? null;
   if (engineModelsAsOptions.length === 0) {
@@ -104,14 +115,32 @@ export function getEffectiveSelectedEffort({
   hasActiveThread,
   selectedEffort,
   activeThreadSelection,
+  reasoningOptions,
 }: GetEffectiveSelectedEffortOptions) {
+  const normalizedReasoningOptions = reasoningOptions.filter((option) => option.trim().length > 0);
+  const normalizeEffort = (value: string | null) => {
+    if (typeof value !== "string") {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (
+      normalizedReasoningOptions.length > 0 &&
+      !normalizedReasoningOptions.includes(trimmed)
+    ) {
+      return normalizedReasoningOptions[0] ?? null;
+    }
+    return trimmed;
+  };
   if (activeEngine !== "codex" || !hasActiveThread) {
-    return selectedEffort;
+    return normalizeEffort(selectedEffort);
   }
   if (!activeThreadSelection) {
-    return selectedEffort;
+    return normalizeEffort(selectedEffort);
   }
-  return activeThreadSelection.effort;
+  return normalizeEffort(activeThreadSelection.effort);
 }
 
 export function getReasoningOptionsForModel(model: ModelOption | null): string[] {

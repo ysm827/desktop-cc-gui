@@ -18,6 +18,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: true,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: "gpt-5.5",
         selectedEffort: "high",
         setAppSettings,
@@ -42,6 +43,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: false,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: "gpt-5.5",
         selectedEffort: "high",
         setAppSettings,
@@ -68,6 +70,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: true,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: null,
         selectedEffort: null,
         setAppSettings,
@@ -79,6 +82,57 @@ describe("usePersistComposerSettings", () => {
       expect(queueSaveSettings).toHaveBeenCalledWith({
         lastComposerModelId: null,
         lastComposerReasoningEffort: null,
+      });
+    });
+  });
+
+  it("waits for the global composer selection to finish restoring before persisting", async () => {
+    const queueSaveSettings = vi.fn(async (next: AppSettings) => next);
+    const setAppSettings = vi.fn();
+
+    renderHook(() =>
+      usePersistComposerSettings({
+        enabled: true,
+        appSettingsLoading: false,
+        selectionReady: false,
+        selectedModelId: null,
+        selectedEffort: null,
+        setAppSettings,
+        queueSaveSettings,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(setAppSettings).not.toHaveBeenCalled();
+      expect(queueSaveSettings).not.toHaveBeenCalled();
+    });
+  });
+
+  it("persists corrected effective defaults when the raw startup selection is invalid", async () => {
+    const queueSaveSettings = vi.fn(async (next: AppSettings) => next);
+    const setAppSettings = vi.fn((updater: (current: AppSettings) => AppSettings) =>
+      updater({
+        lastComposerModelId: "missing-model",
+        lastComposerReasoningEffort: "ultra",
+      } as AppSettings),
+    );
+
+    renderHook(() =>
+      usePersistComposerSettings({
+        enabled: true,
+        appSettingsLoading: false,
+        selectionReady: true,
+        selectedModelId: "gpt-5.5",
+        selectedEffort: "medium",
+        setAppSettings,
+        queueSaveSettings,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(queueSaveSettings).toHaveBeenCalledWith({
+        lastComposerModelId: "gpt-5.5",
+        lastComposerReasoningEffort: "medium",
       });
     });
   });

@@ -1554,18 +1554,19 @@ export function useThreadEventHandlers({
 
   const onTurnCompletedTracked = useCallback(
     (workspaceId: string, threadId: string, turnId: string) => {
-      const handled = onTurnCompleted(workspaceId, threadId, turnId);
+      const normalizedTurnId = turnId.trim();
+      const handled = onTurnCompleted(workspaceId, threadId, normalizedTurnId);
       if (handled) {
-        onTurnCompletedExternal?.({ workspaceId, threadId, turnId });
+        onTurnCompletedExternal?.({ workspaceId, threadId, turnId: normalizedTurnId });
         onTurnTerminalExternal?.({
           workspaceId,
           threadId,
-          turnId,
+          turnId: normalizedTurnId,
           status: "completed",
         });
       }
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
-      if (diagnostic && diagnostic.turnId !== turnId) {
+      if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return;
       }
       finalizeTurnDiagnostic(threadId, "completed");
@@ -1584,14 +1585,15 @@ export function useThreadEventHandlers({
         engine?: ConversationEngine | null;
       },
     ) => {
-      onTurnError(workspaceId, threadId, turnId, payload);
+      const normalizedTurnId = turnId.trim();
+      onTurnError(workspaceId, threadId, normalizedTurnId, payload);
       if (payload.willRetry) {
         return;
       }
       quarantineCodexTurn(
         workspaceId,
         threadId,
-        turnId,
+        normalizedTurnId,
         "turn-error",
         "turn/error",
         payload.engine,
@@ -1599,11 +1601,11 @@ export function useThreadEventHandlers({
       onTurnTerminalExternal?.({
         workspaceId,
         threadId,
-        turnId,
+        turnId: normalizedTurnId,
         status: "error",
       });
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
-      if (diagnostic && diagnostic.turnId !== turnId) {
+      if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return;
       }
       finalizeTurnDiagnostic(threadId, "error", {
@@ -1629,11 +1631,12 @@ export function useThreadEventHandlers({
         engine?: ConversationEngine | null;
       },
     ) => {
-      onTurnStalled(workspaceId, threadId, turnId, payload);
+      const normalizedTurnId = turnId.trim();
+      onTurnStalled(workspaceId, threadId, normalizedTurnId, payload);
       quarantineCodexTurn(
         workspaceId,
         threadId,
-        turnId,
+        normalizedTurnId,
         payload.reasonCode || "turn-stalled",
         payload.source || "turn/stalled",
         payload.engine,
@@ -1641,11 +1644,11 @@ export function useThreadEventHandlers({
       onTurnTerminalExternal?.({
         workspaceId,
         threadId,
-        turnId,
+        turnId: normalizedTurnId,
         status: "stalled",
       });
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
-      if (diagnostic && diagnostic.turnId !== turnId) {
+      if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return;
       }
       finalizeTurnDiagnostic(threadId, "error", {

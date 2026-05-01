@@ -1209,7 +1209,7 @@ export function useAppServerEvents(
           params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? "",
         );
         const threadId = sharedBridge?.sharedThreadId ?? rawTurnThreadId;
-        const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
+        const turnId = asString(params.turnId ?? params.turn_id ?? turn?.id ?? "").trim();
         if (threadId) {
           delete threadAgentDeltaSeenRef.current[threadId];
           delete threadAgentCompletedSeenRef.current[threadId];
@@ -1527,7 +1527,7 @@ export function useAppServerEvents(
           params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? "",
         );
         const threadId = sharedBridge?.sharedThreadId ?? rawCompletedThreadId;
-        const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
+        const turnId = asString(params.turnId ?? params.turn_id ?? turn?.id ?? "").trim();
         if (threadId) {
           const seenDelta = Boolean(threadAgentDeltaSeenRef.current[threadId]);
           const seenCompleted = hasThreadAgentCompletion(

@@ -105,6 +105,11 @@ type UseThreadsOptions = {
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
+  resolveComposerSelection?: () => {
+    model: string | null;
+    effort: string | null;
+    collaborationMode: Record<string, unknown> | null;
+  };
   accessMode?: "default" | "read-only" | "current" | "full-access";
   steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
@@ -297,6 +302,7 @@ export function useThreads({
   model,
   effort,
   collaborationMode,
+  resolveComposerSelection,
   accessMode,
   steerEnabled = false,
   customPrompts = [],
@@ -698,13 +704,39 @@ export function useThreads({
       turnId: string,
       status: "completed" | "error" | "stalled",
     ) => {
+      const resolvedThreadId = resolveCompletionEmailIntentThreadId(
+        threadId,
+        completionEmailIntentByThreadRef.current,
+        resolveCanonicalThreadId,
+      );
+      const currentIntent = completionEmailIntentByThreadRef.current[resolvedThreadId];
+      const normalizedTurnId = turnId.trim();
       if (status === "completed") {
-        scheduleCompletionEmailForTurn(_workspaceId, threadId, turnId);
+        if (!normalizedTurnId) {
+          if (currentIntent) {
+            onDebug?.({
+              id: `${Date.now()}-completion-email-missed-terminal`,
+              timestamp: Date.now(),
+              source: "client",
+              label: "completion-email/missed-terminal",
+              payload: {
+                workspaceId: _workspaceId,
+                threadId: resolvedThreadId,
+                requestedThreadId: threadId,
+                targetTurnId: currentIntent.targetTurnId,
+                reason: "missing_turn_id",
+              },
+            });
+            clearCompletionEmailIntent(resolvedThreadId);
+          }
+          return;
+        }
+        scheduleCompletionEmailForTurn(_workspaceId, resolvedThreadId, normalizedTurnId);
         return;
       }
-      clearCompletionEmailIntent(threadId, turnId);
+      clearCompletionEmailIntent(resolvedThreadId, normalizedTurnId);
     },
-    [clearCompletionEmailIntent, scheduleCompletionEmailForTurn],
+    [clearCompletionEmailIntent, onDebug, resolveCanonicalThreadId, scheduleCompletionEmailForTurn],
   );
 
   useEffect(() => {
@@ -1995,6 +2027,7 @@ export function useThreads({
     model,
     effort,
     collaborationMode,
+    resolveComposerSelection,
     steerEnabled,
     customPrompts,
     activeEngine,

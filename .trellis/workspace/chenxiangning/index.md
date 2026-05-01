@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 248
+- **Total Sessions**: 254
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~676 | Active |
+| `journal-8.md` | ~1041 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,12 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 254 | 2026-05-01 | 修复完成邮件触发身份归一化 | `c5d725edd746561202b505a6c8f1cc93a332da19` | `feature/fix-0.4.12` |
+| 253 | 2026-05-01 | 收口 composer 启动选择恢复边界与历史兼容 | `6125bbac` | `feature/fix-0.4.12` |
+| 252 | 2026-05-01 | 清理 branding 遗留并恢复 doctor 严格门禁 | `c54d1610` | `feature/fix-0.4.12` |
+| 251 | 2026-05-01 | OpenSpec 回写 Codex composer 启动稳定性提案 | `141fd1b4` | `feature/fix-0.4.12` |
+| 250 | 2026-05-01 | 补充修复 PR#480 启动恢复时序与线程选择自愈问题 | `76632c22` | `feature/fix-0.4.12` |
+| 249 | 2026-05-01 | 补充记录 composer 线程选择链路结构性重构提交 | `28eaec3f062c7e4358e5372960f542fd5ffa3715` | `feature/fix-0.4.12` |
 | 248 | 2026-05-01 | 补充 PR#480 启动恢复与线程作用域持久化修复 | `2fc04893` | `feature/fix-0.4.12` |
 | 247 | 2026-05-01 | 补充修复 PR#480 composer 线程作用域回归 | `33082cea` | `feature/fix-0.4.12` |
 | 246 | 2026-05-01 | 修复便签池空态布局 | `c60e6d1b` | `feature/fix-0.4.12` |

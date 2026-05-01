@@ -674,3 +674,368 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 249: 补充记录 composer 线程选择链路结构性重构提交
+
+**Date**: 2026-05-01
+**Task**: 补充记录 composer 线程选择链路结构性重构提交
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 提交当前工作区全部 composer 线程作用域修复与回归测试改动，不在本轮继续追加新修复。
+
+主要改动：
+- 重构 AppShell、useThreads、useThreadMessaging、useThreadMessagingSessionTooling 之间的 composer selection 数据流，改为发送时解析当前 selection，降低启动恢复阶段的状态回写环风险。
+- 收敛 useModels 的职责，移除线程作用域切换相关状态所有权，补充 globalSelectionReady 以保护冷启动全局 composer 默认值持久化。
+- 强化 modelSelection 与 usePersistComposerSettings 的边界处理，过滤线程态无效 modelId 和 unsupported reasoning effort，避免冷启动误清空全局默认值。
+- 补充 AppShell 启动回归测试、selection 纯函数测试和持久化测试，覆盖已有线程、无活动线程、pending 转 canonical 线程等路径。
+
+涉及模块：
+- src/app-shell.tsx
+- src/app-shell-parts/modelSelection.ts
+- src/app-shell.startup.test.tsx
+- src/features/models/hooks/useModels.ts
+- src/features/app/hooks/usePersistComposerSettings.ts
+- src/features/threads/hooks/useThreads.ts
+- src/features/threads/hooks/useThreadMessaging.ts
+- src/features/threads/hooks/useThreadMessagingSessionTooling.ts
+- 相关测试文件
+
+验证结果：
+- npm exec vitest run src/app-shell.startup.test.tsx src/features/models/hooks/useModels.test.tsx src/app-shell-parts/modelSelection.test.ts src/features/app/hooks/usePersistComposerSettings.test.tsx src/app-shell-parts/useSelectedComposerSession.test.tsx 通过。
+- npm run lint 通过。
+- npm run typecheck 通过。
+- npm run check:large-files 通过。
+- npm run check:heavy-test-noise 通过。
+- 本地 tauri dev 启动链检查通过，未复现同类启动即崩。
+
+后续事项：
+- 继续跟进尚未完全排除的 composer 启动边界风险，按后续 review 结果补修剩余问题。
+- 单独处理 doctor:strict 暴露的 branding 遗留问题，避免与本次 composer 修复耦合。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `28eaec3f062c7e4358e5372960f542fd5ffa3715` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 250: 补充修复 PR#480 启动恢复时序与线程选择自愈问题
+
+**Date**: 2026-05-01
+**Task**: 补充修复 PR#480 启动恢复时序与线程选择自愈问题
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次任务目标：
+- 继续收口 PR#480 线程级 composer model/effort 改造后的启动不稳定问题。
+- 重点处理冷启动、线程级选择恢复、pending 线程转 canonical 线程时的错误自愈与默认值误写回。
+
+主要改动：
+- 调整 `src/features/models/hooks/useModels.ts`，将模型列表从异步 state 二段派生改为同步 `useMemo` 派生，消除 `modelsReady` 已完成但 `models` 仍落后一帧的窗口。
+- 调整 `src/app-shell.tsx`：
+  - 新增全局 composer 默认值的有效值派生，持久化时统一使用校验后的 model/effort；
+  - 线程级 Codex 选择仅在 `modelsReady` 后执行自愈；
+  - 线程内切换 model/effort 时同步写入修正后的有效选择，阻断脏值继续进入发送链。
+- 调整 `src/app-shell-parts/modelSelection.ts`，无效 reasoning effort 统一回退到当前模型默认/首个有效 effort，而不是直接置空。
+- 扩充启动回归测试与持久化测试，覆盖线程恢复、冷启动全局默认值恢复、pending->canonical 稳定性以及无效线程选择自愈。
+
+涉及模块：
+- `src/app-shell.tsx`
+- `src/features/models/hooks/useModels.ts`
+- `src/app-shell-parts/modelSelection.ts`
+- `src/app-shell.startup.test.tsx`
+- `src/app-shell-parts/modelSelection.test.ts`
+- `src/features/app/hooks/usePersistComposerSettings.test.tsx`
+
+验证结果：
+- `npm exec vitest run src/app-shell.startup.test.tsx src/app-shell-parts/modelSelection.test.ts src/features/app/hooks/usePersistComposerSettings.test.tsx src/features/models/hooks/useModels.test.tsx src/app-shell-parts/useSelectedComposerSession.test.tsx` 通过（36/36）。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run check:large-files` 通过。
+- `npm run check:runtime-contracts` 通过。
+- `npm run check:heavy-test-noise` 完整通过，402 个测试文件完成，summary 仅保留 1 条 environment warning、0 act warnings。
+
+后续事项：
+- 当前本地手测反馈已无启动崩溃，可在此基线后继续单独处理 `doctor:strict` / branding 遗留。
+- 若后续继续降噪，应以“纯降复杂度”为目标拆分 AppShell，避免再次混入行为修复。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `76632c22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 251: OpenSpec 回写 Codex composer 启动稳定性提案
+
+**Date**: 2026-05-01
+**Task**: OpenSpec 回写 Codex composer 启动稳定性提案
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 为 PR#480 后续修复补齐 OpenSpec 提案记录，沉淀 Codex composer 线程作用域启动恢复稳定性 contract。
+
+主要改动：
+- 新增 openspec change：fix-codex-composer-startup-selection-stability。
+- 补充 proposal，记录问题背景、目标、边界、非目标与影响范围。
+- 补充 design，明确 modelsReady、线程 selection 自愈时机、pending -> canonical 稳定性与全局默认值持久化约束。
+- 补充 capability spec 与 tasks，将 branding 遗留保留为独立后续事项。
+
+涉及模块：
+- openspec/changes/fix-codex-composer-startup-selection-stability/proposal.md
+- openspec/changes/fix-codex-composer-startup-selection-stability/design.md
+- openspec/changes/fix-codex-composer-startup-selection-stability/specs/codex-composer-startup-selection-stability/spec.md
+- openspec/changes/fix-codex-composer-startup-selection-stability/tasks.md
+
+验证结果：
+- openspec validate fix-codex-composer-startup-selection-stability --strict 通过。
+
+后续事项：
+- 单独提交并修复 doctor:strict 暴露的 branding 遗留。
+- branding 提交完成后，再执行整仓 doctor 与相关回归测试。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `141fd1b4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 252: 清理 branding 遗留并恢复 doctor 严格门禁
+
+**Date**: 2026-05-01
+**Task**: 清理 branding 遗留并恢复 doctor 严格门禁
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 单独修复 doctor:strict 暴露的 branding 遗留，恢复严格健康检查通过状态。
+
+主要改动：
+- 将 src-tauri 中测试辅助路径、临时目录命名里的 legacy mossx 前缀替换为当前品牌前缀。
+- 更新 openspec change tasks.md，将 branding 修复后续事项标记为已完成，保持规范与仓库状态一致。
+
+涉及模块：
+- src-tauri/src/git/commands_branch.rs
+- src-tauri/src/skills.rs
+- src-tauri/src/claude_commands.rs
+- src-tauri/src/client_storage.rs
+- openspec/changes/fix-codex-composer-startup-selection-stability/tasks.md
+
+验证结果：
+- npm run check:branding 通过。
+- npm run doctor:strict 通过。
+
+后续事项：
+- 继续执行定向回归测试与质量门禁，确认 composer 修复链和 branding 修复没有相互影响。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c54d1610` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 253: 收口 composer 启动选择恢复边界与历史兼容
+
+**Date**: 2026-05-01
+**Task**: 收口 composer 启动选择恢复边界与历史兼容
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 对 33082cea 之后的 composer/startup 修复链做客观 review。
+- 修复 review 中发现的边界条件与历史兼容问题。
+
+主要改动：
+- 调整 useModels 的 ready 语义，将 workspace catalog 可判定状态与普通请求结束状态拆开。
+- 在 workspace 切换时清理旧 workspace 的 rawModels、selectedModelId 与 selectedEffort，避免旧选择残留污染新 workspace 派生。
+- 调整 modelSelection 中 Codex 模型查找逻辑，同时兼容按 id 与 model slug 恢复历史线程 composer 选择。
+- 补充 useModels 与 modelSelection 的回归测试，覆盖 catalog 请求失败、workspace 切换过渡态与旧存储格式兼容场景。
+
+涉及模块：
+- src/features/models/hooks/useModels.ts
+- src/features/models/hooks/useModels.test.tsx
+- src/app-shell-parts/modelSelection.ts
+- src/app-shell-parts/modelSelection.test.ts
+
+验证结果：
+- 定向 vitest 回归通过（39/39）
+- npm run lint 通过
+- npm run typecheck 通过
+- npm run check:large-files 通过
+- npm run check:runtime-contracts 通过
+- npm run doctor:strict 通过
+
+后续事项：
+- 当前工作区已形成新的 review 修复基线，可继续人工回归或推进后续 PR 整理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6125bbac` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 254: 修复完成邮件触发身份归一化
+
+**Date**: 2026-05-01
+**Task**: 修复完成邮件触发身份归一化
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 修复 Codex 可发送完成邮件，但 Claude Code、Gemini、OpenCode 在对话完成后可能不触发 completion email 的问题。
+- 按 OpenSpec 规范建立 change，保证行为、实现和验证可追溯。
+
+主要改动：
+- 新增 OpenSpec change `fix-completion-email-turn-terminal-normalization`，定义 completion email one-shot intent 对 terminal turn identity 的要求。
+- Rust engine app-server event 转换新增 known foreground turn context，将 `turn/completed` 的 `params.turnId` 注入到 Claude Code、Gemini、OpenCode app 与 daemon forwarder 路径。
+- Claude forwarder 状态新增 turn id，确保完成事件使用 send-message accepted turn identity。
+- Frontend event parser 优先使用 normalized top-level `params.turnId`，nested raw `turn.id` 仅作为 fallback。
+- Frontend terminal lifecycle handler 和 completion email settlement 统一 trim `turnId`，避免空白导致匹配失败。
+- 缺失 completed terminal turn id 时输出 `completion-email/missed-terminal` 诊断并清理一次性 intent，不误报成功。
+- 新增 focused parser test，避免继续扩大 `useAppServerEvents.test.tsx` 并触发 large-file hard gate。
+
+涉及模块：
+- OpenSpec: `openspec/changes/fix-completion-email-turn-terminal-normalization/`
+- Rust backend: `src-tauri/src/engine/events.rs`, `commands.rs`, `claude_forwarder.rs`, `commands_tests.rs`, `src-tauri/src/bin/cc_gui_daemon/daemon_state.rs`
+- Frontend hooks: `src/features/app/hooks/useAppServerEvents.ts`, `src/features/threads/hooks/useThreadEventHandlers.ts`, `src/features/threads/hooks/useThreads.ts`
+- Tests: `src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx`, `src/features/threads/hooks/useThreads.memory-race.integration.test.tsx`
+
+验证结果：
+- `openspec validate fix-completion-email-turn-terminal-normalization --strict` 通过。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run check:runtime-contracts` 通过。
+- `npm run check:large-files:near-threshold` 通过，保留既有 watch warnings。
+- `npm run check:large-files:gate` 通过，found=0。
+- `node --test scripts/check-heavy-test-noise.test.mjs` 通过。
+- `npm run check:heavy-test-noise` 通过，403 test files 完成，act warnings=0，stdout/stderr payload lines=0。
+- `npm exec vitest run src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx src/features/app/hooks/useAppServerEvents.test.tsx src/features/threads/hooks/useThreads.memory-race.integration.test.tsx src/features/threads/hooks/useThreadEventHandlers.test.ts` 通过，94 tests。
+- `cargo test --manifest-path src-tauri/Cargo.toml turn_completed_` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml claude_forwarder_captures` 通过。
+- `git diff --check` 通过。
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check` 失败在既有无关 `src-tauri/src/note_cards.rs:1692` 格式差异，本次未修改该文件。
+
+后续事项：
+- 建议人工手测 Claude Code 与 Gemini：配置邮箱，点击 composer 邮件按钮，发送一轮消息，等待完成，确认收到邮件并观察 `completion-email/sent` debug。
+- 若后续处理 Rust format debt，可单独提交 `src-tauri/src/note_cards.rs` 的 rustfmt 修复，避免与本功能提交混合。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c5d725edd746561202b505a6c8f1cc93a332da19` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

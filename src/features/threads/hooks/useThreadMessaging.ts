@@ -151,6 +151,11 @@ type UseThreadMessagingOptions = {
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
+  resolveComposerSelection?: () => {
+    model: string | null;
+    effort: string | null;
+    collaborationMode: Record<string, unknown> | null;
+  };
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
   activeEngine?: "claude" | "codex" | "gemini" | "opencode";
@@ -222,6 +227,7 @@ export function useThreadMessaging({
   model,
   effort,
   collaborationMode,
+  resolveComposerSelection,
   steerEnabled,
   customPrompts,
   activeEngine = "claude",
@@ -596,17 +602,20 @@ export function useThreadMessaging({
           },
         });
       }
+      const resolvedComposerSelection = resolveComposerSelection?.() ?? null;
       const modelFromOptions =
         options?.model !== undefined ? options.model : undefined;
-      const modelFromHook = model;
+      const modelFromHook = resolvedComposerSelection?.model ?? model;
       const resolvedModel =
         modelFromOptions !== undefined ? modelFromOptions : modelFromHook;
       const resolvedEffort =
-        options?.effort !== undefined ? options.effort : effort;
+        options?.effort !== undefined
+          ? options.effort
+          : (resolvedComposerSelection?.effort ?? effort);
       const resolvedCollaborationMode =
         options?.collaborationMode !== undefined
           ? options.collaborationMode
-          : collaborationMode;
+          : (resolvedComposerSelection?.collaborationMode ?? collaborationMode);
       const sanitizedCollaborationMode =
         resolvedCollaborationMode &&
         typeof resolvedCollaborationMode === "object" &&
@@ -1565,6 +1574,7 @@ export function useThreadMessaging({
       pendingInterruptsRef,
       pushThreadErrorMessage,
       recordThreadActivity,
+      resolveComposerSelection,
       resolveThreadKind,
       resolveThreadEngine,
       resolveOpenCodeAgent,
@@ -2134,6 +2144,7 @@ export function useThreadMessaging({
     recordThreadActivity,
     refreshThread,
     resolveCollaborationRuntimeMode,
+    resolveComposerSelection,
     resolveThreadEngine,
     safeMessageActivity,
     sendMessageToThread,

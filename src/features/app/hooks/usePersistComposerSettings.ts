@@ -4,6 +4,7 @@ import type { AppSettings } from "../../../types";
 type Params = {
   enabled: boolean;
   appSettingsLoading: boolean;
+  selectionReady: boolean;
   selectedModelId: string | null;
   selectedEffort: string | null;
   setAppSettings: (updater: (current: AppSettings) => AppSettings) => void;
@@ -13,13 +14,14 @@ type Params = {
 export function usePersistComposerSettings({
   enabled,
   appSettingsLoading,
+  selectionReady,
   selectedModelId,
   selectedEffort,
   setAppSettings,
   queueSaveSettings,
 }: Params) {
   useEffect(() => {
-    if (!enabled || appSettingsLoading) {
+    if (!enabled || appSettingsLoading || !selectionReady) {
       return;
     }
     setAppSettings((current) => {
@@ -40,6 +42,7 @@ export function usePersistComposerSettings({
   }, [
     enabled,
     appSettingsLoading,
+    selectionReady,
     queueSaveSettings,
     selectedEffort,
     selectedModelId,

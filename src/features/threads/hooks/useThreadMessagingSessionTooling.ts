@@ -45,6 +45,11 @@ type UseThreadMessagingSessionToolingOptions = {
   collaborationMode?: Record<string, unknown> | null;
   effort?: string | null;
   model?: string | null;
+  resolveComposerSelection?: () => {
+    model: string | null;
+    effort: string | null;
+    collaborationMode: Record<string, unknown> | null;
+  };
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
   threadStatusById: ThreadState["threadStatusById"];
@@ -111,6 +116,7 @@ export function useThreadMessagingSessionTooling({
   recordThreadActivity,
   refreshThread,
   resolveCollaborationRuntimeMode,
+  resolveComposerSelection,
   resolveThreadEngine,
   safeMessageActivity,
   sendMessageToThread,
@@ -268,8 +274,13 @@ export function useThreadMessagingSessionTooling({
         return resetAt ? formatRelativeTime(resetAt) : null;
       };
 
+      const resolvedComposerSelection = resolveComposerSelection?.() ?? null;
+      const resolvedModel = resolvedComposerSelection?.model ?? model;
+      const resolvedEffort = resolvedComposerSelection?.effort ?? effort;
+      const resolvedCollaborationMode =
+        resolvedComposerSelection?.collaborationMode ?? collaborationMode;
       const collaborationModeId = resolveCollaborationModeIdFromPayload(
-        collaborationMode,
+        resolvedCollaborationMode,
       );
 
       const formatLimitLine = (
@@ -289,8 +300,8 @@ export function useThreadMessagingSessionTooling({
         return [`${label}: ${remaining}% left`, `  (resets ${reset})`];
       };
 
-      const modelLabel = model ?? "gpt-5.3-codex";
-      const effortLabel = effort ?? "medium";
+      const modelLabel = resolvedModel ?? "gpt-5.3-codex";
+      const effortLabel = resolvedEffort ?? "medium";
       const permissionLabel =
         accessMode === "read-only"
           ? "Read Only"
@@ -343,12 +354,13 @@ export function useThreadMessagingSessionTooling({
       activeWorkspace,
       collaborationMode,
       dispatch,
-      effort,
       ensureThreadForActiveWorkspace,
+      effort,
       model,
       pushThreadErrorMessage,
       rateLimitsByWorkspace,
       recordThreadActivity,
+      resolveComposerSelection,
       resolveThreadEngine,
       safeMessageActivity,
     ],
@@ -363,8 +375,11 @@ export function useThreadMessagingSessionTooling({
       if (!threadId) {
         return;
       }
+      const resolvedComposerSelection = resolveComposerSelection?.() ?? null;
+      const resolvedCollaborationMode =
+        resolvedComposerSelection?.collaborationMode ?? collaborationMode;
       const selectedMode = resolveCollaborationModeIdFromPayload(
-        collaborationMode,
+        resolvedCollaborationMode,
       );
       const uiMode: "plan" | "default" =
         selectedMode === "plan" ? "plan" : "default";
@@ -400,6 +415,7 @@ export function useThreadMessagingSessionTooling({
       ensureThreadForActiveWorkspace,
       recordThreadActivity,
       resolveCollaborationRuntimeMode,
+      resolveComposerSelection,
       safeMessageActivity,
     ],
   );
