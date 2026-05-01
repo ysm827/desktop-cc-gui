@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 270
+- **Total Sessions**: 271
 - **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~1785 | Active |
+| `journal-8.md` | ~1842 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 271 | 2026-05-02 | 归档 OpenSpec 完成规范 | `3fa5a49d47972923768b12d29d398a4875f53529` | `feature/fix-0.4.12` |
 | 270 | 2026-05-02 | 调整 Codex 会话停滞超时时间 | `68ea0d5f` | `feature/fix-0.4.12` |
 | 269 | 2026-05-02 | 修复删除会话被回退恢复 | `080d52d2` | `feature/fix-0.4.12` |
 | 268 | 2026-05-01 | 增强 Git 提交选择框描边 | `a6770de48eeb19731b22b0ba8f4d0b3c5393582f` | `feature/fix-0.4.12` |

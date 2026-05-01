@@ -1783,3 +1783,60 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 271: 归档 OpenSpec 完成规范
+
+**Date**: 2026-05-02
+**Task**: 归档 OpenSpec 完成规范
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 根据 git range `3adf51af0ceff9597930e4f85435ef99f4fa96a8..HEAD` 的文档回写结果，筛选已经满足 OpenSpec archive gate 的变更并执行归档。
+- 本轮只处理文档与规范，不纳入并行存在的 runtime 代码改动。
+
+主要改动：
+- 归档 10 个已完成 OpenSpec changes：`sync-post-3adf51a-doc-backfill`、`add-claude-plugin-skill-discovery`、`add-configurable-terminal-shell`、`fix-ask-user-question-timeout-settlement`、`fix-claude-model-refresh-stale-mapping`、`fix-codex-composer-startup-selection-stability`、`fix-codex-context-summary-and-history-user-images`、`fix-completion-email-turn-terminal-normalization`、`fix-idempotent-missing-session-delete`、`fix-sidebar-exited-session-visibility-toggle`。
+- 对归档前仍缺主规格承载的 delta 执行同步，新增 `openspec/specs/codex-composer-startup-selection-stability/spec.md`，并更新 `conversation-curtain-normalization-core` 与 `project-memory-ui`。
+- 更新 `openspec/project.md`，将快照修正为 active=6、archive=224、main specs=208，并记录 `adjust-codex-stalled-timeouts` 因 `design` artifact 仍为 `ready` 暂不归档。
+- 更新 `.trellis/spec/**` 中与 skill discovery、terminal shell、one-shot command、AskUserQuestion settlement、project-scoped visibility、quality sentry 等相关的 code-level contracts。
+
+涉及模块：
+- OpenSpec changes archive：`openspec/changes/archive/2026-05-01-*`
+- OpenSpec main specs：`openspec/specs/**`
+- OpenSpec project index：`openspec/project.md`
+- Trellis code specs：`.trellis/spec/backend/**`、`.trellis/spec/frontend/**`、`.trellis/spec/guides/**`
+
+验证结果：
+- `openspec validate --all --strict` 通过：214 passed, 0 failed。
+- `git diff --cached --check` 通过。
+- staged 文件检查确认未包含 `src/**` 或 `src-tauri/**` 代码文件。
+
+后续事项：
+- `adjust-codex-stalled-timeouts` 需将 `design` artifact 补齐为 done 后再归档。
+- `allow-branch-update-without-checkout`、`fix-windows-codex-app-server-wrapper-launch`、`claude-code-mode-progressive-rollout` 仍需完成剩余任务后再进入 archive gate。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3fa5a49d47972923768b12d29d398a4875f53529` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
