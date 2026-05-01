@@ -969,3 +969,73 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 254: 修复完成邮件触发身份归一化
+
+**Date**: 2026-05-01
+**Task**: 修复完成邮件触发身份归一化
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 修复 Codex 可发送完成邮件，但 Claude Code、Gemini、OpenCode 在对话完成后可能不触发 completion email 的问题。
+- 按 OpenSpec 规范建立 change，保证行为、实现和验证可追溯。
+
+主要改动：
+- 新增 OpenSpec change `fix-completion-email-turn-terminal-normalization`，定义 completion email one-shot intent 对 terminal turn identity 的要求。
+- Rust engine app-server event 转换新增 known foreground turn context，将 `turn/completed` 的 `params.turnId` 注入到 Claude Code、Gemini、OpenCode app 与 daemon forwarder 路径。
+- Claude forwarder 状态新增 turn id，确保完成事件使用 send-message accepted turn identity。
+- Frontend event parser 优先使用 normalized top-level `params.turnId`，nested raw `turn.id` 仅作为 fallback。
+- Frontend terminal lifecycle handler 和 completion email settlement 统一 trim `turnId`，避免空白导致匹配失败。
+- 缺失 completed terminal turn id 时输出 `completion-email/missed-terminal` 诊断并清理一次性 intent，不误报成功。
+- 新增 focused parser test，避免继续扩大 `useAppServerEvents.test.tsx` 并触发 large-file hard gate。
+
+涉及模块：
+- OpenSpec: `openspec/changes/fix-completion-email-turn-terminal-normalization/`
+- Rust backend: `src-tauri/src/engine/events.rs`, `commands.rs`, `claude_forwarder.rs`, `commands_tests.rs`, `src-tauri/src/bin/cc_gui_daemon/daemon_state.rs`
+- Frontend hooks: `src/features/app/hooks/useAppServerEvents.ts`, `src/features/threads/hooks/useThreadEventHandlers.ts`, `src/features/threads/hooks/useThreads.ts`
+- Tests: `src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx`, `src/features/threads/hooks/useThreads.memory-race.integration.test.tsx`
+
+验证结果：
+- `openspec validate fix-completion-email-turn-terminal-normalization --strict` 通过。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run check:runtime-contracts` 通过。
+- `npm run check:large-files:near-threshold` 通过，保留既有 watch warnings。
+- `npm run check:large-files:gate` 通过，found=0。
+- `node --test scripts/check-heavy-test-noise.test.mjs` 通过。
+- `npm run check:heavy-test-noise` 通过，403 test files 完成，act warnings=0，stdout/stderr payload lines=0。
+- `npm exec vitest run src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx src/features/app/hooks/useAppServerEvents.test.tsx src/features/threads/hooks/useThreads.memory-race.integration.test.tsx src/features/threads/hooks/useThreadEventHandlers.test.ts` 通过，94 tests。
+- `cargo test --manifest-path src-tauri/Cargo.toml turn_completed_` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml claude_forwarder_captures` 通过。
+- `git diff --check` 通过。
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check` 失败在既有无关 `src-tauri/src/note_cards.rs:1692` 格式差异，本次未修改该文件。
+
+后续事项：
+- 建议人工手测 Claude Code 与 Gemini：配置邮箱，点击 composer 邮件按钮，发送一轮消息，等待完成，确认收到邮件并观察 `completion-email/sent` debug。
+- 若后续处理 Rust format debt，可单独提交 `src-tauri/src/note_cards.rs` 的 rustfmt 修复，避免与本功能提交混合。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c5d725edd746561202b505a6c8f1cc93a332da19` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
