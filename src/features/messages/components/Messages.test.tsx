@@ -1294,6 +1294,87 @@ describe("Messages", () => {
     });
   });
 
+  it("dedupes assistant memory summary cards against attributed user memory wrapper in the same turn", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "assistant-memory-summary-1",
+        kind: "message",
+        role: "assistant",
+        text: "【记忆上下文摘要】\n[对话记录] 第一条；[项目上下文] 第二条...",
+      },
+      {
+        id: "real-user-memory-1",
+        kind: "message",
+        role: "user",
+        text: [
+          '<project-memory source="manual-selection" count="3" truncated="true">',
+          "[对话记录] 第一条",
+          "[项目上下文] 第二条",
+          "[已知问题] 第三条",
+          "</project-memory>",
+          "",
+          "请基于这些记忆继续分析",
+        ].join("\n"),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-memory-dedupe"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelectorAll(".memory-context-summary-card")).toHaveLength(1);
+    const userText = container.querySelector(".user-collapsible-text-content");
+    expect(userText?.textContent ?? "").toBe("请基于这些记忆继续分析");
+    expect(container.textContent ?? "").not.toContain("[对话记录] 第一条");
+  });
+
+  it("does not leak project-memory xml when a same-turn assistant summary suppresses a memory-only user row", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "assistant-memory-summary-only",
+        kind: "message",
+        role: "assistant",
+        text: "【记忆上下文摘要】\n[对话记录] 第一条；[项目上下文] 第二条",
+      },
+      {
+        id: "real-user-memory-only",
+        kind: "message",
+        role: "user",
+        text: [
+          '<project-memory source="manual-selection" count="2" truncated="false">',
+          "[对话记录] 第一条",
+          "[项目上下文] 第二条",
+          "</project-memory>",
+          "",
+        ].join("\n"),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-memory-only-dedupe"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelectorAll(".memory-context-summary-card")).toHaveLength(1);
+    expect(container.querySelector(".message.user .bubble")).toBeNull();
+    expect(container.textContent ?? "").not.toContain("<project-memory");
+  });
+
   it("shows collapsible user input toggle when content overflows and expands on click", () => {
     const originalScrollHeight = Object.getOwnPropertyDescriptor(
       HTMLElement.prototype,
