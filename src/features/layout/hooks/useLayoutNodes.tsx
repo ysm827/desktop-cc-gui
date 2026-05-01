@@ -620,6 +620,7 @@ type LayoutNodesOptions = {
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   skills: SkillOption[];
+  customSkillDirectories?: string[];
   prompts: CustomPromptOption[];
   commands?: CustomCommandOption[];
   files: string[];
@@ -1588,6 +1589,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         accessMode={options.accessMode}
         onSelectAccessMode={options.onSelectAccessMode}
         skills={options.skills}
+        customSkillDirectories={options.customSkillDirectories}
         prompts={options.prompts}
         commands={composerCommands}
         files={options.files}
