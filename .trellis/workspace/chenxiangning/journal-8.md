@@ -738,3 +738,68 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 250: 补充修复 PR#480 启动恢复时序与线程选择自愈问题
+
+**Date**: 2026-05-01
+**Task**: 补充修复 PR#480 启动恢复时序与线程选择自愈问题
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次任务目标：
+- 继续收口 PR#480 线程级 composer model/effort 改造后的启动不稳定问题。
+- 重点处理冷启动、线程级选择恢复、pending 线程转 canonical 线程时的错误自愈与默认值误写回。
+
+主要改动：
+- 调整 `src/features/models/hooks/useModels.ts`，将模型列表从异步 state 二段派生改为同步 `useMemo` 派生，消除 `modelsReady` 已完成但 `models` 仍落后一帧的窗口。
+- 调整 `src/app-shell.tsx`：
+  - 新增全局 composer 默认值的有效值派生，持久化时统一使用校验后的 model/effort；
+  - 线程级 Codex 选择仅在 `modelsReady` 后执行自愈；
+  - 线程内切换 model/effort 时同步写入修正后的有效选择，阻断脏值继续进入发送链。
+- 调整 `src/app-shell-parts/modelSelection.ts`，无效 reasoning effort 统一回退到当前模型默认/首个有效 effort，而不是直接置空。
+- 扩充启动回归测试与持久化测试，覆盖线程恢复、冷启动全局默认值恢复、pending->canonical 稳定性以及无效线程选择自愈。
+
+涉及模块：
+- `src/app-shell.tsx`
+- `src/features/models/hooks/useModels.ts`
+- `src/app-shell-parts/modelSelection.ts`
+- `src/app-shell.startup.test.tsx`
+- `src/app-shell-parts/modelSelection.test.ts`
+- `src/features/app/hooks/usePersistComposerSettings.test.tsx`
+
+验证结果：
+- `npm exec vitest run src/app-shell.startup.test.tsx src/app-shell-parts/modelSelection.test.ts src/features/app/hooks/usePersistComposerSettings.test.tsx src/features/models/hooks/useModels.test.tsx src/app-shell-parts/useSelectedComposerSession.test.tsx` 通过（36/36）。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run check:large-files` 通过。
+- `npm run check:runtime-contracts` 通过。
+- `npm run check:heavy-test-noise` 完整通过，402 个测试文件完成，summary 仅保留 1 条 environment warning、0 act warnings。
+
+后续事项：
+- 当前本地手测反馈已无启动崩溃，可在此基线后继续单独处理 `doctor:strict` / branding 遗留。
+- 若后续继续降噪，应以“纯降复杂度”为目标拆分 AppShell，避免再次混入行为修复。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `76632c22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
