@@ -910,3 +910,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 253: 收口 composer 启动选择恢复边界与历史兼容
+
+**Date**: 2026-05-01
+**Task**: 收口 composer 启动选择恢复边界与历史兼容
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 对 33082cea 之后的 composer/startup 修复链做客观 review。
+- 修复 review 中发现的边界条件与历史兼容问题。
+
+主要改动：
+- 调整 useModels 的 ready 语义，将 workspace catalog 可判定状态与普通请求结束状态拆开。
+- 在 workspace 切换时清理旧 workspace 的 rawModels、selectedModelId 与 selectedEffort，避免旧选择残留污染新 workspace 派生。
+- 调整 modelSelection 中 Codex 模型查找逻辑，同时兼容按 id 与 model slug 恢复历史线程 composer 选择。
+- 补充 useModels 与 modelSelection 的回归测试，覆盖 catalog 请求失败、workspace 切换过渡态与旧存储格式兼容场景。
+
+涉及模块：
+- src/features/models/hooks/useModels.ts
+- src/features/models/hooks/useModels.test.tsx
+- src/app-shell-parts/modelSelection.ts
+- src/app-shell-parts/modelSelection.test.ts
+
+验证结果：
+- 定向 vitest 回归通过（39/39）
+- npm run lint 通过
+- npm run typecheck 通过
+- npm run check:large-files 通过
+- npm run check:runtime-contracts 通过
+- npm run doctor:strict 通过
+
+后续事项：
+- 当前工作区已形成新的 review 修复基线，可继续人工回归或推进后续 PR 整理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6125bbac` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
