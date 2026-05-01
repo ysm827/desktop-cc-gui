@@ -1840,3 +1840,52 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 272: 同步 OpenSpec 升级后的规范上下文
+
+**Date**: 2026-05-02
+**Task**: 同步 OpenSpec 升级后的规范上下文
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：在升级 OpenSpec 到 1.3.1 后，确认项目中的文档规范是否需要同步，并按用户要求只提交本次 OpenSpec 文档规范更新。
+
+主要改动：
+- 更新 openspec/config.yaml 的 planning context，记录 OpenSpec CLI 1.3.1、Trellis 0.4.0、当前 specs/changes/archive 数量，以及 OpenSpec 1.3.x 下 config.yaml 与 project.md 的职责边界。
+- 更新 openspec/README.md 的仓库快照、技术上下文、活跃变更清单、严格校验命令和维护说明，避免升级后规范入口保留旧版本与旧统计。
+
+涉及模块：
+- openspec/config.yaml
+- openspec/README.md
+
+验证结果：
+- openspec validate --all --strict --no-interactive 通过，214 passed, 0 failed。
+- 提交时只 stage 了 OpenSpec 两个文档文件，未纳入非本次产生的 src/features/git-history/components/GitHistoryPanel.test.tsx 改动。
+
+后续事项：
+- 工作区仍保留一个非本次产生的 GitHistoryPanel.test.tsx 未提交改动，需要由对应任务单独处理或确认。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e1861e36` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
