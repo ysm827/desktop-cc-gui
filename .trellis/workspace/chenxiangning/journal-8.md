@@ -1676,3 +1676,54 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 269: 修复删除会话被回退恢复
+
+**Date**: 2026-05-02
+**Task**: 修复删除会话被回退恢复
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复 CI 中 `useThreadActions native session bridges > keeps deleted claude sessions absent after reload` 失败，避免已删除 Claude session 在刷新后被 last-good fallback 恢复。
+
+主要改动：
+- 在 `useThreadActions` 的 `deleteThreadForWorkspace` 成功路径后同步调用已有的 `removeThreadFromCachedSummaries(workspaceId, threadId)`。
+- 删除成功后清理 `latestThreadsByWorkspaceRef` 与 `previousThreadsByWorkspaceRef` 中的目标 thread，避免 `getLastGoodThreadSummaries` 继续拿到已删除会话。
+- 保留异常空列表和 runtime 失败时的 last-good fallback 保护，不改变 provider list、backend service、reducer contract。
+
+涉及模块：
+- `src/features/threads/hooks/useThreadActions.ts`
+
+验证结果：
+- `pnpm vitest run src/features/threads/hooks/useThreadActions.native-session-bridges.test.tsx --testNamePattern "keeps deleted claude sessions absent after reload"` 通过。
+- `pnpm vitest run src/features/threads/hooks/useThreadActions.native-session-bridges.test.tsx src/features/threads/hooks/useThreadActions.test.tsx` 通过，61 tests passed。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+
+后续事项：
+- 若未来发现 provider 删除成功后仍返回同一 session，需要继续检查 backend/list consistency；本次修复只解决 last-good cache 误恢复。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `080d52d2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
