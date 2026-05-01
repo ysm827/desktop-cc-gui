@@ -116,8 +116,17 @@ fn default_claude_skills_dir() -> Option<PathBuf> {
     resolve_default_claude_home().map(|home| home.join("skills"))
 }
 
+fn is_non_symlink_dir(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| !metadata.file_type().is_symlink() && metadata.is_dir())
+        .unwrap_or(false)
+}
+
 fn claude_plugin_skills_roots_from_home(home: &Path) -> Vec<PathBuf> {
     let cache = home.join("plugins").join("cache");
+    if !is_non_symlink_dir(&cache) {
+        return Vec::new();
+    }
     let Ok(owner_entries) = fs::read_dir(&cache) else {
         return Vec::new();
     };
@@ -145,7 +154,7 @@ fn claude_plugin_skills_roots_from_home(home: &Path) -> Vec<PathBuf> {
             }
 
             let skills_dir = plugin_path.join("skills");
-            if skills_dir.is_dir() {
+            if is_non_symlink_dir(&skills_dir) {
                 roots.push(skills_dir);
             }
         }
@@ -724,5 +733,32 @@ mod tests {
         assert_eq!(roots, vec![first_skills, second_skills]);
 
         let _ = fs::remove_dir_all(home);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn claude_plugin_roots_skip_symlinked_cache_and_skills_dirs() {
+        use std::os::unix::fs::symlink;
+
+        let home = new_temp_dir("claude-plugin-symlinks");
+        let external_cache = new_temp_dir("claude-plugin-external-cache");
+        let cache = home.join("plugins").join("cache");
+        fs::create_dir_all(cache.parent().expect("cache parent")).expect("create plugins dir");
+        symlink(&external_cache, &cache).expect("symlink cache");
+
+        assert!(claude_plugin_skills_roots_from_home(&home).is_empty());
+
+        let _ = fs::remove_file(&cache);
+        fs::create_dir_all(&cache).expect("create real cache");
+        let plugin = cache.join("owner").join("plugin");
+        fs::create_dir_all(&plugin).expect("create plugin");
+        let external_skills = new_temp_dir("claude-plugin-external-skills");
+        symlink(&external_skills, plugin.join("skills")).expect("symlink skills");
+
+        assert!(claude_plugin_skills_roots_from_home(&home).is_empty());
+
+        let _ = fs::remove_dir_all(home);
+        let _ = fs::remove_dir_all(external_cache);
+        let _ = fs::remove_dir_all(external_skills);
     }
 }

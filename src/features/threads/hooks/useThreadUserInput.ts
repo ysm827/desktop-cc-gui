@@ -128,9 +128,10 @@ function getErrorMessage(error: unknown) {
 }
 
 function isEmptyResponse(response: RequestUserInputResponse) {
-  return Object.values(response.answers).every((answer) =>
-    answer.answers.every((value) => value.trim().length === 0),
-  );
+  return Object.values(response.answers ?? {}).every((answer) => {
+    const answers = Array.isArray(answer?.answers) ? answer.answers : [];
+    return answers.every((value) => String(value ?? "").trim().length === 0);
+  });
 }
 
 function isStaleSettledRequestError(
