@@ -1569,3 +1569,55 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 267: 修复线程列表空结果回退保护
+
+**Date**: 2026-05-01
+**Task**: 修复线程列表空结果回退保护
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：分析 GitHub issue #470 中“新会话被吞 / Claude Code 所有对话消失”的同类风险，并对当前残余边界进行防御性加固。
+
+主要改动：
+- 在 src/features/threads/hooks/useThreadActions.ts 中加强 thread list fallback：当刷新结果为空且本地存在健康 last-good 会话摘要时，使用 empty-thread-list 标记 degraded fallback，避免扫描误判将侧边栏覆盖为空。
+- 保留真实空 workspace 行为：没有 last-good 会话时仍允许空列表展示。
+- 在 src/features/threads/hooks/useThreadActions.test.tsx 新增回归测试，覆盖 provider 成功返回空数组但应复用 last-good 摘要并输出 debug fallback 信息的场景。
+
+涉及模块：
+- frontend threads hook：useThreadActions
+- frontend hook tests：useThreadActions.test
+
+验证结果：
+- npm exec vitest run src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useQueuedSend.test.tsx src/features/threads/hooks/useThreadTurnEvents.test.tsx src/features/messages/components/Messages.history-loading.test.tsx：通过，163 tests。
+- npm run typecheck：通过。
+- npm run lint：通过。
+- git diff --check：通过。
+
+后续事项：
+- 若后续需要区分“真实外部清空历史”和“provider 扫描误判”，可以增加明确的 destructive refresh/source 信号；当前策略优先保护用户可见会话不被误清空。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `510e7375` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
