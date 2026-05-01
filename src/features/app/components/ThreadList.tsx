@@ -109,8 +109,22 @@ export function ThreadList({
       };
     }
 
-    const filterRows = (rows: ThreadRow[]) =>
-      rows.filter((row) => !isExitedThread(row.thread));
+    const filterRows = (rows: ThreadRow[]) => {
+      const visibleRowIndexes = new Set<number>();
+      const ancestorIndexesByDepth: number[] = [];
+
+      rows.forEach((row, index) => {
+        const normalizedDepth = Math.max(row.depth, 0);
+        ancestorIndexesByDepth.length = normalizedDepth;
+        if (!isExitedThread(row.thread)) {
+          ancestorIndexesByDepth.forEach((ancestorIndex) => visibleRowIndexes.add(ancestorIndex));
+          visibleRowIndexes.add(index);
+        }
+        ancestorIndexesByDepth[normalizedDepth] = index;
+      });
+
+      return rows.filter((_, index) => visibleRowIndexes.has(index));
+    };
     const nextPinnedRows = filterRows(pinnedRows);
     const nextUnpinnedRows = filterRows(unpinnedRows);
     return {
@@ -279,6 +293,7 @@ export function ThreadList({
           <button
             type="button"
             className={`thread-list-filter-toggle${hideExitedSessions ? " is-active" : ""}`}
+            aria-pressed={hideExitedSessions}
             onClick={(event) => {
               event.stopPropagation();
               setHideExitedSessions((previous) => !previous);

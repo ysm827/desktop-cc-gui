@@ -262,6 +262,31 @@ describe("ThreadList", () => {
     expect(screen.getByText("1 exited hidden")).toBeTruthy();
   });
 
+  it("keeps exited parent rows visible when a running child remains visible", () => {
+    render(
+      <ThreadList
+        {...baseProps}
+        unpinnedRows={[
+          { thread: { id: "thread-parent", name: "Parent", updatedAt: 3 }, depth: 0 },
+          { thread: { id: "thread-child", name: "Running child", updatedAt: 2 }, depth: 1 },
+          { thread: { id: "thread-exited", name: "Exited sibling", updatedAt: 1 }, depth: 0 },
+        ]}
+        threadStatusById={{
+          "thread-parent": { isProcessing: false, hasUnread: false, isReviewing: false },
+          "thread-child": { isProcessing: true, hasUnread: false, isReviewing: false },
+          "thread-exited": { isProcessing: false, hasUnread: false, isReviewing: false },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide exited sessions" }));
+
+    expect(screen.getByText("Parent")).toBeTruthy();
+    expect(screen.getByText("Running child")).toBeTruthy();
+    expect(screen.queryByText("Exited sibling")).toBeNull();
+    expect(screen.getByText("1 exited hidden")).toBeTruthy();
+  });
+
   it("renders only relative time inline when size is available", () => {
     const { container } = render(
       <ThreadList
