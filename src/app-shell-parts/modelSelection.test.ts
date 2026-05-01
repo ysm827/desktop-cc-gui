@@ -224,7 +224,7 @@ describe("modelSelection", () => {
     ).toBe("codex-default");
   });
 
-  it("drops an unsupported reasoning effort for the active model", () => {
+  it("falls back to the model default when the saved reasoning effort is unsupported", () => {
     expect(
       getEffectiveSelectedEffort({
         activeEngine: "codex",
@@ -236,7 +236,7 @@ describe("modelSelection", () => {
         },
         reasoningOptions: ["medium", "high"],
       }),
-    ).toBeNull();
+    ).toBe("medium");
   });
 
   it("keeps the saved non-codex engine selection when it is still valid", () => {

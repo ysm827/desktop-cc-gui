@@ -22,6 +22,7 @@ type UseModelsOptions = {
 
 type UseModelsResult = {
   models: ModelOption[];
+  modelsReady: boolean;
   selectedModel: ModelOption | null;
   reasoningSupported: boolean;
   selectedModelId: string | null;
@@ -159,7 +160,6 @@ export function useModels({
   preferredSelectionReady = true,
 }: UseModelsOptions): UseModelsResult {
   const [rawModels, setRawModels] = useState<ModelOption[]>([]);
-  const [models, setModels] = useState<ModelOption[]>([]);
   const [configModel, setConfigModel] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelIdState] = useState<string | null>(null);
   const [selectedEffort, setSelectedEffortState] = useState<string | null>(null);
@@ -176,15 +176,14 @@ export function useModels({
   const isConnected = Boolean(activeWorkspace?.connected);
   const activeWorkspaceIdRef = useRef<string | null>(workspaceId);
   activeWorkspaceIdRef.current = workspaceId;
-
-  // Apply model mapping to raw models
-  useEffect(() => {
+  const models = useMemo(() => {
+    void modelMappingVersion;
     const mapping = getModelMapping();
     const mappedModels = rawModels.map((model) => ({
       ...model,
       displayName: applyMappingToDisplayName(model.displayName, model.id, mapping),
     }));
-    setModels(mergeCodexSelectableModels(mappedModels));
+    return mergeCodexSelectableModels(mappedModels);
   }, [rawModels, modelMappingVersion]);
 
   // Listen for localStorage changes (cross-tab sync + custom events)
@@ -528,6 +527,7 @@ export function useModels({
 
   return {
     models,
+    modelsReady: modelsLoadedForWorkspace,
     selectedModel,
     reasoningSupported,
     selectedModelId,

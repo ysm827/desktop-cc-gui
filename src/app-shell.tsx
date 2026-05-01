@@ -556,6 +556,7 @@ export function AppShell() {
   } = useGitRepoScan(activeWorkspace);
   const {
     models,
+    modelsReady,
     selectedModelId,
     setSelectedModelId,
     selectedEffort,
@@ -1087,6 +1088,35 @@ export function AppShell() {
   const effectiveSelectedModel = useMemo(() => {
     return effectiveModels.find((model) => model.id === effectiveSelectedModelId) ?? null;
   }, [effectiveModels, effectiveSelectedModelId]);
+  const persistedGlobalComposerModelId = useMemo(() => {
+    return getEffectiveSelectedModelId({
+      activeEngine: "codex",
+      selectedModelId,
+      activeThreadSelectedModelId: null,
+      hasActiveThread: false,
+      codexModels: models,
+      engineModelsAsOptions: [],
+      engineSelectedModelIdByType: {},
+      defaultClaudeModelId: DEFAULT_CLAUDE_MODEL_ID,
+    });
+  }, [models, selectedModelId]);
+  const persistedGlobalComposerModel = useMemo(() => {
+    return (
+      models.find((model) => model.id === persistedGlobalComposerModelId) ?? null
+    );
+  }, [models, persistedGlobalComposerModelId]);
+  const persistedGlobalComposerReasoningOptions = useMemo(() => {
+    return getReasoningOptionsForModel(persistedGlobalComposerModel);
+  }, [persistedGlobalComposerModel]);
+  const persistedGlobalComposerEffort = useMemo(() => {
+    return getEffectiveSelectedEffort({
+      activeEngine: "codex",
+      hasActiveThread: false,
+      selectedEffort,
+      activeThreadSelection: null,
+      reasoningOptions: persistedGlobalComposerReasoningOptions,
+    });
+  }, [persistedGlobalComposerReasoningOptions, selectedEffort]);
   const effectiveReasoningOptions = useMemo(() => {
     return getReasoningOptionsForModel(effectiveSelectedModel);
   }, [effectiveSelectedModel]);
@@ -1115,27 +1145,48 @@ export function AppShell() {
       if (id === null) {
         return;
       }
+      const nextSelectedModel =
+        effectiveModels.find((model) => model.id === id) ?? null;
+      if (!nextSelectedModel) {
+        return;
+      }
+      const nextSelectedEffort =
+        activeEngine === "codex"
+          ? getEffectiveSelectedEffort({
+              activeEngine: "codex",
+              hasActiveThread: hasActiveComposerThread,
+              selectedEffort: effectiveSelectedEffort,
+              activeThreadSelection: hasActiveComposerThread
+                ? {
+                    modelId: nextSelectedModel.id,
+                    effort: effectiveSelectedEffort,
+                  }
+                : null,
+              reasoningOptions: getReasoningOptionsForModel(nextSelectedModel),
+            })
+          : effectiveSelectedEffort;
       if (import.meta.env.DEV) {
         console.info("[model/select]", {
           activeEngine,
-          selectedModelId: id,
+          selectedModelId: nextSelectedModel.id,
         });
       }
       if (activeEngine === "codex" && !hasActiveComposerThread) {
-        setSelectedModelId(id);
+        setSelectedModelId(nextSelectedModel.id);
       } else if (activeEngine !== "codex") {
         setEngineSelectedModelIdByType((prev) => ({
           ...prev,
-          [activeEngine]: id,
+          [activeEngine]: nextSelectedModel.id,
         }));
       }
       handleSelectComposerSelection({
-        modelId: id,
-        effort: effectiveSelectedEffort,
+        modelId: nextSelectedModel.id,
+        effort: nextSelectedEffort,
       });
     },
     [
       activeEngine,
+      effectiveModels,
       effectiveSelectedEffort,
       handleSelectComposerSelection,
       hasActiveComposerThread,
@@ -1144,17 +1195,33 @@ export function AppShell() {
   );
   const handleSelectComposerEffort = useCallback(
     (effort: string | null) => {
+      const nextEffort =
+        activeEngine === "codex"
+          ? getEffectiveSelectedEffort({
+              activeEngine: "codex",
+              hasActiveThread: hasActiveComposerThread,
+              selectedEffort: effort,
+              activeThreadSelection: hasActiveComposerThread
+                ? {
+                    modelId: effectiveSelectedModelId,
+                    effort,
+                  }
+                : null,
+              reasoningOptions: effectiveReasoningOptions,
+            })
+          : effort;
       if (!(activeEngine === "codex" && hasActiveComposerThread)) {
-        setSelectedEffort(effort);
+        setSelectedEffort(nextEffort);
       }
       handleSelectComposerSelection({
         modelId: effectiveSelectedModelId,
-        effort,
+        effort: nextEffort,
       });
     },
     [
       activeEngine,
       effectiveSelectedModelId,
+      effectiveReasoningOptions,
       handleSelectComposerSelection,
       hasActiveComposerThread,
       setSelectedEffort,
@@ -1172,12 +1239,43 @@ export function AppShell() {
     effort: resolvedEffort,
     collaborationMode: collaborationModePayload,
   };
+  useEffect(() => {
+    if (
+      activeEngine !== "codex" ||
+      !activeThreadId ||
+      !selectedComposerSelection ||
+      !modelsReady
+    ) {
+      return;
+    }
+    const needsModelRepair =
+      selectedComposerSelection.modelId !== null &&
+      selectedComposerSelection.modelId !== effectiveSelectedModelId;
+    const needsEffortRepair =
+      selectedComposerSelection.effort !== effectiveSelectedEffort;
+    if (!needsModelRepair && !needsEffortRepair) {
+      return;
+    }
+    persistComposerSelectionForThread(activeWorkspaceId, activeThreadId, {
+      modelId: effectiveSelectedModelId,
+      effort: effectiveSelectedEffort,
+    });
+  }, [
+    activeEngine,
+    activeThreadId,
+    activeWorkspaceId,
+    effectiveSelectedEffort,
+    effectiveSelectedModelId,
+    modelsReady,
+    persistComposerSelectionForThread,
+    selectedComposerSelection,
+  ]);
   usePersistComposerSettings({
     enabled: !hasActiveComposerThread,
     appSettingsLoading,
     selectionReady: globalSelectionReady,
-    selectedModelId,
-    selectedEffort,
+    selectedModelId: persistedGlobalComposerModelId,
+    selectedEffort: persistedGlobalComposerEffort,
     setAppSettings,
     queueSaveSettings,
   });

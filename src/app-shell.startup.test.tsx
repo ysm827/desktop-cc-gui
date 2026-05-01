@@ -47,7 +47,7 @@ const startupState = vi.hoisted(() => {
     workspace,
     codexModels,
     activeEngine: "codex" as const,
-    activeThreadId: "thread-1" as string | null,
+    activeThreadId: "codex:thread-1" as string | null,
     canonicalThreadId: null as string | null,
     configModel: "gpt-5.5",
     appSettingsLoading: false,
@@ -81,6 +81,7 @@ const startupState = vi.hoisted(() => {
       selectedOpenAppId: null,
     },
     renderCtx: null as Record<string, unknown> | null,
+    selectedComposerSelection: null as { modelId: string | null; effort: string | null } | null,
     clientStore: {
       app: {} as Record<string, unknown>,
       composer: {} as Record<string, unknown>,
@@ -117,6 +118,62 @@ function createThreadStatus(threadId: string | null) {
   };
 }
 
+function normalizeThreadComposerSelection(
+  value: unknown,
+): { modelId: string | null; effort: string | null } | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const modelId =
+    typeof record.modelId === "string" && record.modelId.trim().length > 0
+      ? record.modelId.trim()
+      : null;
+  const effort =
+    typeof record.effort === "string" && record.effort.trim().length > 0
+      ? record.effort.trim()
+      : null;
+  if (!modelId && !effort) {
+    return null;
+  }
+  return { modelId, effort };
+}
+
+function resolveStartupThreadComposerSelection(
+  workspaceId: string | null,
+  threadId: string | null,
+  resolveCanonicalThreadId: (threadId: string) => string,
+) {
+  if (!threadId) {
+    return null;
+  }
+  const directKey = getThreadComposerSelectionStorageKey(workspaceId, threadId);
+  const directSelection = normalizeThreadComposerSelection(
+    startupState.clientStore.composer[directKey],
+  );
+  if (directSelection) {
+    return directSelection;
+  }
+  const canonicalThreadId = resolveCanonicalThreadId(threadId);
+  const prefix = `selectedModelByThread.${workspaceId ?? "__workspace__unknown__"}:`;
+  for (const [key, rawValue] of Object.entries(startupState.clientStore.composer)) {
+    if (!key.startsWith(prefix)) {
+      continue;
+    }
+    const candidateThreadId = key.slice(prefix.length);
+    if (resolveCanonicalThreadId(candidateThreadId) !== canonicalThreadId) {
+      continue;
+    }
+    const migratedSelection = normalizeThreadComposerSelection(rawValue);
+    if (!migratedSelection) {
+      continue;
+    }
+    startupState.clientStore.composer[directKey] = migratedSelection;
+    return migratedSelection;
+  }
+  return null;
+}
+
 vi.mock("./services/clientStorage", () => ({
   getClientStoreSync: vi.fn((store: keyof typeof startupState.clientStore, key: string) => {
     return startupState.clientStore[store]?.[key];
@@ -126,6 +183,55 @@ vi.mock("./services/clientStorage", () => ({
       startupState.clientStore[store][key] = value;
     },
   ),
+}));
+
+vi.mock("./app-shell-parts/useSelectedComposerSession", () => ({
+  useSelectedComposerSession: ({
+    activeThreadId,
+    activeWorkspaceId,
+    resolveCanonicalThreadId,
+  }: {
+    activeThreadId: string | null;
+    activeWorkspaceId: string | null;
+    resolveCanonicalThreadId: (threadId: string) => string;
+  }) => {
+    const persistComposerSelectionForThread = (
+      workspaceId: string | null,
+      threadId: string | null,
+      selection: unknown,
+    ) => {
+      if (!threadId) {
+        return;
+      }
+      const sessionKey = getThreadComposerSelectionStorageKey(workspaceId, threadId);
+      startupState.clientStore.composer[sessionKey] =
+        normalizeThreadComposerSelection(selection);
+    };
+    const resolveComposerSelectionForThread = (
+      workspaceId: string | null,
+      threadId: string | null,
+    ) =>
+      resolveStartupThreadComposerSelection(
+        workspaceId,
+        threadId,
+        resolveCanonicalThreadId,
+      );
+    const selectedComposerSelection = resolveComposerSelectionForThread(
+      activeWorkspaceId,
+      activeThreadId,
+    );
+    startupState.selectedComposerSelection = selectedComposerSelection;
+    return {
+      selectedComposerSelection,
+      selectedComposerSelectionRef: { current: selectedComposerSelection },
+      handleSelectComposerSelection: (selection: unknown) => {
+        persistComposerSelectionForThread(activeWorkspaceId, activeThreadId, selection);
+      },
+      persistComposerSelectionForThread,
+      reloadSelectedComposerSelection: vi.fn(),
+      resolveComposerSelectionForThread,
+    };
+  },
 }));
 
 vi.mock("./services/tauri", () => ({
@@ -1070,11 +1176,20 @@ vi.mock("./app-shell-parts/useAppShellLayoutNodesSection", () => ({
 vi.mock("./app-shell-parts/renderAppShell", () => ({
   renderAppShell: (ctx: Record<string, unknown>) => {
     startupState.renderCtx = ctx;
+    const threadSelection =
+      typeof ctx.resolveComposerSelectionForThread === "function"
+        ? ctx.resolveComposerSelectionForThread(
+            startupState.workspace.id,
+            startupState.activeThreadId,
+          )
+        : null;
     return (
       <div
         data-testid="app-shell-sentinel"
         data-model={String(ctx.effectiveSelectedModelId ?? "")}
         data-effort={String(ctx.resolvedEffort ?? "")}
+        data-thread-model={String(threadSelection?.modelId ?? "")}
+        data-thread-effort={String(threadSelection?.effort ?? "")}
       />
     );
   },
@@ -1086,7 +1201,7 @@ describe("AppShell startup", () => {
 
   beforeEach(() => {
     startupState.activeEngine = "codex";
-    startupState.activeThreadId = "thread-1";
+    startupState.activeThreadId = "codex:thread-1";
     startupState.canonicalThreadId = null;
     startupState.configModel = "gpt-5.5";
     startupState.appSettingsLoading = false;
@@ -1116,7 +1231,7 @@ describe("AppShell startup", () => {
   it("mounts with a stored thread-scoped codex composer selection without entering an update loop", async () => {
     const sessionKey = getThreadComposerSelectionStorageKey(
       startupState.workspace.id,
-      "thread-1",
+      "codex:thread-1",
     );
     startupState.clientStore.composer[sessionKey] = {
       modelId: "codex-alt",
@@ -1174,6 +1289,27 @@ describe("AppShell startup", () => {
     expect(startupState.queueSaveSettings).not.toHaveBeenCalled();
   });
 
+  it("persists the effective global composer defaults instead of clearing them during a cold start", async () => {
+    startupState.activeThreadId = null;
+    startupState.appSettings.lastComposerModelId = "missing-model";
+    startupState.appSettings.lastComposerReasoningEffort = "ultra";
+
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      const sentinel = view.getByTestId("app-shell-sentinel");
+      expect(sentinel.getAttribute("data-model")).toBe("gpt-5.5");
+      expect(sentinel.getAttribute("data-effort")).toBe("medium");
+    });
+
+    expect(startupState.queueSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastComposerModelId: "gpt-5.5",
+        lastComposerReasoningEffort: "medium",
+      }),
+    );
+  });
+
   it("keeps the thread selection stable when a pending codex thread finalizes", async () => {
     startupState.activeThreadId = "codex-pending-1";
     startupState.canonicalThreadId = "codex:session-1";
@@ -1206,5 +1342,31 @@ describe("AppShell startup", () => {
       expect.stringContaining("Maximum update depth exceeded"),
     );
     expect(startupState.renderCtx?.effectiveSelectedModelId).toBe("codex-alt");
+  });
+
+  it("repairs an invalid stored thread composer selection to the effective model and effort", async () => {
+    const sessionKey = getThreadComposerSelectionStorageKey(
+      startupState.workspace.id,
+      "codex:thread-1",
+    );
+    startupState.clientStore.composer[sessionKey] = {
+      modelId: "missing-model",
+      effort: "ultra",
+    };
+
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      const sentinel = view.getByTestId("app-shell-sentinel");
+      expect(sentinel.getAttribute("data-model")).toBe("gpt-5.5");
+      expect(sentinel.getAttribute("data-effort")).toBe("medium");
+    });
+
+    await waitFor(() => {
+      expect(startupState.clientStore.composer[sessionKey]).toEqual({
+        modelId: "gpt-5.5",
+        effort: "medium",
+      });
+    });
   });
 });

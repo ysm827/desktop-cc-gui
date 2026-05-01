@@ -126,7 +126,7 @@ export function getEffectiveSelectedEffort({
       normalizedReasoningOptions.length > 0 &&
       !normalizedReasoningOptions.includes(trimmed)
     ) {
-      return null;
+      return normalizedReasoningOptions[0] ?? null;
     }
     return trimmed;
   };

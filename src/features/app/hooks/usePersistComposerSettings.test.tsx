@@ -107,4 +107,33 @@ describe("usePersistComposerSettings", () => {
       expect(queueSaveSettings).not.toHaveBeenCalled();
     });
   });
+
+  it("persists corrected effective defaults when the raw startup selection is invalid", async () => {
+    const queueSaveSettings = vi.fn(async (next: AppSettings) => next);
+    const setAppSettings = vi.fn((updater: (current: AppSettings) => AppSettings) =>
+      updater({
+        lastComposerModelId: "missing-model",
+        lastComposerReasoningEffort: "ultra",
+      } as AppSettings),
+    );
+
+    renderHook(() =>
+      usePersistComposerSettings({
+        enabled: true,
+        appSettingsLoading: false,
+        selectionReady: true,
+        selectedModelId: "gpt-5.5",
+        selectedEffort: "medium",
+        setAppSettings,
+        queueSaveSettings,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(queueSaveSettings).toHaveBeenCalledWith({
+        lastComposerModelId: "gpt-5.5",
+        lastComposerReasoningEffort: "medium",
+      });
+    });
+  });
 });
