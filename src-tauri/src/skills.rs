@@ -21,6 +21,7 @@ const SKILL_SOURCE_PROJECT_CODEX: &str = "project_codex";
 const SKILL_SOURCE_PROJECT_AGENTS: &str = "project_agents";
 const SKILL_SOURCE_PROJECT_GEMINI: &str = "project_gemini";
 const SKILL_SOURCE_GLOBAL_CLAUDE: &str = "global_claude";
+const SKILL_SOURCE_GLOBAL_CLAUDE_PLUGIN: &str = "global_claude_plugin";
 const SKILL_SOURCE_GLOBAL_CODEX: &str = "global_codex";
 const SKILL_SOURCE_GLOBAL_AGENTS: &str = "global_agents";
 const SKILL_SOURCE_GLOBAL_GEMINI: &str = "global_gemini";
@@ -115,6 +116,52 @@ fn default_claude_skills_dir() -> Option<PathBuf> {
     resolve_default_claude_home().map(|home| home.join("skills"))
 }
 
+fn claude_plugin_skills_roots_from_home(home: &Path) -> Vec<PathBuf> {
+    let cache = home.join("plugins").join("cache");
+    let Ok(owner_entries) = fs::read_dir(&cache) else {
+        return Vec::new();
+    };
+
+    let mut roots = Vec::new();
+    for owner_entry in owner_entries.flatten() {
+        let owner_path = owner_entry.path();
+        let Ok(owner_metadata) = fs::symlink_metadata(&owner_path) else {
+            continue;
+        };
+        if owner_metadata.file_type().is_symlink() || !owner_metadata.is_dir() {
+            continue;
+        }
+
+        let Ok(plugin_entries) = fs::read_dir(&owner_path) else {
+            continue;
+        };
+        for plugin_entry in plugin_entries.flatten() {
+            let plugin_path = plugin_entry.path();
+            let Ok(plugin_metadata) = fs::symlink_metadata(&plugin_path) else {
+                continue;
+            };
+            if plugin_metadata.file_type().is_symlink() || !plugin_metadata.is_dir() {
+                continue;
+            }
+
+            let skills_dir = plugin_path.join("skills");
+            if skills_dir.is_dir() {
+                roots.push(skills_dir);
+            }
+        }
+    }
+
+    roots.sort();
+    roots.dedup();
+    roots
+}
+
+fn default_claude_plugin_skills_roots() -> Vec<PathBuf> {
+    resolve_default_claude_home()
+        .map(|home| claude_plugin_skills_roots_from_home(&home))
+        .unwrap_or_default()
+}
+
 fn resolve_default_agents_home() -> Option<PathBuf> {
     if let Ok(value) = env::var("AGENTS_HOME") {
         if let Some(path) = normalize_home_path(&value) {
@@ -168,6 +215,7 @@ fn normalize_skill_name(name: &str) -> String {
 
 fn is_global_source(source: &str) -> bool {
     source == SKILL_SOURCE_GLOBAL_CLAUDE
+        || source == SKILL_SOURCE_GLOBAL_CLAUDE_PLUGIN
         || source == SKILL_SOURCE_GLOBAL_CODEX
         || source == SKILL_SOURCE_GLOBAL_AGENTS
         || source == SKILL_SOURCE_GLOBAL_GEMINI
@@ -379,7 +427,7 @@ fn merge_skills_by_priority(sources: Vec<Vec<SkillEntry>>) -> Vec<SkillEntry> {
 /// Scan local skills directories for a specific workspace.
 /// Priority order:
 /// workspace-managed > project .claude > project .codex > project .agents >
-/// global .claude > global .codex > global .agents.
+/// global .claude > global Claude plugins > global .codex > global .agents.
 pub(crate) async fn skills_list_local_for_workspace(
     state: &AppState,
     workspace_id: &str,
@@ -391,6 +439,7 @@ pub(crate) async fn skills_list_local_for_workspace(
         project_agents_dir,
         project_gemini_dir,
         claude_global_dir,
+        claude_plugin_global_dirs,
         codex_global_dir,
         agents_global_dir,
         gemini_global_dir,
@@ -406,6 +455,7 @@ pub(crate) async fn skills_list_local_for_workspace(
         let project_gemini_dir = PathBuf::from(&entry.path).join(".gemini").join("skills");
         let codex_dir = default_skills_dir_for_workspace(&workspaces, entry);
         let claude_dir = default_claude_skills_dir();
+        let claude_plugin_dirs = default_claude_plugin_skills_roots();
         let agents_dir = default_agents_skills_dir();
         let gemini_dir = default_gemini_skills_dir();
         (
@@ -415,6 +465,7 @@ pub(crate) async fn skills_list_local_for_workspace(
             Some(project_agents_dir),
             Some(project_gemini_dir),
             claude_dir,
+            claude_plugin_dirs,
             codex_dir,
             agents_dir,
             gemini_dir,
@@ -463,6 +514,11 @@ pub(crate) async fn skills_list_local_for_workspace(
             None => Vec::new(),
         };
 
+        let claude_plugin_skills = claude_plugin_global_dirs
+            .iter()
+            .flat_map(|dir| safe_discover(dir, SKILL_SOURCE_GLOBAL_CLAUDE_PLUGIN))
+            .collect::<Vec<_>>();
+
         let codex_skills = match &codex_global_dir {
             Some(dir) => safe_discover(dir, SKILL_SOURCE_GLOBAL_CODEX),
             None => Vec::new(),
@@ -484,6 +540,7 @@ pub(crate) async fn skills_list_local_for_workspace(
             project_agents_skills,
             project_gemini_skills,
             claude_skills,
+            claude_plugin_skills,
             codex_skills,
             agents_skills,
             gemini_skills,
@@ -557,6 +614,12 @@ mod tests {
             source: SKILL_SOURCE_GLOBAL_CLAUDE.to_string(),
             description: None,
         };
+        let claude_plugin_skill = SkillEntry {
+            name: "shared".to_string(),
+            path: "/home/.claude/plugins/cache/owner/plugin/skills/shared/SKILL.md".to_string(),
+            source: SKILL_SOURCE_GLOBAL_CLAUDE_PLUGIN.to_string(),
+            description: None,
+        };
         let codex_skill = SkillEntry {
             name: "shared".to_string(),
             path: "/home/.codex/skills/shared.md".to_string(),
@@ -574,11 +637,12 @@ mod tests {
             vec![workspace_skill.clone()],
             vec![project_claude_skill],
             vec![claude_skill],
+            vec![claude_plugin_skill],
             vec![codex_skill],
             vec![agents_skill],
         ]);
 
-        assert_eq!(merged.len(), 4);
+        assert_eq!(merged.len(), 5);
         assert!(merged.iter().any(|entry| {
             entry.name == "shared"
                 && entry.path == workspace_skill.path
@@ -588,6 +652,11 @@ mod tests {
             entry.name == "shared"
                 && entry.source == SKILL_SOURCE_GLOBAL_CLAUDE
                 && entry.path == "/home/.claude/skills/shared.md"
+        }));
+        assert!(merged.iter().any(|entry| {
+            entry.name == "shared"
+                && entry.source == SKILL_SOURCE_GLOBAL_CLAUDE_PLUGIN
+                && entry.path == "/home/.claude/plugins/cache/owner/plugin/skills/shared/SKILL.md"
         }));
         assert!(merged.iter().any(|entry| {
             entry.name == "shared"
@@ -623,5 +692,37 @@ mod tests {
         assert_eq!(entries[0].description.as_deref(), Some("project skill"));
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn claude_plugin_roots_discover_two_level_cache_skills_dirs() {
+        let home = new_temp_dir("claude-plugin-roots");
+        let first_skills = home
+            .join("plugins")
+            .join("cache")
+            .join("claude-plugins-official")
+            .join("superpowers")
+            .join("skills");
+        let second_skills = home
+            .join("plugins")
+            .join("cache")
+            .join("owner__repo")
+            .join("plugin-name")
+            .join("skills");
+        let non_skill_plugin = home
+            .join("plugins")
+            .join("cache")
+            .join("owner__repo")
+            .join("no-skills");
+
+        fs::create_dir_all(&first_skills).expect("create first plugin skills");
+        fs::create_dir_all(&second_skills).expect("create second plugin skills");
+        fs::create_dir_all(&non_skill_plugin).expect("create non-skill plugin");
+
+        let roots = claude_plugin_skills_roots_from_home(&home);
+
+        assert_eq!(roots, vec![first_skills, second_skills]);
+
+        let _ = fs::remove_dir_all(home);
     }
 }
