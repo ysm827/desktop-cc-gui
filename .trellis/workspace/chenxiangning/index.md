@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 254
+- **Total Sessions**: 258
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~1041 | Active |
+| `journal-8.md` | ~1193 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,10 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 258 | 2026-05-01 | 补充终端 Shell 示例文案 | `5227e431` | `feature/fix-0.4.12` |
+| 257 | 2026-05-01 | Review 合并 PR 边界修复 | `851c1055` | `feature/fix-0.4.12` |
+| 256 | 2026-05-01 | 合并 PR 481 AskUserQuestion 超时结算 | `2d6931ecf25bd6a242940d1a5d3da99eba171f69` | `feature/fix-0.4.12` |
+| 255 | 2026-05-01 | 合并 PR 478 与 PR 479 到 0.4.12 分支 | `013d9b6dce95002c8925d5805289d43643968c53` | `feature/fix-0.4.12` |
 | 254 | 2026-05-01 | 修复完成邮件触发身份归一化 | `c5d725edd746561202b505a6c8f1cc93a332da19` | `feature/fix-0.4.12` |
 | 253 | 2026-05-01 | 收口 composer 启动选择恢复边界与历史兼容 | `6125bbac` | `feature/fix-0.4.12` |
 | 252 | 2026-05-01 | 清理 branding 遗留并恢复 doctor 严格门禁 | `c54d1610` | `feature/fix-0.4.12` |

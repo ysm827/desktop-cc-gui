@@ -1039,3 +1039,155 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 255: 合并 PR 478 与 PR 479 到 0.4.12 分支
+
+**Date**: 2026-05-01
+**Task**: 合并 PR 478 与 PR 479 到 0.4.12 分支
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 upstream PR #478 和 PR #479 本机合并到当前 feature/fix-0.4.12 分支，绕过 GitHub 网页因 Trellis workspace add/add 冲突无法合并的问题。
+主要改动：按顺序合并 #478 configurable terminal shell 与 #479 Claude model refresh stale mapping；手工语义合并 .trellis/workspace/watsonk1998/index.md 和 journal-1.md，保留 #476/#478/#479 三条 session 记录；生成两个 merge commit f0a41c99 和 013d9b6d。
+涉及模块：settings terminal shell 配置链路；terminal runtime shell resolution；composer ModelSelect label refresh；OpenSpec/Trellis change artifacts；watsonk1998 workspace session metadata。
+验证结果：npm exec vitest -- run src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx src/features/composer/components/ChatInputBox/selectors/ModelSelect.test.tsx 通过，60 tests passed；npm run typecheck 通过；cargo test --manifest-path src-tauri/Cargo.toml 通过；git diff --check 通过；最终无冲突标记残留。
+后续事项：需要推送 feature/fix-0.4.12 到远端；如发布前要求，可再跑 npm run lint / npm run test 全量前端门禁。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `013d9b6dce95002c8925d5805289d43643968c53` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 256: 合并 PR 481 AskUserQuestion 超时结算
+
+**Date**: 2026-05-01
+**Task**: 合并 PR 481 AskUserQuestion 超时结算
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：评审并合并 upstream PR #481 到当前 feature/fix-0.4.12 分支，修复 Claude AskUserQuestion 后端 timeout 后前端 cancel/timeout response 导致 pending dialog 残留的问题。
+主要改动：合并 #481 的 useThreadUserInput stale settlement classifier；处理 .trellis/workspace/watsonk1998/index.md 与 journal-1.md add/add 冲突，将 #481 追加为 Session 4，保留 #476/#478/#479/#481 四条迁移记录；生成 merge commit 2d6931ec。
+涉及模块：src/features/threads/hooks/useThreadUserInput.ts；src/features/threads/hooks/useThreadUserInput.test.tsx；openspec/changes/fix-ask-user-question-timeout-settlement；.trellis/tasks/05-01-fix-ask-user-question-timeout-settlement；watsonk1998 workspace session metadata。
+验证结果：npm exec vitest -- run src/features/threads/hooks/useThreadUserInput.test.tsx 通过，4 tests passed；npm run typecheck 通过；git diff --check 通过；最终无冲突标记残留。
+后续事项：需要推送 feature/fix-0.4.12 到远端；如发版前要求，可再跑 npm run lint / npm run test 全量前端门禁。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2d6931ecf25bd6a242940d1a5d3da99eba171f69` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 257: Review 合并 PR 边界修复
+
+**Date**: 2026-05-01
+**Task**: Review 合并 PR 边界修复
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：对已合入的 PR #476/#478/#479/#481 做兜底 review，重点检查边界条件、大文件治理、heavy-test-noise 门禁、Windows/macOS 兼容性，并修复发现的问题。
+主要改动：补强 AskUserQuestion stale response 空/异常 shape 判定，避免 malformed legacy response 触发前端 TypeError；补强 Claude plugin skill discovery 的 symlink 边界，确保 cache/skills 目录发现与后续跳过 symlink 的安全策略一致。
+涉及模块：src/features/threads/hooks/useThreadUserInput.ts；src/features/threads/hooks/useThreadUserInput.test.tsx；src-tauri/src/skills.rs。
+验证结果：npm exec vitest -- run src/features/threads/hooks/useThreadUserInput.test.tsx src/features/composer/components/ChatInputBox/selectors/ModelSelect.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx 通过；cargo test --manifest-path src-tauri/Cargo.toml skills:: 通过；node --test scripts/check-heavy-test-noise.test.mjs 通过；npm run typecheck 通过；npm run check:large-files:near-threshold 通过且仅保留既有 watch 告警；npm run check:large-files:gate 通过；npm run check:heavy-test-noise 完整批跑 403 个 test files 通过；git diff --check 通过。
+后续事项：SettingsView.tsx 仍处于 large-file watch 区间，后续如果继续修改 settings 视图，应优先按模块拆分，避免接近 fail 阈值。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `851c1055` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 258: 补充终端 Shell 示例文案
+
+**Date**: 2026-05-01
+**Task**: 补充终端 Shell 示例文案
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复设置页终端 Shell 配置文案，明确 Windows/macOS 使用示例，并修复保存按钮暴露 i18n key 的问题。
+主要改动：将终端 Shell 保存按钮从通用 settings.save 改为 settings.terminalShellPathSave；扩展中英文 terminalShellPathHint，分别提供 Windows PowerShell 路径示例和 macOS shell 路径示例；同步测试 i18n mock。
+涉及模块：src/features/settings/components/SettingsView.tsx；src/i18n/locales/zh.part1.ts；src/i18n/locales/en.part1.ts；src/test/vitest.setup.ts。
+验证结果：npm exec vitest -- run src/features/settings/components/SettingsView.test.tsx src/features/settings/hooks/useAppSettings.test.ts 通过；npm run typecheck 通过；npm run check:large-files:gate 通过；git diff --check 通过。
+后续事项：无。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5227e431` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
