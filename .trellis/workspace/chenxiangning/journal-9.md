@@ -598,3 +598,56 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 286: 恢复 useThreads 集成测试
+
+**Date**: 2026-05-03
+**Task**: 恢复 useThreads 集成测试
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 单独提交 useThreads integration test 文件，修复 heavy-test-noise 中的 skipped 噪声并恢复该测试套件可运行性。
+
+主要改动
+- 去掉 src/features/threads/hooks/useThreads.integration.test.tsx 的 describe.skip。
+- 将 pending interrupt 测试断言对齐到当前 cli-managed interrupt contract。
+- 为 plan 相关事件测试补齐 async act 包装，消除 React test 告警噪声。
+- 调整线程排序/pin 场景的构造方式，避免依赖不稳定的外部 listThreads 链路。
+- 补齐 setThreadTitle / engineInterruptTurn 等测试 mock 契约。
+
+涉及模块
+- src/features/threads/hooks/useThreads.integration.test.tsx
+
+验证结果
+- 已执行：pnpm vitest run src/features/threads/hooks/useThreads.integration.test.tsx
+- 结果：12 tests passed。
+- 用户补跑日志确认：heavy-test-noise 中 410 test files 全部 passed，未再出现 skipped 噪声。
+
+后续事项
+- 如需完整质量门禁，可继续单独跑 lint/typecheck/doctor 系列命令。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ee709bef` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
