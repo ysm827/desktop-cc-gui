@@ -496,3 +496,53 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 284: 修复 Codex 压缩历史消息保留
+
+**Date**: 2026-05-02
+**Task**: 修复 Codex 压缩历史消息保留
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复 CI 中 useThreadsReducer.compaction.test.ts 断言失败，恢复 Codex compaction lifecycle 对历史消息的保留语义。
+
+主要改动：
+- 调整 src/features/threads/hooks/useThreadsReducer.ts 的 appendCodexCompactionMessage 分支。
+- 移除追加新 Codex compaction trigger 前对同 thread 历史 compaction message 的全量 filter。
+- 保留相邻重复 started message 的 no-op 去重行为，避免重复刷屏。
+
+涉及模块：
+- frontend threads reducer
+- Codex compaction lifecycle message rendering state
+
+验证结果：
+- 已通过 npx vitest run src/features/threads/hooks/useThreadsReducer.compaction.test.ts
+- 曾误触发 npm run test -- src/features/threads/hooks/useThreadsReducer.compaction.test.ts 的 batched runner，已停止；停止前已通过前 34 批左右，无失败输出。
+
+后续事项：
+- 如 CI 仍失败，再检查 prepareThreadItems 或 thread item merge 是否存在跨消息去重策略。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0e62dda0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
