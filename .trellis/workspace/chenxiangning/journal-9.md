@@ -755,3 +755,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 289: Context Ledger 阶段一二交付
+
+**Date**: 2026-05-03
+**Task**: Context Ledger 阶段一二交付
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+完成 Context Ledger Phase 1/2 的入口、治理动作与 backend attribution 收口
+
+### Main Changes
+
+## 任务目标
+- 完成 Context Ledger Phase 1/2 的首轮交付，让用户在 Composer 附近看到真实的上下文来源账本。
+- 保持现有发送协议不变，只增加解释与下一轮治理能力。
+
+## 主要改动
+- 新增 `src/features/context-ledger/**`，定义 projection、types、panel 组件与 focused tests。
+- 在 `Composer.tsx` 接入 composer-adjacent ledger surface，并与现有 memory / note / file / helper 上下文栈统一展示。
+- 新增 `Keep for next send`、`Exclude from next send`、`Open source detail` 三类最小治理动作。
+- 把 helper / skill / command source 归因为 `workspace_context`、`engine_injected`、`system_injected`、`degraded`，并展示 backend source 与 source path。
+- 补齐 OpenSpec tasks/spec 与中英文 i18n 文案。
+
+## 涉及模块
+- `src/features/composer/**`
+- `src/features/context-ledger/**`
+- `src/features/skills/utils/managedInstructionSource.ts`
+- `src/features/project-memory/**`
+- `src/features/note-cards/**`
+- `openspec/changes/add-context-ledger/**`
+
+## 验证结果
+- `openspec validate --all --strict --no-interactive` 通过。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `npm run check:large-files` 通过。
+- Focused vitest：`ContextLedgerPanel`、`contextLedgerProjection`、`Composer.context-ledger-governance`、`Composer.context-source-grouping` 全通过。
+
+## 后续事项
+- 下一阶段进入 Context Ledger 阶段 3，优先做发送前后与 compaction 前后的账本变化 diff。
+- 在阶段 3 中继续补强 compaction explainability、来源跳转闭环与跨轮保留策略可视化。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `537b3c2f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
