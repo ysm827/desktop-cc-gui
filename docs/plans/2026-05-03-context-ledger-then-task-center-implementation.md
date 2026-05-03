@@ -9,16 +9,16 @@
 **Tech Stack:** React 19, TypeScript strict, existing `clientStorage` persistence, Composer / thread reducer state, Kanban local store, Workspace Session projection services, Vitest, Tauri 2 desktop bridge
 
 **Execution Tasks:**
-- Trellis task: [05-03-context-ledger-phase1 PRD](../../.trellis/tasks/05-03-context-ledger-phase1/prd.md)
-- Trellis task: [05-03-task-center-phase1 PRD](../../.trellis/tasks/05-03-task-center-phase1/prd.md)
+- Completed dependency: Context Ledger changes are archived under `openspec/changes/archive/2026-05-03-*` and main specs now contain `context-ledger-*`.
+- Current execution target: [05-03-task-center-phase1 PRD](../../.trellis/tasks/05-03-task-center-phase1/prd.md).
 
 ---
 
 ### Task 1: Freeze Sequence And Phase-One Defaults
 
 **Files:**
-- Reference: [add-context-ledger proposal](../../openspec/changes/add-context-ledger/proposal.md)
-- Reference: [add-context-ledger design](../../openspec/changes/add-context-ledger/design.md)
+- Reference: [add-context-ledger proposal](../../openspec/changes/archive/2026-05-03-add-context-ledger/proposal.md)
+- Reference: [add-context-ledger design](../../openspec/changes/archive/2026-05-03-add-context-ledger/design.md)
 - Reference: [add-agent-task-center proposal](../../openspec/changes/add-agent-task-center/proposal.md)
 - Reference: [add-agent-task-center design](../../openspec/changes/add-agent-task-center/design.md)
 
@@ -42,9 +42,8 @@ Defaults to honor:
 
 **Step 3: Freeze verification gates**
 
-Run after each phase:
+Run for the remaining Task Center phase:
 ```bash
-openspec validate add-context-ledger --strict --no-interactive
 openspec validate add-agent-task-center --strict --no-interactive
 npm run lint
 npm run typecheck
@@ -52,7 +51,7 @@ npm run typecheck
 
 Run additionally when touched:
 ```bash
-npm run test -- Composer.context-dual-view useThreadsReducer.compaction memoryContextInjection
+npm run test -- taskRunStorage taskRunProjection taskRunCoordinator
 npm run check:large-files
 ```
 
@@ -501,7 +500,6 @@ git commit -m "feat(task-center): 新增任务中心界面"
 
 Run:
 ```bash
-openspec validate add-context-ledger --strict --no-interactive
 openspec validate add-agent-task-center --strict --no-interactive
 npm run lint
 npm run typecheck

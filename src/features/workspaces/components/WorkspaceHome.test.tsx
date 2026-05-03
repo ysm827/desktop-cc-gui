@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import { WorkspaceHome } from "./WorkspaceHome";
+import { loadTaskRunStore } from "../../tasks/utils/taskRunStorage";
+
+vi.mock("../../tasks/utils/taskRunStorage", () => ({
+  loadTaskRunStore: vi.fn(),
+}));
+
+const mockedLoadTaskRunStore = vi.mocked(loadTaskRunStore);
 
 const baseWorkspace: WorkspaceInfo = {
   id: "workspace-1",
@@ -37,6 +44,10 @@ function renderWorkspaceHome(
 }
 
 describe("WorkspaceHome", () => {
+  beforeEach(() => {
+    mockedLoadTaskRunStore.mockReturnValue({ version: 1, runs: [] });
+  });
+
   it("renders the centered workspace summary without a last-modified row", () => {
     const { container } = renderWorkspaceHome(baseWorkspace, "feature/ref-layout");
 
@@ -83,5 +94,52 @@ describe("WorkspaceHome", () => {
 
     expect(container.querySelector(".workspace-home-branch-line")).toBeNull();
     expect(container.textContent).not.toContain("unknown");
+  });
+
+  it("renders workspace-scoped task runs from Task Center storage", () => {
+    mockedLoadTaskRunStore.mockReturnValue({
+      version: 1,
+      runs: [
+        {
+          runId: "run-1",
+          task: {
+            taskId: "task-1",
+            source: "kanban",
+            workspaceId: baseWorkspace.path,
+            title: "Ship Task Center",
+          },
+          engine: "codex",
+          status: "running",
+          trigger: "manual",
+          linkedThreadId: "thread-1",
+          currentStep: "Wiring workspace entry",
+          latestOutputSummary: "Task Center is visible",
+          artifacts: [],
+          availableRecoveryActions: ["open_conversation"],
+          updatedAt: 20,
+        },
+        {
+          runId: "run-2",
+          task: {
+            taskId: "task-2",
+            source: "kanban",
+            workspaceId: "/other",
+            title: "Other workspace",
+          },
+          engine: "codex",
+          status: "running",
+          trigger: "manual",
+          artifacts: [],
+          availableRecoveryActions: [],
+          updatedAt: 10,
+        },
+      ],
+    });
+
+    renderWorkspaceHome(baseWorkspace, "feature/ref-layout");
+
+    expect(screen.getAllByText("Ship Task Center").length).toBeGreaterThan(0);
+    expect(screen.getByText("Task Center is visible")).toBeTruthy();
+    expect(screen.queryByText("Other workspace")).toBeNull();
   });
 });

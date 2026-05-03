@@ -5,6 +5,8 @@ import type { EngineType } from "../../../types";
 import type { EngineDisplayInfo } from "../../engine/hooks/useEngineController";
 import type { ThreadDeleteErrorCode } from "../../threads/hooks/useThreads";
 import { EngineIcon } from "../../engine/components/EngineIcon";
+import { TaskCenterView } from "../../tasks/components/TaskCenterView";
+import { useTaskRunStore } from "../../tasks/hooks/useTaskRunStore";
 
 export type WorkspaceHomeThreadSummary = {
   id: string;
@@ -65,9 +67,10 @@ export function WorkspaceHome({
   workspace,
   currentBranch,
   recentThreads: _recentThreads,
-  onSelectConversation: _onSelectConversation,
+  onSelectConversation,
 }: WorkspaceHomeProps) {
   const { t } = useTranslation();
+  const taskRunStore = useTaskRunStore();
   const branchLabel = currentBranch || workspace.worktree?.branch || null;
   const branchDescriptor = workspace.kind === "worktree"
     ? t("workspace.homeBranchLabelWorktree")
@@ -104,6 +107,14 @@ export function WorkspaceHome({
               ) : null}
             </div>
           </header>
+
+          <div className="workspace-home-task-center">
+            <TaskCenterView
+              runs={taskRunStore.runs}
+              workspaceId={workspace.path}
+              onOpenConversation={(threadId) => onSelectConversation(workspace.id, threadId)}
+            />
+          </div>
         </div>
       </div>
     </section>
