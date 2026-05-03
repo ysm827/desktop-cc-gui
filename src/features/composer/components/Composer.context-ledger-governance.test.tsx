@@ -5,8 +5,17 @@ import { Composer } from "./Composer";
 
 let latestProjection: {
   visible: boolean;
-  groups: Array<{ kind: string; blocks: Array<{ id: string; sourceRef?: string | null }> }>;
+  groups: Array<{
+    kind: string;
+    blocks: Array<{
+      id: string;
+      sourceRef?: string | null;
+      participationState?: string;
+      carryOverReason?: string | null;
+    }>;
+  }>;
 } | null = null;
+let latestComparisonBasis: string | null = null;
 
 vi.mock("../../../services/dragDrop", () => ({
   subscribeWindowDragDrop: vi.fn(() => () => {}),
@@ -28,14 +37,24 @@ vi.mock("../../opencode/components/OpenCodeControlPanel", () => ({
 vi.mock("../../context-ledger/components/ContextLedgerPanel", () => ({
   ContextLedgerPanel: ({
     projection,
+    comparison,
     onTogglePinBlock,
     onExcludeBlock,
+    onClearCarryOverBlock,
+    onBatchKeepBlocks,
   }: {
     projection: typeof latestProjection;
+    comparison?: { basis: string } | null;
     onTogglePinBlock?: (block: { id: string }) => void;
     onExcludeBlock?: (block: { id: string }) => void;
+    onClearCarryOverBlock?: (block: {
+      id: string;
+      participationState?: string;
+    }) => void;
+    onBatchKeepBlocks?: (blocks: Array<{ id: string }>) => void;
   }) => {
     latestProjection = projection;
+    latestComparisonBasis = comparison?.basis ?? null;
     const manualBlock = projection?.groups
       .find((group) => group.kind === "manual_memory")
       ?.blocks[0];
@@ -43,10 +62,17 @@ vi.mock("../../context-ledger/components/ContextLedgerPanel", () => ({
     return (
       <div data-testid="context-ledger-mock">
         <div data-testid="ledger-visible">{String(projection?.visible ?? false)}</div>
+        <div data-testid="ledger-comparison-basis">{comparison?.basis ?? "none"}</div>
         <div data-testid="ledger-manual-count">
           {String(
             projection?.groups.find((group) => group.kind === "manual_memory")?.blocks.length ?? 0,
           )}
+        </div>
+        <div data-testid="ledger-manual-state">
+          {manualBlock?.participationState ?? "none"}
+        </div>
+        <div data-testid="ledger-manual-carry-reason">
+          {manualBlock?.carryOverReason ?? "none"}
         </div>
         {manualBlock && onTogglePinBlock ? (
           <button
@@ -64,6 +90,24 @@ vi.mock("../../context-ledger/components/ContextLedgerPanel", () => ({
             onClick={() => onExcludeBlock(manualBlock)}
           >
             exclude
+          </button>
+        ) : null}
+        {manualBlock && onClearCarryOverBlock ? (
+          <button
+            type="button"
+            data-testid="ledger-clear-carried-manual"
+            onClick={() => onClearCarryOverBlock(manualBlock)}
+          >
+            clear
+          </button>
+        ) : null}
+        {manualBlock && onBatchKeepBlocks ? (
+          <button
+            type="button"
+            data-testid="ledger-batch-keep-manual"
+            onClick={() => onBatchKeepBlocks([manualBlock])}
+          >
+            batch-keep
           </button>
         ) : null}
       </div>
@@ -163,6 +207,7 @@ describe("Composer context ledger governance", () => {
   afterEach(() => {
     cleanup();
     latestProjection = null;
+    latestComparisonBasis = null;
   });
 
   it("keeps a pinned manual memory for exactly one additional send", async () => {
@@ -187,6 +232,8 @@ describe("Composer context ledger governance", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("ledger-manual-count").textContent).toBe("1");
+    expect(screen.getByTestId("ledger-manual-state").textContent).toBe("carried_over");
+    expect(screen.getByTestId("ledger-manual-carry-reason").textContent).toBe("inherited_from_last_send");
 
     await act(async () => {
       fireEvent.click(screen.getByTestId("fill-text"));
@@ -197,8 +244,59 @@ describe("Composer context ledger governance", () => {
     });
 
     expect(onSend).toHaveBeenCalledTimes(2);
-    expect(screen.queryByTestId("ledger-manual-count")).toBeNull();
-    expect(view.container.querySelector(".composer-context-stack")).toBeNull();
+    expect(screen.getByTestId("ledger-manual-count").textContent).toBe("0");
+    expect(screen.getByTestId("ledger-visible").textContent).toBe("true");
+    expect(screen.getByTestId("ledger-comparison-basis").textContent).toBe("last_send");
+    expect(latestComparisonBasis).toBe("last_send");
+    expect(view.container.querySelector(".composer-context-stack")).toBeTruthy();
+  });
+
+  it("clears an inherited manual memory immediately from the current preparation state", async () => {
+    const onSend = vi.fn(() => Promise.resolve());
+    renderComposer(onSend);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("fill-text"));
+      fireEvent.click(screen.getByTestId("select-manual-memory"));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ledger-pin-manual"));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("send-message"));
+    });
+
+    expect(screen.getByTestId("ledger-manual-state").textContent).toBe("carried_over");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ledger-clear-carried-manual"));
+    });
+
+    expect(screen.getByTestId("ledger-manual-count").textContent).toBe("0");
+    expect(screen.getByTestId("ledger-comparison-basis").textContent).toBe("last_send");
+  });
+
+  it("supports batch keep for selected governable blocks", async () => {
+    const onSend = vi.fn(() => Promise.resolve());
+    renderComposer(onSend);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("fill-text"));
+      fireEvent.click(screen.getByTestId("select-manual-memory"));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ledger-batch-keep-manual"));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("send-message"));
+    });
+
+    expect(screen.getByTestId("ledger-manual-state").textContent).toBe("carried_over");
+    expect(screen.getByTestId("ledger-manual-carry-reason").textContent).toBe("inherited_from_last_send");
   });
 
   it("excludes a manual memory from the next send immediately", async () => {
@@ -224,6 +322,7 @@ describe("Composer context ledger governance", () => {
     const firstCall = onSend.mock.calls[0] as unknown[] | undefined;
     expect(firstCall?.[2]).toBeUndefined();
     expect(screen.queryByTestId("ledger-manual-count")).toBeNull();
+    expect(screen.queryByTestId("ledger-comparison-basis")).toBeNull();
     expect(view.container.querySelector(".composer-context-stack")).toBeNull();
   });
 });

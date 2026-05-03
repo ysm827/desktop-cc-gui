@@ -1,14 +1,38 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ContextLedgerBlock, ContextLedgerGroup, ContextLedgerProjection } from "../types";
+import type {
+  ContextLedgerAttributionConfidence,
+  ContextLedgerBlock,
+  ContextLedgerCarryOverReason,
+  ContextLedgerComparison,
+  ContextLedgerComparisonItemChange,
+  ContextLedgerGroup,
+  ContextLedgerProjection,
+  ContextLedgerSourceNavigationTarget,
+} from "../types";
+import {
+  canBatchClearCarryOverBlock,
+  canBatchExcludeBlock,
+  canBatchKeepBlock,
+  isBatchGovernableBlock,
+} from "../utils/contextLedgerGovernance";
 import { normalizeManagedInstructionSource } from "../../skills/utils/managedInstructionSource";
 
 type ContextLedgerPanelProps = {
   projection: ContextLedgerProjection;
+  comparison?: ContextLedgerComparison | null;
   expanded: boolean;
+  hidden?: boolean;
   onToggle: () => void;
+  onHide?: () => void;
+  onShow?: () => void;
   onExcludeBlock?: (block: ContextLedgerBlock) => void;
+  onClearCarryOverBlock?: (block: ContextLedgerBlock) => void;
+  onBatchKeepBlocks?: (blocks: ContextLedgerBlock[]) => void;
+  onBatchExcludeBlocks?: (blocks: ContextLedgerBlock[]) => void;
+  onBatchClearCarryOverBlocks?: (blocks: ContextLedgerBlock[]) => void;
   onTogglePinBlock?: (block: ContextLedgerBlock) => void;
+  onOpenBlockSource?: (target: ContextLedgerSourceNavigationTarget) => void;
 };
 
 function formatCompactCount(value: number) {
@@ -64,6 +88,8 @@ function resolveParticipationLabel(t: (key: string) => string, value: ContextLed
       return t("composer.contextLedgerParticipationSelected");
     case "pinned_next_send":
       return t("composer.contextLedgerParticipationPinnedNextSend");
+    case "carried_over":
+      return t("composer.contextLedgerParticipationCarriedOver");
     case "shared":
       return t("composer.contextLedgerParticipationShared");
     case "degraded":
@@ -79,6 +105,66 @@ function resolveFreshnessLabel(t: (key: string) => string, value: ContextLedgerB
       return t("composer.contextLedgerFreshnessPendingSync");
     case "unknown":
       return t("composer.contextLedgerFreshnessUnknown");
+  }
+}
+
+function resolveCarryOverReasonLabel(
+  t: (key: string) => string,
+  value: ContextLedgerCarryOverReason | null | undefined,
+) {
+  switch (value) {
+    case "inherited_from_last_send":
+      return t("composer.contextLedgerCarryOverReasonInherited");
+    case "will_carry_next_send":
+      return t("composer.contextLedgerCarryOverReasonWillCarry");
+    default:
+      return null;
+  }
+}
+
+function resolveCarryOverExplanation(
+  t: (key: string) => string,
+  value: ContextLedgerCarryOverReason | null | undefined,
+) {
+  switch (value) {
+    case "inherited_from_last_send":
+      return t("composer.contextLedgerCarryOverExplanationInherited");
+    case "will_carry_next_send":
+      return t("composer.contextLedgerCarryOverExplanationWillCarry");
+    default:
+      return null;
+  }
+}
+
+function resolveAttributionConfidenceLabel(
+  t: (key: string) => string,
+  value: ContextLedgerAttributionConfidence | null | undefined,
+) {
+  switch (value) {
+    case "precise":
+      return t("composer.contextLedgerAttributionConfidencePrecise");
+    case "coarse":
+      return t("composer.contextLedgerAttributionConfidenceCoarse");
+    case "degraded":
+      return t("composer.contextLedgerAttributionConfidenceDegraded");
+    default:
+      return null;
+  }
+}
+
+function resolveAttributionConfidenceExplanation(
+  t: (key: string) => string,
+  value: ContextLedgerAttributionConfidence | null | undefined,
+) {
+  switch (value) {
+    case "precise":
+      return t("composer.contextLedgerAttributionExplanationPrecise");
+    case "coarse":
+      return t("composer.contextLedgerAttributionExplanationCoarse");
+    case "degraded":
+      return t("composer.contextLedgerAttributionExplanationDegraded");
+    default:
+      return null;
   }
 }
 
@@ -142,6 +228,59 @@ function resolveEstimateLabel(t: (key: string, params?: Record<string, unknown>)
   return t("composer.contextLedgerEstimateUnknown");
 }
 
+function resolveComparisonTitle(
+  t: (key: string) => string,
+  comparison: ContextLedgerComparison,
+) {
+  return comparison.basis === "pre_compaction"
+    ? t("composer.contextLedgerComparisonPreCompaction")
+    : t("composer.contextLedgerComparisonLastSend");
+}
+
+function resolveComparisonCountLabel(
+  t: (key: string, params?: Record<string, unknown>) => string,
+  change: ContextLedgerComparisonItemChange,
+  count: number,
+) {
+  switch (change) {
+    case "added":
+      return t("composer.contextLedgerComparisonAdded", { count });
+    case "removed":
+      return t("composer.contextLedgerComparisonRemoved", { count });
+    case "retained":
+      return t("composer.contextLedgerComparisonRetained", { count });
+    case "changed":
+      return t("composer.contextLedgerComparisonChanged", { count });
+  }
+}
+
+function resolveComparisonChangeLabel(
+  t: (key: string, params?: Record<string, unknown>) => string,
+  change: ContextLedgerComparisonItemChange,
+) {
+  return resolveComparisonCountLabel(t, change, 1);
+}
+
+function formatSignedCompactCount(value: number) {
+  const compact = formatCompactCount(Math.abs(value));
+  if (value === 0) {
+    return "0";
+  }
+  return `${value > 0 ? "+" : "-"}${compact}`;
+}
+
+function resolveComparisonUsageDeltaLabel(
+  t: (key: string, params?: Record<string, unknown>) => string,
+  comparison: ContextLedgerComparison,
+) {
+  if (comparison.usageTokenDelta == null) {
+    return null;
+  }
+  return t("composer.contextLedgerComparisonUsageDelta", {
+    delta: formatSignedCompactCount(comparison.usageTokenDelta),
+  });
+}
+
 function resolveBlockTitle(t: (key: string, params?: Record<string, unknown>) => string, block: ContextLedgerBlock) {
   if (block.titleKey) {
     return t(block.titleKey, block.titleParams ?? undefined);
@@ -189,21 +328,121 @@ function canTogglePinBlock(block: ContextLedgerBlock) {
     || block.kind === "helper_selection"
   ) && (
     block.participationState === "selected"
+    || block.participationState === "carried_over"
     || block.participationState === "pinned_next_send"
   );
 }
 
+function resolveBlockSourceNavigationTarget(
+  block: ContextLedgerBlock,
+): ContextLedgerSourceNavigationTarget | null {
+  const sourceRef = block.sourceRef?.trim();
+  if (!sourceRef) {
+    return null;
+  }
+  if (block.kind === "manual_memory") {
+    return {
+      kind: "manual_memory",
+      memoryId: sourceRef,
+    };
+  }
+  if (block.kind === "note_card") {
+    return {
+      kind: "note_card",
+      noteId: sourceRef,
+    };
+  }
+  if (block.kind === "file_reference") {
+    return {
+      kind: "file_reference",
+      path: sourceRef,
+    };
+  }
+  return null;
+}
+
+function resolveOpenSourceLabel(
+  t: (key: string) => string,
+  block: ContextLedgerBlock,
+) {
+  switch (block.kind) {
+    case "manual_memory":
+      return t("composer.contextLedgerActionOpenMemorySource");
+    case "note_card":
+      return t("composer.contextLedgerActionOpenNoteSource");
+    case "file_reference":
+      return t("composer.contextLedgerActionOpenFileSource");
+    default:
+      return null;
+  }
+}
+
 export const ContextLedgerPanel = memo(function ContextLedgerPanel({
   projection,
+  comparison = null,
   expanded,
+  hidden = false,
   onToggle,
+  onHide,
+  onShow,
   onExcludeBlock,
+  onClearCarryOverBlock,
+  onBatchKeepBlocks,
+  onBatchExcludeBlocks,
+  onBatchClearCarryOverBlocks,
   onTogglePinBlock,
+  onOpenBlockSource,
 }: ContextLedgerPanelProps) {
   const { t } = useTranslation();
   const [inspectedBlock, setInspectedBlock] = useState<ContextLedgerBlock | null>(null);
+  const [selectedBatchBlockIds, setSelectedBatchBlockIds] = useState<string[]>([]);
 
-  if (!projection.visible) {
+  const batchGovernableBlocks = useMemo(
+    () =>
+      projection.groups.flatMap((group) =>
+        group.blocks.filter((block) => isBatchGovernableBlock(block)),
+      ),
+    [projection.groups],
+  );
+  const batchGovernableBlockIds = useMemo(
+    () => new Set(batchGovernableBlocks.map((block) => block.id)),
+    [batchGovernableBlocks],
+  );
+  const batchSelectionEnabled = batchGovernableBlocks.length > 1;
+  const selectedBatchBlocks = useMemo(
+    () =>
+      batchGovernableBlocks.filter((block) =>
+        selectedBatchBlockIds.includes(block.id),
+      ),
+    [batchGovernableBlocks, selectedBatchBlockIds],
+  );
+  const batchKeepCandidates = useMemo(
+    () => selectedBatchBlocks.filter((block) => canBatchKeepBlock(block)),
+    [selectedBatchBlocks],
+  );
+  const batchExcludeCandidates = useMemo(
+    () => selectedBatchBlocks.filter((block) => canBatchExcludeBlock(block)),
+    [selectedBatchBlocks],
+  );
+  const batchClearCandidates = useMemo(
+    () => selectedBatchBlocks.filter((block) => canBatchClearCarryOverBlock(block)),
+    [selectedBatchBlocks],
+  );
+
+  useEffect(() => {
+    if (hidden) {
+      setInspectedBlock(null);
+      setSelectedBatchBlockIds([]);
+    }
+  }, [hidden]);
+
+  useEffect(() => {
+    setSelectedBatchBlockIds((prev) =>
+      prev.filter((blockId) => batchGovernableBlockIds.has(blockId)),
+    );
+  }, [batchGovernableBlockIds]);
+
+  if (!projection.visible && !comparison) {
     return null;
   }
 
@@ -226,34 +465,217 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
   const inspectedBackendSourceLabel = inspectedBlock
     ? resolveBackendSourceLabel(t, inspectedBlock.backendSource)
     : null;
+  const summaryText = summaryBits.join(" · ");
+  const showLabel = t("composer.contextLedgerShow");
+  const toggleLabel = hidden
+    ? showLabel
+    : expanded
+      ? t("composer.contextLedgerCollapse")
+      : t("composer.contextLedgerExpand");
+  const handlePrimaryToggle = hidden
+    ? (onShow ?? onToggle)
+    : onToggle;
+  const handleSelectAllBatchBlocks = () => {
+    setSelectedBatchBlockIds(batchGovernableBlocks.map((block) => block.id));
+  };
+  const handleClearBatchSelection = () => {
+    setSelectedBatchBlockIds([]);
+  };
+  const runBatchAction = (
+    blocks: ContextLedgerBlock[],
+    handler: ((batchBlocks: ContextLedgerBlock[]) => void) | undefined,
+  ) => {
+    if (blocks.length === 0 || !handler) {
+      return;
+    }
+    handler(blocks);
+    setSelectedBatchBlockIds([]);
+  };
 
   return (
-    <section className="composer-context-ledger">
-      <button
-        type="button"
-        className="composer-context-ledger-toggle"
-        aria-expanded={expanded}
-        onClick={onToggle}
-      >
-        <span className="composer-context-ledger-title">
-          {t("composer.contextLedgerTitle")}
-        </span>
-        <span className="composer-context-ledger-summary">
-          {summaryBits.join(" · ")}
-        </span>
-        <span className="composer-context-ledger-toggle-text">
-          {expanded
-            ? t("composer.contextLedgerCollapse")
-            : t("composer.contextLedgerExpand")}
-        </span>
-      </button>
+    <section className={`composer-context-ledger${hidden ? " is-hidden" : ""}`}>
+      <div className="composer-context-ledger-toggle">
+        <button
+          type="button"
+          className="composer-context-ledger-toggle-main"
+          aria-expanded={!hidden && expanded}
+          onClick={handlePrimaryToggle}
+        >
+          <span className="composer-context-ledger-title">
+            {t("composer.contextLedgerTitle")}
+          </span>
+          <span className="composer-context-ledger-summary">
+            {summaryText}
+          </span>
+        </button>
+        <div className="composer-context-ledger-toggle-actions">
+          {!hidden && onHide ? (
+            <button
+              type="button"
+              className="composer-context-ledger-icon-action"
+              onClick={onHide}
+              aria-label={t("composer.contextLedgerHide")}
+              title={t("composer.contextLedgerHide")}
+            >
+              <span className="codicon codicon-eye-closed" aria-hidden />
+            </button>
+          ) : null}
+          {!hidden ? (
+            <button
+              type="button"
+              className="composer-context-ledger-toggle-text"
+              onClick={handlePrimaryToggle}
+            >
+              {toggleLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {hidden && onShow ? (
+        <button
+          type="button"
+          className="composer-context-ledger-peek"
+          onClick={onShow}
+          aria-label={showLabel}
+          title={showLabel}
+        >
+          <span className="codicon codicon-eye" aria-hidden />
+          <span>{showLabel}</span>
+        </button>
+      ) : null}
 
-      {expanded ? (
+      {!hidden && expanded ? (
         <div
           className="composer-context-ledger-panel"
           role="region"
           aria-label={t("composer.contextLedgerTitle")}
         >
+          {comparison ? (
+            <section className="composer-context-ledger-comparison">
+              <header className="composer-context-ledger-comparison-head">
+                <div className="composer-context-ledger-comparison-copy">
+                  <span className="composer-context-ledger-comparison-title">
+                    {resolveComparisonTitle(t, comparison)}
+                  </span>
+                  {resolveComparisonUsageDeltaLabel(t, comparison) ? (
+                    <span className="composer-context-ledger-comparison-delta">
+                      {resolveComparisonUsageDeltaLabel(t, comparison)}
+                    </span>
+                  ) : null}
+                </div>
+                <span className="composer-context-ledger-group-count">
+                  {comparison.items.length}
+                </span>
+              </header>
+              <div className="composer-context-ledger-comparison-summary">
+                {comparison.addedCount > 0 ? (
+                  <span className="composer-context-ledger-meta-badge">
+                    {resolveComparisonCountLabel(t, "added", comparison.addedCount)}
+                  </span>
+                ) : null}
+                {comparison.removedCount > 0 ? (
+                  <span className="composer-context-ledger-meta-badge">
+                    {resolveComparisonCountLabel(t, "removed", comparison.removedCount)}
+                  </span>
+                ) : null}
+                {comparison.retainedCount > 0 ? (
+                  <span className="composer-context-ledger-meta-badge">
+                    {resolveComparisonCountLabel(t, "retained", comparison.retainedCount)}
+                  </span>
+                ) : null}
+                {comparison.changedCount > 0 ? (
+                  <span className="composer-context-ledger-meta-badge">
+                    {resolveComparisonCountLabel(t, "changed", comparison.changedCount)}
+                  </span>
+                ) : null}
+              </div>
+              {comparison.items.length > 0 ? (
+                <div className="composer-context-ledger-comparison-items">
+                  {comparison.items.slice(0, 6).map((item) => (
+                    <div
+                      key={`${item.change}-${item.key}`}
+                      className="composer-context-ledger-comparison-item"
+                    >
+                      <span className="composer-context-ledger-meta-badge">
+                        {resolveComparisonChangeLabel(t, item.change)}
+                      </span>
+                      <span className="composer-context-ledger-comparison-item-title">
+                        {item.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {batchSelectionEnabled ? (
+            <section className="composer-context-ledger-batch">
+              <header className="composer-context-ledger-batch-head">
+                <div className="composer-context-ledger-batch-copy">
+                  <span className="composer-context-ledger-comparison-title">
+                    {t("composer.contextLedgerBatchTitle")}
+                  </span>
+                  <span className="composer-context-ledger-comparison-item-title">
+                    {t("composer.contextLedgerBatchSummary", {
+                      selected: selectedBatchBlocks.length,
+                      total: batchGovernableBlocks.length,
+                    })}
+                  </span>
+                </div>
+                <div className="composer-context-ledger-batch-actions">
+                  <button
+                    type="button"
+                    className="composer-context-ledger-action"
+                    onClick={handleSelectAllBatchBlocks}
+                  >
+                    {t("composer.contextLedgerBatchSelectAll")}
+                  </button>
+                  <button
+                    type="button"
+                    className="composer-context-ledger-action"
+                    onClick={handleClearBatchSelection}
+                    disabled={selectedBatchBlocks.length === 0}
+                  >
+                    {t("composer.contextLedgerBatchClearSelection")}
+                  </button>
+                </div>
+              </header>
+              <div className="composer-context-ledger-batch-actions">
+                <button
+                  type="button"
+                  className="composer-context-ledger-action"
+                  onClick={() => runBatchAction(batchKeepCandidates, onBatchKeepBlocks)}
+                  disabled={batchKeepCandidates.length === 0}
+                >
+                  {t("composer.contextLedgerBatchKeepSelected", {
+                    count: batchKeepCandidates.length,
+                  })}
+                </button>
+                <button
+                  type="button"
+                  className="composer-context-ledger-action"
+                  onClick={() =>
+                    runBatchAction(batchClearCandidates, onBatchClearCarryOverBlocks)}
+                  disabled={batchClearCandidates.length === 0}
+                >
+                  {t("composer.contextLedgerBatchClearSelected", {
+                    count: batchClearCandidates.length,
+                  })}
+                </button>
+                <button
+                  type="button"
+                  className="composer-context-ledger-action"
+                  onClick={() =>
+                    runBatchAction(batchExcludeCandidates, onBatchExcludeBlocks)}
+                  disabled={batchExcludeCandidates.length === 0}
+                >
+                  {t("composer.contextLedgerBatchExcludeSelected", {
+                    count: batchExcludeCandidates.length,
+                  })}
+                </button>
+              </div>
+            </section>
+          ) : null}
           {projection.groups.map((group) => (
             <section
               key={group.kind}
@@ -268,11 +690,50 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
                 </span>
               </header>
               <div className="composer-context-ledger-block-list">
-                {group.blocks.map((block) => (
-                  <article
-                    key={block.id}
-                    className="composer-context-ledger-block"
-                  >
+                {group.blocks.map((block) => {
+                  const sourceNavigationTarget = resolveBlockSourceNavigationTarget(block);
+                  const carryOverReasonLabel = resolveCarryOverReasonLabel(
+                    t,
+                    block.carryOverReason,
+                  );
+                  const carryOverExplanation = resolveCarryOverExplanation(
+                    t,
+                    block.carryOverReason,
+                  );
+                  const attributionConfidenceLabel = resolveAttributionConfidenceLabel(
+                    t,
+                    block.attributionConfidence,
+                  );
+                  const attributionConfidenceExplanation =
+                    resolveAttributionConfidenceExplanation(
+                      t,
+                      block.attributionConfidence,
+                    );
+                  const batchGovernable = batchSelectionEnabled && isBatchGovernableBlock(block);
+                  const batchSelected = selectedBatchBlockIds.includes(block.id);
+                  return (
+                    <article
+                      key={block.id}
+                      className={`composer-context-ledger-block${batchSelected ? " is-batch-selected" : ""}`}
+                    >
+                    {batchGovernable ? (
+                      <label className="composer-context-ledger-block-select">
+                        <input
+                          type="checkbox"
+                          checked={batchSelected}
+                          onChange={() =>
+                            setSelectedBatchBlockIds((prev) =>
+                              prev.includes(block.id)
+                                ? prev.filter((entry) => entry !== block.id)
+                                : [...prev, block.id],
+                            )}
+                          aria-label={t("composer.contextLedgerBatchSelectBlock", {
+                            title: resolveBlockTitle(t, block),
+                          })}
+                        />
+                        <span>{t("composer.contextLedgerBatchSelect")}</span>
+                      </label>
+                    ) : null}
                     <div className="composer-context-ledger-block-head">
                       <span className="composer-context-ledger-block-label">
                         {resolveBlockLabel(t, block)}
@@ -294,8 +755,13 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
                         {resolveParticipationLabel(t, block.participationState)}
                       </span>
                       <span className="composer-context-ledger-meta-badge">
-                        {resolveFreshnessLabel(t, block.freshness)}
+                      {resolveFreshnessLabel(t, block.freshness)}
                       </span>
+                      {carryOverReasonLabel ? (
+                        <span className="composer-context-ledger-meta-badge">
+                          {carryOverReasonLabel}
+                        </span>
+                      ) : null}
                       {resolveAttributionLabel(t, block.attributionKind) ? (
                         <span className="composer-context-ledger-meta-badge">
                           {resolveAttributionLabel(t, block.attributionKind)}
@@ -306,8 +772,27 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
                           {resolveBackendSourceLabel(t, block.backendSource)}
                         </span>
                       ) : null}
+                      {attributionConfidenceLabel ? (
+                        <span className="composer-context-ledger-meta-badge">
+                          {attributionConfidenceLabel}
+                        </span>
+                      ) : null}
                     </div>
-                    {(canTogglePinBlock(block) || canExcludeBlock(block) || resolveInspectionContent(t, block)) ? (
+                    {carryOverExplanation ? (
+                      <div className="composer-context-ledger-block-detail">
+                        {carryOverExplanation}
+                      </div>
+                    ) : null}
+                    {attributionConfidenceExplanation ? (
+                      <div className="composer-context-ledger-block-detail">
+                        {attributionConfidenceExplanation}
+                      </div>
+                    ) : null}
+                    {(canTogglePinBlock(block)
+                      || canExcludeBlock(block)
+                      || canBatchClearCarryOverBlock(block)
+                      || (sourceNavigationTarget && onOpenBlockSource)
+                      || resolveInspectionContent(t, block)) ? (
                       <div className="composer-context-ledger-block-actions">
                         {canTogglePinBlock(block) && onTogglePinBlock ? (
                           <button
@@ -329,6 +814,24 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
                             {t("composer.contextLedgerActionExcludeNextSend")}
                           </button>
                         ) : null}
+                        {canBatchClearCarryOverBlock(block) && onClearCarryOverBlock ? (
+                          <button
+                            type="button"
+                            className="composer-context-ledger-action"
+                            onClick={() => onClearCarryOverBlock(block)}
+                          >
+                            {t("composer.contextLedgerActionClearCarriedOver")}
+                          </button>
+                        ) : null}
+                        {sourceNavigationTarget && onOpenBlockSource ? (
+                          <button
+                            type="button"
+                            className="composer-context-ledger-action"
+                            onClick={() => onOpenBlockSource(sourceNavigationTarget)}
+                          >
+                            {resolveOpenSourceLabel(t, block)}
+                          </button>
+                        ) : null}
                         {resolveInspectionContent(t, block) ? (
                           <button
                             type="button"
@@ -340,8 +843,9 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
                         ) : null}
                       </div>
                     ) : null}
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </section>
           ))}

@@ -227,8 +227,46 @@ describe("buildContextLedgerProjection", () => {
 
     const helperBlocks = projection.groups.find((entry) => entry.kind === "helper_selection")?.blocks ?? [];
     expect(helperBlocks[0]?.attributionKind).toBe("workspace_context");
+    expect(helperBlocks[0]?.attributionConfidence).toBe("precise");
     expect(helperBlocks[1]?.attributionKind).toBe("system_injected");
+    expect(helperBlocks[1]?.attributionConfidence).toBe("coarse");
     expect(helperBlocks[2]?.attributionKind).toBe("degraded");
+    expect(helperBlocks[2]?.attributionConfidence).toBe("degraded");
+  });
+
+  it("marks retained explicit blocks as carried over from the previous send", () => {
+    const projection = buildContextLedgerProjection(
+      makeInput({
+        selectedManualMemories: [
+          {
+            id: "memory-1",
+            title: "Known issue",
+            summary: "Summary",
+            detail: "用户输入：Question\n\n助手输出摘要：Answer",
+            kind: "known_issue",
+            importance: "high",
+            updatedAt: 10,
+            tags: [],
+          },
+        ],
+        selectedContextChips: [
+          {
+            type: "skill",
+            name: "doc-backup",
+            description: "backup docs",
+          },
+        ],
+        retainedManualMemoryIds: ["memory-1"],
+        retainedContextChipKeys: ["skill:doc-backup"],
+      }),
+    );
+
+    const manualBlock = projection.groups.find((entry) => entry.kind === "manual_memory")?.blocks[0];
+    const helperBlock = projection.groups.find((entry) => entry.kind === "helper_selection")?.blocks[0];
+    expect(manualBlock?.participationState).toBe("carried_over");
+    expect(manualBlock?.carryOverReason).toBe("inherited_from_last_send");
+    expect(helperBlock?.participationState).toBe("carried_over");
+    expect(helperBlock?.carryOverReason).toBe("inherited_from_last_send");
   });
 
   it("marks unsupported-engine usage as degraded rather than pretending precise attribution", () => {
@@ -293,8 +331,14 @@ describe("buildContextLedgerProjection", () => {
       projection.groups.find((entry) => entry.kind === "manual_memory")?.blocks[0]?.participationState,
     ).toBe("pinned_next_send");
     expect(
+      projection.groups.find((entry) => entry.kind === "manual_memory")?.blocks[0]?.carryOverReason,
+    ).toBe("will_carry_next_send");
+    expect(
       projection.groups.find((entry) => entry.kind === "helper_selection")?.blocks[0]?.participationState,
     ).toBe("pinned_next_send");
+    expect(
+      projection.groups.find((entry) => entry.kind === "helper_selection")?.blocks[0]?.carryOverReason,
+    ).toBe("will_carry_next_send");
     expect(
       projection.groups.find((entry) => entry.kind === "helper_selection")?.blocks[0]?.backendSource,
     ).toBe("global_codex");

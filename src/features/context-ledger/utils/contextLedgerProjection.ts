@@ -7,7 +7,9 @@ import {
   normalizeManagedInstructionSource,
 } from "../../skills/utils/managedInstructionSource";
 import type {
+  ContextLedgerAttributionConfidence,
   ContextLedgerBlock,
+  ContextLedgerCarryOverReason,
   ContextLedgerFreshness,
   ContextLedgerGroup,
   ContextLedgerInlineFileReferenceSelection,
@@ -172,6 +174,13 @@ function isPinnedManualMemory(
   return input.carryOverManualMemoryIds?.includes(memoryId) ?? false;
 }
 
+function isRetainedManualMemory(
+  memoryId: string,
+  input: ContextLedgerProjectionInput,
+) {
+  return input.retainedManualMemoryIds?.includes(memoryId) ?? false;
+}
+
 function isPinnedNoteCard(
   noteCardId: string,
   input: ContextLedgerProjectionInput,
@@ -179,11 +188,25 @@ function isPinnedNoteCard(
   return input.carryOverNoteCardIds?.includes(noteCardId) ?? false;
 }
 
+function isRetainedNoteCard(
+  noteCardId: string,
+  input: ContextLedgerProjectionInput,
+) {
+  return input.retainedNoteCardIds?.includes(noteCardId) ?? false;
+}
+
 function isPinnedContextChip(
   sourceRef: string,
   input: ContextLedgerProjectionInput,
 ) {
   return input.carryOverContextChipKeys?.includes(sourceRef) ?? false;
+}
+
+function isRetainedContextChip(
+  sourceRef: string,
+  input: ContextLedgerProjectionInput,
+) {
+  return input.retainedContextChipKeys?.includes(sourceRef) ?? false;
 }
 
 function resolveNoteCardDetail(noteCard: ContextLedgerNoteCardSelection) {
@@ -227,6 +250,34 @@ function estimateNoteCardChars(noteCard: ContextLedgerNoteCardSelection) {
       absolutePath: attachment.absolutePath,
     })),
   }).length;
+}
+
+function resolveCarryOverReason(
+  participationState: ContextLedgerParticipationState,
+): ContextLedgerCarryOverReason | null {
+  if (participationState === "pinned_next_send") {
+    return "will_carry_next_send";
+  }
+  if (participationState === "carried_over") {
+    return "inherited_from_last_send";
+  }
+  return null;
+}
+
+function resolveAttributionConfidence(
+  attributionKind: ContextLedgerBlock["attributionKind"],
+  backendSource: string | null,
+): ContextLedgerAttributionConfidence | null {
+  if (attributionKind === "degraded" || !backendSource) {
+    return "degraded";
+  }
+  if (attributionKind === "workspace_context" && backendSource === "workspace_managed") {
+    return "precise";
+  }
+  if (attributionKind === "engine_injected" || attributionKind === "system_injected") {
+    return "coarse";
+  }
+  return "coarse";
 }
 
 function buildRecentTurnsBlock(input: ContextLedgerProjectionInput): ContextLedgerBlock | null {
@@ -343,23 +394,29 @@ function buildManualMemoryBlocks(input: ContextLedgerProjectionInput): ContextLe
       }
       return left.id.localeCompare(right.id);
     })
-    .map((memory) => ({
-      id: `manual-memory-${memory.id}`,
-      kind: "manual_memory",
-      title: truncateLedgerPreview(resolveManualMemoryTitle(memory), 96),
-      detail: truncateLedgerPreview(resolveManualMemoryDetail(memory) ?? "", 160) || null,
-      inspectionTitle: memory.title.trim() || resolveManualMemoryTitle(memory),
-      inspectionContent: memory.detail.trim() || resolveManualMemoryDetail(memory),
-      sourceRef: memory.id,
-      participationState: isPinnedManualMemory(memory.id, input)
+    .map((memory) => {
+      const participationState = isPinnedManualMemory(memory.id, input)
         ? "pinned_next_send"
-        : "selected",
-      freshness: "fresh",
-      estimate: {
-        kind: "chars",
-        value: estimateManualMemoryChars(memory, input.manualMemoryInjectionMode),
-      },
-    }));
+        : isRetainedManualMemory(memory.id, input)
+          ? "carried_over"
+          : "selected";
+      return {
+        id: `manual-memory-${memory.id}`,
+        kind: "manual_memory",
+        title: truncateLedgerPreview(resolveManualMemoryTitle(memory), 96),
+        detail: truncateLedgerPreview(resolveManualMemoryDetail(memory) ?? "", 160) || null,
+        inspectionTitle: memory.title.trim() || resolveManualMemoryTitle(memory),
+        inspectionContent: memory.detail.trim() || resolveManualMemoryDetail(memory),
+        sourceRef: memory.id,
+        participationState,
+        carryOverReason: resolveCarryOverReason(participationState),
+        freshness: "fresh",
+        estimate: {
+          kind: "chars",
+          value: estimateManualMemoryChars(memory, input.manualMemoryInjectionMode),
+        },
+      };
+    });
 }
 
 function buildNoteCardBlocks(
@@ -374,26 +431,32 @@ function buildNoteCardBlocks(
       }
       return left.id.localeCompare(right.id);
     })
-    .map((noteCard) => ({
-      id: `note-card-${noteCard.id}`,
-      kind: "note_card",
-      title: truncateLedgerPreview(resolveNoteCardTitle(noteCard), 96),
-      detail: truncateLedgerPreview(resolveNoteCardDetail(noteCard) ?? "", 180) || null,
-      inspectionTitle: noteCard.title.trim() || resolveNoteCardTitle(noteCard),
-      inspectionContent:
-        noteCard.bodyMarkdown.trim()
-        || noteCard.plainTextExcerpt.trim()
-        || resolveNoteCardDetail(noteCard),
-      sourceRef: noteCard.id,
-      participationState: isPinnedNoteCard(noteCard.id, input)
+    .map((noteCard) => {
+      const participationState = isPinnedNoteCard(noteCard.id, input)
         ? "pinned_next_send"
-        : "selected",
-      freshness: "fresh",
-      estimate: {
-        kind: "chars",
-        value: estimateNoteCardChars(noteCard),
-      },
-    }));
+        : isRetainedNoteCard(noteCard.id, input)
+          ? "carried_over"
+          : "selected";
+      return {
+        id: `note-card-${noteCard.id}`,
+        kind: "note_card",
+        title: truncateLedgerPreview(resolveNoteCardTitle(noteCard), 96),
+        detail: truncateLedgerPreview(resolveNoteCardDetail(noteCard) ?? "", 180) || null,
+        inspectionTitle: noteCard.title.trim() || resolveNoteCardTitle(noteCard),
+        inspectionContent:
+          noteCard.bodyMarkdown.trim()
+          || noteCard.plainTextExcerpt.trim()
+          || resolveNoteCardDetail(noteCard),
+        sourceRef: noteCard.id,
+        participationState,
+        carryOverReason: resolveCarryOverReason(participationState),
+        freshness: "fresh",
+        estimate: {
+          kind: "chars",
+          value: estimateNoteCardChars(noteCard),
+        },
+      };
+    });
 }
 
 function buildFileReferenceBlocks(
@@ -458,6 +521,16 @@ function buildHelperBlocks(input: ContextLedgerProjectionInput): ContextLedgerBl
   return input.selectedContextChips.map((chip) => {
     const normalizedSource = normalizeManagedInstructionSource(chip.source);
     const normalizedPath = chip.path ? normalizePath(chip.path) : null;
+    const sourceRef = `${chip.type}:${chip.name}`;
+    const participationState = isPinnedContextChip(sourceRef, input)
+      ? "pinned_next_send"
+      : isRetainedContextChip(sourceRef, input)
+        ? "carried_over"
+        : "selected";
+    const attributionKind = classifyManagedInstructionAttribution(
+      normalizedSource || null,
+      normalizedPath,
+    );
     return {
       id: `helper-${chip.type}-${chip.name}`,
       kind: "helper_selection",
@@ -465,16 +538,16 @@ function buildHelperBlocks(input: ContextLedgerProjectionInput): ContextLedgerBl
       detail: truncateLedgerPreview(chip.description ?? "", 140) || null,
       inspectionTitle: chip.name,
       inspectionContent: chip.description ?? null,
-      sourceRef: `${chip.type}:${chip.name}`,
+      sourceRef,
       sourcePath: normalizedPath,
       backendSource: normalizedSource || null,
-      attributionKind: classifyManagedInstructionAttribution(
+      attributionKind,
+      attributionConfidence: resolveAttributionConfidence(
+        attributionKind,
         normalizedSource || null,
-        normalizedPath,
       ),
-      participationState: isPinnedContextChip(`${chip.type}:${chip.name}`, input)
-        ? "pinned_next_send"
-        : "selected",
+      participationState,
+      carryOverReason: resolveCarryOverReason(participationState),
       freshness: "fresh",
       estimate: {
         kind: "unknown",
