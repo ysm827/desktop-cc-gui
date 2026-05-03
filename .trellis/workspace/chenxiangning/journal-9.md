@@ -1188,3 +1188,70 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 296: Task Center 运行态投影与恢复收口
+
+**Date**: 2026-05-03
+**Task**: Task Center 运行态投影与恢复收口
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 收口 Task Center Phase 1 剩余实现，打通任务运行态投影、恢复动作与 Kanban/Workspace Home 可见 surface。
+- 修正 Task Center / Kanban / Workspace Home 在主题模式、自定义 preset 下的视觉兼容性。
+- 移除 Kanban 已完成/运行中卡片里的无效占位文案“暂不可用”。
+
+主要改动:
+- 在 app shell 中接入 task run telemetry patch、latest run summary projection，以及 retry/resume/cancel/fork recovery actions。
+- 为 Task Center 增加按 surface priority 排序、attention 汇总、状态 badge、恢复动作可用性控制与 detail hint。
+- 为 Kanban 卡片增加 latest run summary surface，并限制只有 blocked/failed/waiting_input 展示正文详情。
+- 调整 Workspace Home、Kanban、设置页主题样式与说明文案，提升 light/dark/custom preset 兼容性。
+- 同步补充 OpenSpec change/spec/archive 文档，并新增 taskRunRecovery/taskRunSurface 等测试覆盖。
+
+涉及模块:
+- src/app-shell-parts/useAppShellSections.ts
+- src/features/tasks/**
+- src/features/kanban/**
+- src/features/workspaces/**
+- src/features/settings/**
+- src/styles/workspace-home.css
+- src/styles/kanban.css
+- openspec/changes/**
+- openspec/specs/**
+
+验证结果:
+- npm run lint
+- npm run typecheck
+- npx vitest run src/features/kanban/components/KanbanCard.test.tsx
+- npx vitest run src/features/tasks/components/TaskCenterView.test.tsx src/features/tasks/utils/taskRunProjection.test.ts src/features/tasks/utils/taskRunTelemetry.test.ts src/features/tasks/utils/taskRunRecovery.test.ts src/features/workspaces/components/WorkspaceHome.test.tsx
+- npm run check:large-files
+- openspec validate --all
+
+后续事项:
+- .claude/settings.local.json 仍有本地未提交变更，未纳入本次业务提交。
+- 如需继续推进 Task Center Phase 2，可在当前 run recovery / projection 基础上再扩展 lineage、artifact drill-down 与独立 run console。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23c320ef` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

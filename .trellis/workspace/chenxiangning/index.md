@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-9.md`
-- **Total Sessions**: 295
+- **Total Sessions**: 296
 - **Last Active**: 2026-05-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-9.md` | ~1190 | Active |
+| `journal-9.md` | ~1257 | Active |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
@@ -37,6 +37,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 296 | 2026-05-03 | Task Center 运行态投影与恢复收口 | `23c320ef` | `feature/v-0.4.13` |
 | 295 | 2026-05-03 | Task Center 运行生命周期接入 | `76c4a4aa` | `feature/v-0.4.13` |
 | 294 | 2026-05-03 | 执行 Task Center Phase 1 | `2e99f925` | `feature/v-0.4.13` |
 | 293 | 2026-05-03 | 归档 Context Ledger OpenSpec 提案 | `dd3bc4df836848db4d142b78ebceb726a94c4dbf` | `feature/v-0.4.13` |
