@@ -1437,3 +1437,74 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 301: 完善 Claude 和 Gemini 通用幕布组装
+
+**Date**: 2026-05-04
+**Task**: 完善 Claude 和 Gemini 通用幕布组装
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 将 Codex 已验证的 conversation curtain normalization / assembler 思路扩展到 Claude Code 与 Gemini。
+- 完善 Claude Code / Gemini 的幕布输出、history replay、realtime streaming 可见增长与 presentation profile。
+- 保留 Codex baseline，不改变 Rust / Tauri runtime command contract，不新增持久化 schema。
+
+主要改动：
+- 新增 OpenSpec change：extend-conversation-curtain-assembly-to-claude-gemini，包含 proposal、design、delta specs、tasks。
+- Claude / Gemini history parser 复用 shared conversation normalization helper，减少 loader-local duplicate comparator。
+- realtime adapter 增加 generic tool call normalization，覆盖 Gemini / Claude tool snapshot replay。
+- 新增 Claude / Gemini implementation-local migration gates，支持 assembler/profile 独立回滚。
+- PresentationProfile 增加 baseline Markdown/reasoning streaming cadence 字段，并将 provider mitigation 保持为 evidence-triggered override。
+- MessagesTimeline 将 Gemini assistant 最新行纳入 live streaming row；MessagesRows 通过 presentation profile 解析 assistant/reasoning throttle。
+- 更新 .trellis/spec/frontend/component-guidelines.md，沉淀 streaming visible surface 与 baseline profile contract。
+
+涉及模块：
+- openspec/changes/extend-conversation-curtain-assembly-to-claude-gemini/**
+- src/features/threads/assembly/**
+- src/features/threads/adapters/sharedRealtimeAdapter.ts
+- src/features/threads/loaders/claudeHistoryLoader.ts
+- src/features/threads/loaders/geminiHistoryParser.ts
+- src/features/messages/components/**
+- src/features/messages/presentation/**
+- src/features/app/hooks/useAppServerEvents.ts
+- .trellis/spec/frontend/component-guidelines.md
+
+验证结果：
+- npx vitest run focused suite：11 个测试文件，224 个用例通过。
+- npm run test：427 个测试文件全部通过。
+- npm run typecheck：通过。
+- npm run lint：通过。
+- npm run check:large-files：通过，found=0。
+- openspec validate extend-conversation-curtain-assembly-to-claude-gemini --strict --no-interactive：通过。
+- git diff --check / git diff --cached --check：通过。
+- 人工测试建议已提供，用户反馈“问题不大”。
+
+后续事项：
+- 若继续推进归档，需要先确认主 openspec/specs 是否已同步，再按 archive workflow 处理；不要盲目 archive。
+- 后续可补真实 Claude Code / Gemini 长 Markdown 屏幕录制证据，作为 release 前回归样本。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b1a4c0f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

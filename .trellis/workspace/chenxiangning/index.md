@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-9.md`
-- **Total Sessions**: 300
+- **Total Sessions**: 301
 - **Last Active**: 2026-05-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-9.md` | ~1439 | Active |
+| `journal-9.md` | ~1510 | Active |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
@@ -37,6 +37,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 301 | 2026-05-04 | 完善 Claude 和 Gemini 通用幕布组装 | `1b1a4c0f` | `feature/v-0.4.13` |
 | 300 | 2026-05-04 | 修复任务运行恢复与 Codex 流式渲染收敛 | `ed186431`, `f4cb97b6` | `feature/v-0.4.13` |
 | 299 | 2026-05-04 | 合并用户对话时间线头部为单行 | `399d387e` | `feature/v-0.4.13` |
 | 298 | 2026-05-04 | Dock 用户对话时间线 | `2b3ca1f8` | `feature/v-0.4.13` |
