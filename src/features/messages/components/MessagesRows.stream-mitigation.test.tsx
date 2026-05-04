@@ -176,25 +176,33 @@ describe("MessagesRows stream mitigation", () => {
     });
   });
 
-  it("uses a staged markdown throttle for large Codex streaming output without an explicit mitigation profile", () => {
+  it("uses a plain text live surface for large Codex streaming output without an explicit mitigation profile", () => {
     const messageItem = {
       id: "assistant-codex-large",
       kind: "message" as const,
       role: "assistant" as const,
       text: Array.from({ length: 14 }, (_, index) => `- 第 ${index + 1} 条结论：这是长段 streaming 内容`).join("\n"),
     };
+    const onAssistantVisibleTextRender = vi.fn();
 
-    render(
+    const { container } = render(
       <MessageRow
         item={messageItem}
         isStreaming
         activeEngine="codex"
         isCopied={false}
         onCopy={vi.fn()}
+        onAssistantVisibleTextRender={onAssistantVisibleTextRender}
       />,
     );
 
-    expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("220");
+    expect(screen.queryByTestId("markdown")).toBeNull();
+    const plainTextSurface = container.querySelector(".markdown-live-plain-text");
+    expect(plainTextSurface?.textContent).toBe(messageItem.text);
+    expect(onAssistantVisibleTextRender).toHaveBeenCalledWith({
+      itemId: "assistant-codex-large",
+      visibleText: messageItem.text,
+    });
   });
 
   it("keeps markdown live rendering for short Codex streaming output", () => {
@@ -216,6 +224,41 @@ describe("MessagesRows stream mitigation", () => {
     );
 
     expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("48");
+  });
+
+  it("restores final Markdown rendering after large Codex streaming completes", () => {
+    const messageItem = {
+      id: "assistant-codex-final",
+      kind: "message" as const,
+      role: "assistant" as const,
+      text: Array.from({ length: 14 }, (_, index) => `- 第 ${index + 1} 条结论：这是长段 streaming 内容`).join("\n"),
+    };
+
+    const { container, rerender } = render(
+      <MessageRow
+        item={messageItem}
+        isStreaming
+        activeEngine="codex"
+        isCopied={false}
+        onCopy={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".markdown-live-plain-text")).toBeTruthy();
+    expect(screen.queryByTestId("markdown")).toBeNull();
+
+    rerender(
+      <MessageRow
+        item={messageItem}
+        isStreaming={false}
+        activeEngine="codex"
+        isCopied={false}
+        onCopy={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".markdown-live-plain-text")).toBeNull();
+    expect(screen.getByTestId("markdown").textContent).toBe(messageItem.text);
   });
 
   it("uses the Gemini baseline profile for assistant streaming without Codex staged throttle", () => {

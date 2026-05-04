@@ -267,12 +267,29 @@ function resolveReasoningStreamingThrottleMs(
 function shouldUsePlainTextStreamingSurface(
   item: Extract<ConversationItem, { kind: "message" }>,
   isStreaming: boolean,
+  activeEngine: MessagesEngine,
+  presentationProfile: PresentationProfile | null | undefined,
   mitigationProfile: StreamMitigationProfile | null | undefined,
 ) {
+  if (item.role !== "assistant" || !isStreaming) {
+    return false;
+  }
+  if (mitigationProfile?.renderPlainTextWhileStreaming === true) {
+    return true;
+  }
+  const useCodexStagedMarkdownThrottle =
+    presentationProfile?.useCodexStagedMarkdownThrottle ?? activeEngine === "codex";
+  if (!useCodexStagedMarkdownThrottle) {
+    return false;
+  }
+  const trimmedText = item.text.trim();
+  if (!trimmedText) {
+    return false;
+  }
+  const lineCount = trimmedText.split(/\r?\n/).length;
   return (
-    item.role === "assistant" &&
-    isStreaming &&
-    mitigationProfile?.renderPlainTextWhileStreaming === true
+    trimmedText.length >= CODEX_LARGE_STREAMING_MIN_LENGTH ||
+    lineCount >= CODEX_LARGE_STREAMING_MIN_LINES
   );
 }
 
@@ -868,6 +885,8 @@ export const MessageRow = memo(function MessageRow({
   const usePlainTextStreamingSurface = shouldUsePlainTextStreamingSurface(
     item,
     isStreaming,
+    activeEngine,
+    presentationProfile,
     streamMitigationProfile,
   );
   const livePlainTextClassName = `${resolvedMarkdownClassName} markdown-live-plain-text`;

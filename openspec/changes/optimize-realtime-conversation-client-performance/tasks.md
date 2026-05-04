@@ -30,3 +30,9 @@
 - [x] 5.3 P1 运行全局质量门禁；输入：实现后的代码；输出：`npm run typecheck`、`npm run lint`、必要时 `npm run check:large-files` 通过。
 - [x] 5.4 P1 输出人工测试矩阵；输入：Codex / Claude Code / Gemini realtime streaming 会话；输出：覆盖长 Markdown、reasoning、tool output、输入框打字/IME、stop/terminal、rollback flags 的手测步骤。
 - [x] 5.5 P0 执行兼容性门禁 review；输入：最终 diff；输出：确认无 Tauri/provider payload 变更、无 conversation semantic drift、无无界 diagnostics、无 composer source-of-truth defer、无 Gemini 专属长期分支；验证：review 结论写入最终交付说明。
+
+## 6. Codex Curtain Final Chunk Smoothness
+
+- [x] 6.1 P0 输入：Codex 长 assistant streaming 最终 snapshot/complete 大文本；输出：streaming 期间对大文本使用轻量 plain-text live surface，避免最后阶段一次性 ReactMarkdown 全量解析；验证：`MessagesRows.stream-mitigation.test.tsx` 覆盖长 Codex streaming 不渲染 Markdown。
+- [x] 6.2 P0 输入：Codex streaming completion；输出：completion 后恢复最终 Markdown surface，保持标题、列表、代码块等最终语义收敛；验证：`MessagesRows.stream-mitigation.test.tsx` 覆盖 streaming=false 后回 Markdown。
+- [x] 6.3 P1 输入：短 Codex streaming 输出；输出：短文本仍走 live Markdown，不把所有 Codex 输出降级成 plain text；验证：现有 short Codex streaming 测试继续通过。
