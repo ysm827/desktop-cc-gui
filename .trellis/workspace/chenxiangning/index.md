@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-9.md`
-- **Total Sessions**: 309
+- **Active File**: `journal-10.md`
+- **Total Sessions**: 310
 - **Last Active**: 2026-05-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-9.md` | ~1977 | Active |
+| `journal-10.md` | ~66 | Active |
+| `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
@@ -37,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 310 | 2026-05-04 | 补齐第一阶段人工场景回归测试 | `72b36a97` | `feature/v-0.4.13-1` |
 | 309 | 2026-05-04 | 归档已验证 OpenSpec 提案 | `d4e783e6` | `feature/v-0.4.13-1` |
 | 308 | 2026-05-04 | 记录第一阶段架构硬化收敛 | `9ba009e7` | `feature/v-0.4.13` |
 | 307 | 2026-05-04 | 调整状态面板零态标签显示规则 | `b8a950b2` | `feature/v-0.4.13` |
