@@ -83,7 +83,7 @@ type MessagesTimelineProps = {
   isThinking: boolean;
   isWorking: boolean;
   lastDurationMs: number | null;
-  latestAssistantMessageId: string | null;
+  liveAssistantMessageId: string | null;
   latestReasoningLabel: string | null;
   latestReasoningId: string | null;
   latestRetryMessage: Pick<QueuedMessage, "text" | "images"> | null;
@@ -156,7 +156,7 @@ export function MessagesTimeline({
   isThinking,
   isWorking,
   lastDurationMs,
-  latestAssistantMessageId,
+  liveAssistantMessageId,
   latestReasoningLabel,
   latestReasoningId,
   latestRetryMessage,
@@ -263,10 +263,11 @@ export function MessagesTimeline({
               workspaceId={workspaceId}
               threadId={threadId}
               isStreaming={
-                (activeEngine === "claude" || activeEngine === "codex") &&
-                isThinking &&
+                (activeEngine === "claude" ||
+                  activeEngine === "codex" ||
+                  activeEngine === "gemini") &&
                 item.role === "assistant" &&
-                item.id === latestAssistantMessageId
+                item.id === liveAssistantMessageId
               }
               activeEngine={activeEngine}
               activeCollaborationModeId={activeCollaborationModeId}
@@ -325,6 +326,7 @@ export function MessagesTimeline({
           onToggle={toggleExpanded}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          presentationProfile={presentationProfile}
           streamMitigationProfile={streamMitigationProfile}
         />
       );
@@ -510,6 +512,7 @@ export function MessagesTimeline({
             onToggle={toggleExpanded}
             onOpenFileLink={openFileLink}
             onOpenFileLinkMenu={showFileLinkMenu}
+            presentationProfile={presentationProfile}
             streamMitigationProfile={streamMitigationProfile}
           />
         ))}

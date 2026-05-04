@@ -12,7 +12,11 @@ describe("Messages codex live streaming", () => {
     });
   });
 
-  it("renders the latest codex assistant row as a live markdown surface during large streaming output", () => {
+  it("renders large codex assistant streaming output on the live Markdown surface", () => {
+    const assistantText = Array.from(
+      { length: 14 },
+      (_, index) => `- 第 ${index + 1} 条审计结论：这是长段 streaming 输出`,
+    ).join("\n");
     const items: ConversationItem[] = [
       {
         id: "user-codex-live-1",
@@ -24,10 +28,7 @@ describe("Messages codex live streaming", () => {
         id: "assistant-codex-live-1",
         kind: "message",
         role: "assistant",
-        text: Array.from(
-          { length: 14 },
-          (_, index) => `- 第 ${index + 1} 条审计结论：这是长段 streaming 输出`,
-        ).join("\n"),
+        text: assistantText,
       },
     ];
 
@@ -44,8 +45,12 @@ describe("Messages codex live streaming", () => {
       />,
     );
 
-    const liveMarkdown = container.querySelector(".message.assistant .markdown-live-streaming");
-    expect(liveMarkdown).toBeTruthy();
-    expect(container.querySelector(".message.assistant .markdown-live-plain-text")).toBeNull();
+    const liveSurface = container.querySelector(".message.assistant .markdown-live-streaming");
+    expect(liveSurface).toBeTruthy();
+    const plainTextSurface = container.querySelector(
+      ".message.assistant .markdown-live-plain-text",
+    );
+    expect(plainTextSurface).toBeNull();
+    expect(liveSurface?.textContent).toContain("第 14 条审计结论");
   });
 });

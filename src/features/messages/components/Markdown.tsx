@@ -11,6 +11,15 @@ import katex from "katex";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { LocalImage } from "./LocalImage";
+import {
+  LightweightMarkdown,
+  PROGRESSIVE_REVEAL_CHUNK_CHARS,
+  PROGRESSIVE_REVEAL_STEP_MS,
+  normalizeProgressiveRevealChunkChars,
+  normalizeProgressiveRevealStepMs,
+  resolveProgressiveRevealValue,
+  type LightweightMarkdownLinkRenderer,
+} from "./LiveMarkdown";
 import "katex/dist/katex.min.css";
 
 const MermaidBlock = lazy(() => import("./MermaidBlock"));
@@ -35,6 +44,10 @@ type MarkdownProps = {
   streamingThrottleMs?: number;
   softBreaks?: boolean;
   preserveFormatting?: boolean;
+  liveRenderMode?: "full" | "lightweight";
+  progressiveReveal?: boolean;
+  progressiveRevealStepMs?: number;
+  progressiveRevealChunkChars?: number;
   codexLeadMarkerConfig?: CodexLeadMarkerConfig;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
@@ -105,11 +118,39 @@ function areMarkdownPropsEqual(prev: MarkdownProps, next: MarkdownProps) {
     prev.streamingThrottleMs === next.streamingThrottleMs &&
     prev.softBreaks === next.softBreaks &&
     prev.preserveFormatting === next.preserveFormatting &&
+    prev.liveRenderMode === next.liveRenderMode &&
+    prev.progressiveReveal === next.progressiveReveal &&
+    prev.progressiveRevealStepMs === next.progressiveRevealStepMs &&
+    prev.progressiveRevealChunkChars === next.progressiveRevealChunkChars &&
     prev.codexLeadMarkerConfig === next.codexLeadMarkerConfig &&
     prev.onOpenFileLink === next.onOpenFileLink &&
     prev.onOpenFileLinkMenu === next.onOpenFileLinkMenu &&
     prev.onRenderedValueChange === next.onRenderedValueChange
   );
+}
+
+function normalizeLightweightLiveMarkdownText(value: string) {
+  const normalizeDisplayText = (text: string) =>
+    normalizeImageTags(
+      normalizeStandaloneMathDisplayLines(
+        normalizeLeadingLatexBeforeCjkProse(
+          normalizeMalformedDisplayMathSegments(
+            normalizeInlineDisplayMathSegments(
+              normalizeCommonMathDelimiters(
+                normalizeFragmentedResourceReferences(
+                  normalizeListIndentation(
+                    normalizeInlineOrderedListBreaks(
+                      normalizeGithubBlockquoteAlerts(text),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  return normalizeOutsideMarkdownCode(value, normalizeDisplayText);
 }
 
 function extractLanguageTag(className?: string) {
@@ -1118,13 +1159,15 @@ function resolveLocalFileHref(url: string) {
   const normalized = repairFragmentedResourceToken(
     stripFileScheme(safeDecodeUrl(trimmed)),
   );
+  const pathWithoutFragment = normalized.split("#", 1)[0] ?? normalized;
   if (
     normalized.startsWith("/") ||
     normalized.startsWith("./") ||
     normalized.startsWith("../") ||
-    normalized.startsWith("~/")
+    normalized.startsWith("~/") ||
+    /^[A-Za-z]:[\\/]/.test(normalized)
   ) {
-    if (normalized.startsWith("/") && !isLikelyAbsoluteFilePath(normalized)) {
+    if (normalized.startsWith("/") && !isLikelyAbsoluteFilePath(pathWithoutFragment)) {
       return null;
     }
     return normalized;
@@ -1831,6 +1874,10 @@ export const Markdown = memo(function Markdown({
   streamingThrottleMs = 80,
   softBreaks = false,
   preserveFormatting = false,
+  liveRenderMode = "full",
+  progressiveReveal = false,
+  progressiveRevealStepMs = PROGRESSIVE_REVEAL_STEP_MS,
+  progressiveRevealChunkChars = PROGRESSIVE_REVEAL_CHUNK_CHARS,
   codexLeadMarkerConfig,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -1908,7 +1955,99 @@ export const Markdown = memo(function Markdown({
     };
   }, []);
 
-  const renderValue = throttledValue;
+  const resolvedProgressiveStepMs = normalizeProgressiveRevealStepMs(
+    progressiveRevealStepMs,
+  );
+  const resolvedProgressiveChunkChars = normalizeProgressiveRevealChunkChars(
+    progressiveRevealChunkChars,
+  );
+  const [progressiveValue, setProgressiveValue] = useState(() => (
+    progressiveReveal
+      ? resolveProgressiveRevealValue(
+        "",
+        value,
+        resolvedProgressiveChunkChars,
+      )
+      : value
+  ));
+  const progressiveTimerRef = useRef<number>(0);
+  const latestProgressiveTargetRef = useRef(value);
+  const previousProgressiveRevealRef = useRef(progressiveReveal);
+
+  useEffect(() => {
+    if (!progressiveReveal) {
+      if (progressiveTimerRef.current) {
+        window.clearTimeout(progressiveTimerRef.current);
+        progressiveTimerRef.current = 0;
+      }
+      latestProgressiveTargetRef.current = throttledValue;
+      setProgressiveValue(throttledValue);
+      previousProgressiveRevealRef.current = false;
+      return;
+    }
+
+    latestProgressiveTargetRef.current = throttledValue;
+    setProgressiveValue((currentValue) => {
+      const wasProgressiveReveal = previousProgressiveRevealRef.current;
+      previousProgressiveRevealRef.current = true;
+      if (!wasProgressiveReveal) {
+        return resolveProgressiveRevealValue(
+          "",
+          throttledValue,
+          resolvedProgressiveChunkChars,
+        );
+      }
+      const nextValue = resolveProgressiveRevealValue(
+        currentValue,
+        throttledValue,
+        resolvedProgressiveChunkChars,
+      );
+      return nextValue === currentValue ? currentValue : nextValue;
+    });
+  }, [progressiveReveal, resolvedProgressiveChunkChars, throttledValue]);
+
+  useEffect(() => {
+    if (!progressiveReveal) {
+      return undefined;
+    }
+    if (progressiveValue === latestProgressiveTargetRef.current) {
+      return undefined;
+    }
+    if (progressiveTimerRef.current) {
+      return undefined;
+    }
+    progressiveTimerRef.current = window.setTimeout(() => {
+      progressiveTimerRef.current = 0;
+      if (!mountedRef.current) {
+        return;
+      }
+      setProgressiveValue((currentValue) => {
+        const nextValue = resolveProgressiveRevealValue(
+          currentValue,
+          latestProgressiveTargetRef.current,
+          resolvedProgressiveChunkChars,
+        );
+        return nextValue === currentValue ? currentValue : nextValue;
+      });
+    }, resolvedProgressiveStepMs);
+    return undefined;
+  }, [
+    progressiveReveal,
+    progressiveValue,
+    resolvedProgressiveChunkChars,
+    resolvedProgressiveStepMs,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (progressiveTimerRef.current) {
+        window.clearTimeout(progressiveTimerRef.current);
+        progressiveTimerRef.current = 0;
+      }
+    };
+  }, []);
+
+  const renderValue = progressiveReveal ? progressiveValue : throttledValue;
 
   useEffect(() => {
     onRenderedValueChange?.(renderValue);
@@ -1921,6 +2060,9 @@ export const Markdown = memo(function Markdown({
     }
     if (preserveFormatting) {
       return renderValue;
+    }
+    if (liveRenderMode === "lightweight") {
+      return normalizeLightweightLiveMarkdownText(renderValue);
     }
     const normalizeDisplayText = (text: string) =>
       normalizeImageTags(
@@ -1945,7 +2087,7 @@ export const Markdown = memo(function Markdown({
         ),
       );
     return normalizeOutsideMarkdownCode(renderValue, normalizeDisplayText);
-  }, [renderValue, codeBlock, preserveFormatting]);
+  }, [renderValue, codeBlock, liveRenderMode, preserveFormatting]);
 
   // Stable callback refs for file link handlers
   const onOpenFileLinkRef = useRef(onOpenFileLink);
@@ -2169,17 +2311,73 @@ export const Markdown = memo(function Markdown({
     }
     return "";
   }, []);
+  const renderLightweightLink = useCallback<LightweightMarkdownLinkRenderer>(
+    ({ href, children }) => {
+      const safeHref = urlTransform(href);
+      if (!safeHref) {
+        return <>{children}</>;
+      }
+      if (isFileLinkUrl(safeHref)) {
+        const path = decodeFileLink(safeHref);
+        return (
+          <a
+            href={safeHref}
+            onClick={(event) => handleFileLinkClick(event, path)}
+            onContextMenu={(event) => handleFileLinkContextMenu(event, path)}
+          >
+            {children}
+          </a>
+        );
+      }
+      const localFilePath = resolveLocalFileHref(safeHref);
+      if (localFilePath) {
+        return (
+          <a
+            href={safeHref}
+            onClick={(event) => handleFileLinkClick(event, localFilePath)}
+            onContextMenu={(event) => handleFileLinkContextMenu(event, localFilePath)}
+          >
+            {children}
+          </a>
+        );
+      }
+      const isExternal =
+        safeHref.startsWith("http://") ||
+        safeHref.startsWith("https://") ||
+        safeHref.startsWith("mailto:");
+      if (!isExternal) {
+        return <a href={safeHref}>{children}</a>;
+      }
+      return (
+        <a
+          href={safeHref}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void openUrl(safeHref);
+          }}
+        >
+          {children}
+        </a>
+      );
+    },
+    [handleFileLinkClick, handleFileLinkContextMenu, urlTransform],
+  );
 
   return (
     <div className={className}>
-      <ReactMarkdown
-        remarkPlugins={remarkPluginsMemo}
-        rehypePlugins={rehypePluginsMemo}
-        urlTransform={urlTransform}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
+      {liveRenderMode === "lightweight" ? (
+        <LightweightMarkdown value={content} renderLink={renderLightweightLink} />
+      ) : (
+        <ReactMarkdown
+          remarkPlugins={remarkPluginsMemo}
+          rehypePlugins={rehypePluginsMemo}
+          urlTransform={urlTransform}
+          components={components}
+        >
+          {content}
+        </ReactMarkdown>
+      )}
     </div>
   );
 }, areMarkdownPropsEqual);

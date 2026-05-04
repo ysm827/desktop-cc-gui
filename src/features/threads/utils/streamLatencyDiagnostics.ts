@@ -13,7 +13,8 @@ export type StreamLatencyCategory =
 export type StreamMitigationProfileId =
   | "claude-qwen-windows-render-safe"
   | "claude-windows-visible-stream"
-  | "claude-markdown-stream-recovery";
+  | "claude-markdown-stream-recovery"
+  | "codex-markdown-stream-recovery";
 
 export type StreamMitigationProfile = {
   id: StreamMitigationProfileId;
@@ -21,6 +22,8 @@ export type StreamMitigationProfile = {
   reasoningStreamingThrottleMs: number;
   renderPlainTextWhileStreaming?: boolean;
 };
+
+export type StreamIngressSource = "delta" | "snapshot" | "completion";
 
 export type ThreadStreamLatencySnapshot = {
   threadId: string;
@@ -35,6 +38,11 @@ export type ThreadStreamLatencySnapshot = {
   startedAt: number | null;
   firstDeltaAt: number | null;
   lastDeltaAt: number | null;
+  lastIngressAt: number | null;
+  lastIngressGapMs: number | null;
+  lastIngressSource: StreamIngressSource | null;
+  lastIngressItemId: string | null;
+  lastIngressTextLength: number;
   pendingRenderSinceDeltaAt: number | null;
   deltaCount: number;
   cadenceSamplesMs: number[];
@@ -65,6 +73,8 @@ export type ThreadStreamLatencySnapshot = {
 const CADENCE_SAMPLE_LIMIT = 12;
 const RENDER_AMPLIFICATION_THRESHOLD_MS = 160;
 const VISIBLE_OUTPUT_STALL_THRESHOLD_MS = 700;
+const CODEX_INGRESS_GAP_DIAGNOSTIC_MS = 2_000;
+const LARGE_INGRESS_TEXT_DIAGNOSTIC_CHARS = 1_000;
 const STREAM_MITIGATION_DISABLE_FLAG_KEY = "ccgui.debug.streamMitigation.disabled";
 
 const STREAM_MITIGATION_PROFILES: Readonly<Record<StreamMitigationProfileId, StreamMitigationProfile>> = {
@@ -85,6 +95,11 @@ const STREAM_MITIGATION_PROFILES: Readonly<Record<StreamMitigationProfileId, Str
     messageStreamingThrottleMs: 120,
     reasoningStreamingThrottleMs: 260,
     renderPlainTextWhileStreaming: true,
+  },
+  "codex-markdown-stream-recovery": {
+    id: "codex-markdown-stream-recovery",
+    messageStreamingThrottleMs: 120,
+    reasoningStreamingThrottleMs: 220,
   },
 };
 
@@ -125,6 +140,11 @@ function createInitialSnapshot(threadId: string): ThreadStreamLatencySnapshot {
     startedAt: null,
     firstDeltaAt: null,
     lastDeltaAt: null,
+    lastIngressAt: null,
+    lastIngressGapMs: null,
+    lastIngressSource: null,
+    lastIngressItemId: null,
+    lastIngressTextLength: 0,
     pendingRenderSinceDeltaAt: null,
     deltaCount: 0,
     cadenceSamplesMs: [],
@@ -254,6 +274,22 @@ function isClaudeStream(
   return snapshot.engine === "claude";
 }
 
+function isCodexStream(
+  snapshot: Pick<ThreadStreamLatencySnapshot, "engine">,
+) {
+  return snapshot.engine === "codex";
+}
+
+function isVisibleTextDiagnosticsStream(
+  snapshot: Pick<ThreadStreamLatencySnapshot, "engine">,
+) {
+  return (
+    snapshot.engine === "claude" ||
+    snapshot.engine === "codex" ||
+    snapshot.engine === "gemini"
+  );
+}
+
 export function matchesQwenCompatibleClaudeWindowsFingerprint(
   snapshot: Pick<
     ThreadStreamLatencySnapshot,
@@ -296,6 +332,18 @@ function resolveClaudeVisibleStallMitigationProfileId(
     ?? "claude-markdown-stream-recovery";
 }
 
+function resolveEngineVisibleStallMitigationProfileId(
+  snapshot: ThreadStreamLatencySnapshot,
+): StreamMitigationProfileId | null {
+  if (isClaudeStream(snapshot)) {
+    return resolveClaudeVisibleStallMitigationProfileId(snapshot);
+  }
+  if (isCodexStream(snapshot)) {
+    return "codex-markdown-stream-recovery";
+  }
+  return null;
+}
+
 function activateMitigationProfile(
   snapshot: ThreadStreamLatencySnapshot,
   profileId: StreamMitigationProfileId,
@@ -333,12 +381,12 @@ function maybeActivateClaudeWindowsMitigation(
   return activateMitigationProfile(snapshot, profileId, reason, extra);
 }
 
-function maybeActivateClaudeVisibleStallMitigation(
+function maybeActivateEngineVisibleStallMitigation(
   snapshot: ThreadStreamLatencySnapshot,
   reason: string,
   extra: Record<string, unknown> = {},
 ) {
-  const profileId = resolveClaudeVisibleStallMitigationProfileId(snapshot);
+  const profileId = resolveEngineVisibleStallMitigationProfileId(snapshot);
   if (!profileId) {
     return snapshot;
   }
@@ -412,6 +460,14 @@ function buildCorrelationPayload(
     lastVisibleTextItemId: snapshot.lastVisibleTextItemId,
     lastVisibleTextLength: snapshot.lastVisibleTextLength,
     visibleTextGrowthCount: snapshot.visibleTextGrowthCount,
+    lastIngressAtMs:
+      snapshot.startedAt !== null && snapshot.lastIngressAt !== null
+        ? Math.max(0, snapshot.lastIngressAt - snapshot.startedAt)
+        : null,
+    lastIngressGapMs: snapshot.lastIngressGapMs,
+    lastIngressSource: snapshot.lastIngressSource,
+    lastIngressItemId: snapshot.lastIngressItemId,
+    lastIngressTextLength: snapshot.lastIngressTextLength,
     pendingVisibleTextSinceDeltaAtMs:
       snapshot.startedAt !== null && snapshot.pendingVisibleTextSinceDeltaAt !== null
         ? Math.max(0, snapshot.pendingVisibleTextSinceDeltaAt - snapshot.startedAt)
@@ -454,6 +510,11 @@ export function buildThreadStreamCorrelationDimensions(threadId: string | null) 
       lastVisibleTextItemId: null,
       lastVisibleTextLength: 0,
       visibleTextGrowthCount: 0,
+      lastIngressAtMs: null,
+      lastIngressGapMs: null,
+      lastIngressSource: null,
+      lastIngressItemId: null,
+      lastIngressTextLength: 0,
       pendingVisibleTextSinceDeltaAtMs: null,
       lastRenderLagMs: null,
       chunkCadenceAvgMs: null,
@@ -547,6 +608,11 @@ export function noteThreadTurnStarted(input: {
     startedAt,
     firstDeltaAt: null,
     lastDeltaAt: null,
+    lastIngressAt: null,
+    lastIngressGapMs: null,
+    lastIngressSource: null,
+    lastIngressItemId: null,
+    lastIngressTextLength: 0,
     pendingRenderSinceDeltaAt: null,
     deltaCount: 0,
     cadenceSamplesMs: [],
@@ -575,7 +641,15 @@ export function noteThreadTurnStarted(input: {
   }));
 }
 
-export function noteThreadDeltaReceived(threadId: string, timestamp = Date.now()) {
+export function noteThreadDeltaReceived(
+  threadId: string,
+  timestamp = Date.now(),
+  ingress?: {
+    source: Exclude<StreamIngressSource, "completion">;
+    itemId: string;
+    textLength: number;
+  },
+) {
   const nextSnapshot = updateThreadSnapshot(threadId, (current) => {
     const cadenceSamplesMs =
       current.lastDeltaAt === null
@@ -591,11 +665,115 @@ export function noteThreadDeltaReceived(threadId: string, timestamp = Date.now()
       cadenceSamplesMs,
     };
     return primeClaudeWindowsVisibleStreamCandidate(
-      snapshotWithDelta,
+      ingress
+        ? applyThreadTextIngress(snapshotWithDelta, timestamp, ingress)
+        : snapshotWithDelta,
       "first-delta-visible-stream-candidate",
     );
   });
+  maybeEmitCodexIngressDiagnostic(nextSnapshot, ingress);
   scheduleVisibleOutputStallTimer(threadId, nextSnapshot);
+}
+
+function applyThreadTextIngress(
+  snapshot: ThreadStreamLatencySnapshot,
+  timestamp: number,
+  ingress: {
+    source: StreamIngressSource;
+    itemId: string;
+    textLength: number;
+  },
+): ThreadStreamLatencySnapshot {
+  const lastIngressGapMs =
+    snapshot.lastIngressAt === null
+      ? null
+      : Math.max(0, timestamp - snapshot.lastIngressAt);
+  return {
+    ...snapshot,
+    lastIngressAt: timestamp,
+    lastIngressGapMs,
+    lastIngressSource: ingress.source,
+    lastIngressItemId: ingress.itemId,
+    lastIngressTextLength: normalizeVisibleTextLength(ingress.textLength),
+  };
+}
+
+function maybeEmitCodexIngressDiagnostic(
+  snapshot: ThreadStreamLatencySnapshot,
+  ingress?: {
+    source: StreamIngressSource;
+    itemId: string;
+    textLength: number;
+  },
+) {
+  if (!ingress || !isCodexStream(snapshot)) {
+    return;
+  }
+  const textLength = normalizeVisibleTextLength(ingress.textLength);
+  const shouldEmit =
+    ingress.source === "completion" ||
+    textLength >= LARGE_INGRESS_TEXT_DIAGNOSTIC_CHARS ||
+    (
+      snapshot.lastIngressGapMs !== null &&
+      snapshot.lastIngressGapMs >= CODEX_INGRESS_GAP_DIAGNOSTIC_MS
+    );
+  if (!shouldEmit) {
+    return;
+  }
+  appendRendererDiagnostic(
+    "stream-latency/codex-text-ingress",
+    buildCorrelationPayload(snapshot, {
+      ingressSource: ingress.source,
+      itemId: ingress.itemId,
+      textLength,
+    }),
+  );
+}
+
+export function noteThreadTextIngressReceived(
+  threadId: string,
+  input: {
+    source: StreamIngressSource;
+    itemId: string;
+    textLength: number;
+    timestamp?: number;
+  },
+) {
+  const timestamp = input.timestamp ?? Date.now();
+  let shouldEmitCodexIngressDiagnostic = false;
+  const nextSnapshot = updateThreadSnapshot(threadId, (current) => {
+    if (
+      input.source === "completion" &&
+      current.lastIngressSource === "completion" &&
+      current.lastIngressItemId === input.itemId &&
+      current.lastIngressTextLength === normalizeVisibleTextLength(input.textLength)
+    ) {
+      return current;
+    }
+    const nextSnapshot = applyThreadTextIngress(current, timestamp, input);
+    shouldEmitCodexIngressDiagnostic = (
+      isCodexStream(nextSnapshot) &&
+      (
+        input.source === "completion" ||
+        nextSnapshot.lastIngressTextLength >= LARGE_INGRESS_TEXT_DIAGNOSTIC_CHARS ||
+        (
+          nextSnapshot.lastIngressGapMs !== null &&
+          nextSnapshot.lastIngressGapMs >= CODEX_INGRESS_GAP_DIAGNOSTIC_MS
+        )
+      )
+    );
+    return nextSnapshot;
+  });
+  if (shouldEmitCodexIngressDiagnostic) {
+    appendRendererDiagnostic(
+      "stream-latency/codex-text-ingress",
+      buildCorrelationPayload(nextSnapshot, {
+        ingressSource: input.source,
+        itemId: input.itemId,
+        textLength: normalizeVisibleTextLength(input.textLength),
+      }),
+    );
+  }
 }
 
 function maybeActivateMitigation(
@@ -652,7 +830,7 @@ export function noteThreadVisibleRender(
         pendingRenderSinceDeltaAt: null,
         repeatTurnBlankingReported: true,
       };
-      nextSnapshot = maybeActivateClaudeVisibleStallMitigation(
+      nextSnapshot = maybeActivateEngineVisibleStallMitigation(
         nextSnapshot,
         "repeat-turn-blanking",
         {
@@ -733,7 +911,7 @@ function scheduleVisibleOutputStallTimer(
   snapshot: ThreadStreamLatencySnapshot,
 ) {
   if (
-    !isClaudeStream(snapshot) ||
+    (!isClaudeStream(snapshot) && !isCodexStream(snapshot)) ||
     snapshot.firstDeltaAt === null ||
     snapshot.pendingVisibleTextSinceDeltaAt === null ||
     snapshot.visibleOutputStallReported ||
@@ -800,7 +978,7 @@ export function reportThreadVisibleOutputStallAfterFirstDelta(
   const stallAt = input.stallAt ?? Date.now();
   updateThreadSnapshot(threadId, (current) => {
     if (
-      !isClaudeStream(current) ||
+      !isVisibleTextDiagnosticsStream(current) ||
       current.startedAt === null ||
       current.firstDeltaAt === null ||
       current.pendingVisibleTextSinceDeltaAt === null ||
@@ -814,7 +992,7 @@ export function reportThreadVisibleOutputStallAfterFirstDelta(
       latencyCategory: "visible-output-stall-after-first-delta",
       visibleOutputStallReported: true,
     };
-    nextSnapshot = maybeActivateClaudeVisibleStallMitigation(
+    nextSnapshot = maybeActivateEngineVisibleStallMitigation(
       nextSnapshot,
       "visible-output-stall-after-first-delta",
       {
@@ -863,6 +1041,11 @@ export function completeThreadStreamTurn(threadId: string) {
     startedAt: null,
     firstDeltaAt: null,
     lastDeltaAt: null,
+    lastIngressAt: null,
+    lastIngressGapMs: null,
+    lastIngressSource: null,
+    lastIngressItemId: null,
+    lastIngressTextLength: 0,
     pendingRenderSinceDeltaAt: null,
     deltaCount: 0,
     cadenceSamplesMs: [],

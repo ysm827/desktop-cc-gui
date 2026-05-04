@@ -24,6 +24,7 @@ import {
   completeThreadStreamTurn,
   getThreadStreamLatencySnapshot,
   noteThreadDeltaReceived,
+  noteThreadTextIngressReceived,
   noteThreadTurnStarted,
   noteThreadVisibleTextRendered,
   noteThreadVisibleRender,
@@ -202,6 +203,52 @@ describe("streamLatencyDiagnostics", () => {
     );
   });
 
+  it("classifies Gemini visible output stall without activating mitigation by default", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-gemini",
+      threadId: "thread-gemini-visible-stall",
+      engine: "gemini",
+      model: "gemini-2.5-pro",
+    });
+
+    noteThreadTurnStarted({
+      workspaceId: "ws-gemini",
+      threadId: "thread-gemini-visible-stall",
+      turnId: "turn-gemini-visible-stall",
+      startedAt: 4_100,
+    });
+    noteThreadDeltaReceived("thread-gemini-visible-stall", 4_150);
+    noteThreadVisibleTextRendered("thread-gemini-visible-stall", {
+      itemId: "assistant-gemini-visible-stall",
+      visibleTextLength: 3,
+      renderAt: 4_170,
+    });
+    noteThreadDeltaReceived("thread-gemini-visible-stall", 4_220);
+
+    reportThreadVisibleOutputStallAfterFirstDelta("thread-gemini-visible-stall", {
+      stallAt: 4_950,
+      reason: "test-gemini-visible-gap",
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-gemini-visible-stall");
+
+    expect(snapshot?.latencyCategory).toBe("visible-output-stall-after-first-delta");
+    expect(snapshot?.engine).toBe("gemini");
+    expect(snapshot?.mitigationProfile).toBeNull();
+    expect(resolveActiveThreadStreamMitigation(snapshot)).toBeNull();
+    expect(mocks.appendRendererDiagnostic).toHaveBeenCalledWith(
+      "stream-latency/visible-output-stall-after-first-delta",
+      expect.objectContaining({
+        workspaceId: "ws-gemini",
+        threadId: "thread-gemini-visible-stall",
+        engine: "gemini",
+        model: "gemini-2.5-pro",
+        latencyCategory: "visible-output-stall-after-first-delta",
+        reason: "test-gemini-visible-gap",
+      }),
+    );
+  });
+
   it("activates engine-level Claude markdown stream recovery on macOS after visible stall evidence", async () => {
     mocks.isWindowsPlatform.mockReturnValue(false);
     mocks.isMacPlatform.mockReturnValue(true);
@@ -253,6 +300,52 @@ describe("streamLatencyDiagnostics", () => {
         threadId: "thread-mac-visible-stall",
         platform: "macos",
         mitigationProfile: "claude-markdown-stream-recovery",
+        latencyCategory: "visible-output-stall-after-first-delta",
+      }),
+    );
+  });
+
+  it("activates Codex markdown stream recovery after visible stall evidence", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-visible-stall",
+      engine: "codex",
+      model: "gpt-5.4",
+    });
+
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-visible-stall",
+      turnId: "turn-codex-visible-stall",
+      startedAt: 9_000,
+    });
+    noteThreadDeltaReceived("thread-codex-visible-stall", 9_050);
+    noteThreadVisibleTextRendered("thread-codex-visible-stall", {
+      itemId: "assistant-codex-visible-stall",
+      visibleTextLength: 4,
+      renderAt: 9_070,
+    });
+    noteThreadDeltaReceived("thread-codex-visible-stall", 9_120);
+
+    reportThreadVisibleOutputStallAfterFirstDelta("thread-codex-visible-stall", {
+      stallAt: 9_920,
+      reason: "codex-visible-gap",
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-codex-visible-stall");
+    const mitigation = resolveActiveThreadStreamMitigation(snapshot);
+
+    expect(snapshot?.latencyCategory).toBe("visible-output-stall-after-first-delta");
+    expect(snapshot?.mitigationProfile).toBe("codex-markdown-stream-recovery");
+    expect(snapshot?.mitigationReason).toBe("visible-output-stall-after-first-delta");
+    expect(mitigation?.id).toBe("codex-markdown-stream-recovery");
+    expect(mitigation?.renderPlainTextWhileStreaming).toBeUndefined();
+    expect(mocks.appendRendererDiagnostic).toHaveBeenCalledWith(
+      "stream-latency/mitigation-activated",
+      expect.objectContaining({
+        threadId: "thread-codex-visible-stall",
+        engine: "codex",
+        mitigationProfile: "codex-markdown-stream-recovery",
         latencyCategory: "visible-output-stall-after-first-delta",
       }),
     );
@@ -548,6 +641,130 @@ describe("streamLatencyDiagnostics", () => {
     expect(resolveActiveThreadStreamMitigation(
       getThreadStreamLatencySnapshot("thread-mac-claude"),
     )).toBeNull();
+  });
+
+  it("records codex completion ingress after a long visible gap", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-gap",
+      engine: "codex",
+      model: "gpt-5.4",
+    });
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-gap",
+      turnId: "turn-codex-completion-gap",
+      startedAt: 10_000,
+    });
+    noteThreadDeltaReceived("thread-codex-completion-gap", 10_050, {
+      source: "delta",
+      itemId: "assistant-codex-gap",
+      textLength: 120,
+    });
+    noteThreadVisibleTextRendered("thread-codex-completion-gap", {
+      itemId: "assistant-codex-gap",
+      visibleTextLength: 120,
+      renderAt: 10_080,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-gap", {
+      source: "completion",
+      itemId: "assistant-codex-gap",
+      textLength: 4_800,
+      timestamp: 32_000,
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-codex-completion-gap");
+
+    expect(snapshot?.deltaCount).toBe(1);
+    expect(snapshot?.lastDeltaAt).toBe(10_050);
+    expect(snapshot?.cadenceSamplesMs).toEqual([]);
+    expect(snapshot?.lastIngressSource).toBe("completion");
+    expect(snapshot?.lastIngressGapMs).toBe(21_950);
+    expect(snapshot?.lastIngressTextLength).toBe(4_800);
+    expect(mocks.appendRendererDiagnostic).toHaveBeenCalledWith(
+      "stream-latency/codex-text-ingress",
+      expect.objectContaining({
+        engine: "codex",
+        ingressSource: "completion",
+        itemId: "assistant-codex-gap",
+        textLength: 4_800,
+        lastIngressGapMs: 21_950,
+      }),
+    );
+  });
+
+  it("dedupes identical codex completion ingress diagnostics", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-dedupe",
+      engine: "codex",
+      model: "gpt-5.4",
+    });
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-dedupe",
+      turnId: "turn-codex-completion-dedupe",
+      startedAt: 20_000,
+    });
+    noteThreadDeltaReceived("thread-codex-completion-dedupe", 20_100, {
+      source: "delta",
+      itemId: "assistant-codex-dedupe",
+      textLength: 120,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-dedupe", {
+      source: "completion",
+      itemId: "assistant-codex-dedupe",
+      textLength: 4_800,
+      timestamp: 22_200,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-dedupe", {
+      source: "completion",
+      itemId: "assistant-codex-dedupe",
+      textLength: 4_800,
+      timestamp: 23_300,
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-codex-completion-dedupe");
+    const ingressDiagnostics = mocks.appendRendererDiagnostic.mock.calls.filter(
+      ([eventName]) => eventName === "stream-latency/codex-text-ingress",
+    );
+
+    expect(snapshot?.lastIngressGapMs).toBe(2_100);
+    expect(ingressDiagnostics).toHaveLength(1);
+  });
+
+  it("does not report baseline profile activation as stream mitigation", async () => {
+    mocks.isWindowsPlatform.mockReturnValue(false);
+    mocks.isMacPlatform.mockReturnValue(true);
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-baseline-profile",
+      engine: "gemini",
+      model: "gemini-2.5-pro",
+    });
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-baseline-profile",
+      turnId: "turn-baseline-profile",
+      startedAt: 5_900,
+    });
+    noteThreadDeltaReceived("thread-baseline-profile", 5_940);
+    noteThreadVisibleTextRendered("thread-baseline-profile", {
+      itemId: "assistant-baseline-profile",
+      visibleTextLength: 12,
+      renderAt: 5_960,
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-baseline-profile");
+
+    expect(snapshot?.candidateMitigationProfile).toBeNull();
+    expect(snapshot?.mitigationProfile).toBeNull();
+    expect(snapshot?.mitigationReason).toBeNull();
+    expect(resolveActiveThreadStreamMitigation(snapshot)).toBeNull();
+    expect(mocks.appendRendererDiagnostic).not.toHaveBeenCalledWith(
+      "stream-latency/mitigation-activated",
+      expect.anything(),
+    );
   });
 
   it("keeps diagnostics while the rollback flag suppresses the active mitigation profile", async () => {

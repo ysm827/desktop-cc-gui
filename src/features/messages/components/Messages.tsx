@@ -99,6 +99,10 @@ import {
   type RuntimeReconnectRecoveryCallbackResult,
 } from "./runtimeReconnect";
 
+const MESSAGE_JUMP_EVENT_NAME = "mossx:jump-to-message";
+const ASSISTANT_FINALIZING_LIVE_WINDOW_MS = 320;
+const CODEX_FINALIZING_LIVE_WINDOW_MS = 6_000;
+
 type MessagesProps = {
   items: ConversationItem[];
   threadId: string | null;
@@ -385,6 +389,7 @@ export const Messages = memo(function Messages({
   const [activeAnchorId, setActiveAnchorId] = useState<string | null>(null);
   const [activeStickyMessageId, setActiveStickyMessageId] = useState<string | null>(null);
   const [showAllHistoryItems, setShowAllHistoryItems] = useState(false);
+  const [pendingJumpMessageId, setPendingJumpMessageId] = useState<string | null>(null);
   const [liveAutoFollowEnabled, setLiveAutoFollowEnabled] = useState(() =>
     readLocalBooleanFlag(MESSAGES_LIVE_AUTO_FOLLOW_FLAG_KEY, true),
   );
@@ -398,9 +403,13 @@ export const Messages = memo(function Messages({
   const planPanelFocusRafRef = useRef<number | null>(null);
   const planPanelFocusTimeoutRef = useRef<number | null>(null);
   const planPanelFocusNodeRef = useRef<HTMLElement | null>(null);
+  const assistantFinalizingTimerRef = useRef<number | null>(null);
+  const previousAssistantThinkingRef = useRef(isThinking);
+  const previousAssistantThreadIdRef = useRef(threadId);
   const frozenItemsRef = useRef<ConversationItem[] | null>(null);
   const latestItemsRef = useRef(items);
   latestItemsRef.current = items;
+  const [finalizingAssistantMessageId, setFinalizingAssistantMessageId] = useState<string | null>(null);
   const effectiveItems = useMemo(() => {
     const baseItems = isSelectionFrozen
       ? frozenItemsRef.current ?? items
@@ -532,6 +541,13 @@ export const Messages = memo(function Messages({
     setIsSelectionFrozen(false);
     frozenItemsRef.current = null;
     pendingHistoryExpansionScrollSnapshotRef.current = null;
+    if (assistantFinalizingTimerRef.current !== null) {
+      window.clearTimeout(assistantFinalizingTimerRef.current);
+      assistantFinalizingTimerRef.current = null;
+    }
+    setFinalizingAssistantMessageId(null);
+    previousAssistantThinkingRef.current = false;
+    previousAssistantThreadIdRef.current = threadId;
   }, [threadId]);
   useEffect(() => {
     scrollToAgentTaskCard(agentTaskScrollRequest);
@@ -879,6 +895,77 @@ export const Messages = memo(function Messages({
     }
     return null;
   }, [lastUserMessageIndex, renderSourceItems]);
+  const supportsAssistantFinalizingWindow =
+    activeEngine === "claude" || activeEngine === "codex";
+  const isAssistantCompletionFrame =
+    supportsAssistantFinalizingWindow &&
+    previousAssistantThreadIdRef.current === threadId &&
+    previousAssistantThinkingRef.current &&
+    !isThinking &&
+    latestAssistantMessageId !== null;
+  const liveAssistantMessageId = isThinking
+    ? latestAssistantMessageId
+    : finalizingAssistantMessageId ?? (
+        isAssistantCompletionFrame ? latestAssistantMessageId : null
+      );
+  const isAssistantFinalizing =
+    !isThinking &&
+    liveAssistantMessageId !== null;
+  useEffect(() => {
+    const previouslyThinking = previousAssistantThinkingRef.current;
+    previousAssistantThreadIdRef.current = threadId;
+    previousAssistantThinkingRef.current = isThinking;
+    if (!supportsAssistantFinalizingWindow) {
+      if (assistantFinalizingTimerRef.current !== null) {
+        window.clearTimeout(assistantFinalizingTimerRef.current);
+        assistantFinalizingTimerRef.current = null;
+      }
+      if (finalizingAssistantMessageId !== null) {
+        setFinalizingAssistantMessageId(null);
+      }
+      return;
+    }
+    if (isThinking) {
+      if (assistantFinalizingTimerRef.current !== null) {
+        window.clearTimeout(assistantFinalizingTimerRef.current);
+        assistantFinalizingTimerRef.current = null;
+      }
+      if (finalizingAssistantMessageId !== null) {
+        setFinalizingAssistantMessageId(null);
+      }
+      return;
+    }
+    if (!previouslyThinking || !latestAssistantMessageId) {
+      return;
+    }
+    setFinalizingAssistantMessageId(latestAssistantMessageId);
+    if (assistantFinalizingTimerRef.current !== null) {
+      window.clearTimeout(assistantFinalizingTimerRef.current);
+    }
+    const finalizingWindowMs =
+      activeEngine === "codex"
+        ? CODEX_FINALIZING_LIVE_WINDOW_MS
+        : ASSISTANT_FINALIZING_LIVE_WINDOW_MS;
+    assistantFinalizingTimerRef.current = window.setTimeout(() => {
+      assistantFinalizingTimerRef.current = null;
+      setFinalizingAssistantMessageId((current) =>
+        current === latestAssistantMessageId ? null : current,
+      );
+    }, finalizingWindowMs);
+  }, [
+    activeEngine,
+    finalizingAssistantMessageId,
+    isThinking,
+    latestAssistantMessageId,
+    supportsAssistantFinalizingWindow,
+    threadId,
+  ]);
+  useEffect(() => () => {
+    if (assistantFinalizingTimerRef.current !== null) {
+      window.clearTimeout(assistantFinalizingTimerRef.current);
+      assistantFinalizingTimerRef.current = null;
+    }
+  }, []);
 
   const waitingForFirstChunk = useMemo(() => {
     if (!isThinking || renderSourceItems.length === 0) {
@@ -1512,25 +1599,62 @@ export const Messages = memo(function Messages({
   });
 
   useEffect(() => {
-    if (activeEngine !== "claude" || !isThinking || !threadId) {
+    if (
+      (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
+      (!isThinking && !isAssistantFinalizing) ||
+      !threadId
+    ) {
       return;
     }
     noteThreadVisibleRender(threadId, {
       visibleItemCount: renderedItems.length,
     });
-  }, [activeEngine, isThinking, renderedItems, threadId]);
+  }, [activeEngine, isAssistantFinalizing, isThinking, renderedItems.length, threadId]);
 
   const handleAssistantVisibleTextRender = useCallback(
     (payload: { itemId: string; visibleText: string }) => {
-      if (activeEngine !== "claude" || !isThinking || !threadId) {
+      if (
+        (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
+        (!isThinking && !isAssistantFinalizing) ||
+        !threadId
+      ) {
         return;
       }
       noteThreadVisibleTextRendered(threadId, {
         itemId: payload.itemId,
         visibleTextLength: payload.visibleText.length,
       });
+      if (
+        activeEngine === "codex" &&
+        isAssistantFinalizing &&
+        payload.itemId === finalizingAssistantMessageId
+      ) {
+        const targetItem = renderSourceItems.find(
+          (item) =>
+            isAssistantMessageConversationItem(item) &&
+            item.id === payload.itemId,
+        );
+        const targetTextLength =
+          targetItem && isAssistantMessageConversationItem(targetItem)
+            ? targetItem.text.length
+            : 0;
+        if (targetTextLength > 0 && payload.visibleText.length >= targetTextLength) {
+          if (assistantFinalizingTimerRef.current !== null) {
+            window.clearTimeout(assistantFinalizingTimerRef.current);
+            assistantFinalizingTimerRef.current = null;
+          }
+          setFinalizingAssistantMessageId(null);
+        }
+      }
     },
-    [activeEngine, isThinking, threadId],
+    [
+      activeEngine,
+      finalizingAssistantMessageId,
+      isAssistantFinalizing,
+      isThinking,
+      renderSourceItems,
+      threadId,
+    ],
   );
 
   useEffect(() => clearTransientUiState, [clearTransientUiState]);
@@ -1605,7 +1729,8 @@ export const Messages = memo(function Messages({
     const target = bottomRef.current;
     // Use instant scroll during streaming to avoid blocking the main thread
     // with smooth-scroll animations that compete with keyboard input events.
-    const scrollBehavior = isThinking ? "instant" as const : "smooth" as const;
+    const scrollBehavior =
+      isThinking || isAssistantFinalizing ? "instant" as const : "smooth" as const;
     raf = window.requestAnimationFrame(() => {
       target.scrollIntoView({ behavior: scrollBehavior, block: "end" });
     });
@@ -1614,7 +1739,7 @@ export const Messages = memo(function Messages({
         window.cancelAnimationFrame(raf);
       }
     };
-  }, [scrollKey, isThinking, isNearBottom, liveAutoFollowEnabled]);
+  }, [isAssistantFinalizing, scrollKey, isThinking, isNearBottom, liveAutoFollowEnabled]);
 
   const groupedEntries = useMemo(
     () => groupToolItems(presentationRenderedItems),
@@ -1694,7 +1819,7 @@ export const Messages = memo(function Messages({
   }, [assistantFinalBoundarySet, presentationRenderedItems]);
   const assistantLiveTurnFinalBoundarySuppressedSet = useMemo(() => {
     const ids = new Set<string>();
-    if (!isThinking) {
+    if (!liveAssistantMessageId) {
       return ids;
     }
     let lastUserIndex = -1;
@@ -1718,13 +1843,14 @@ export const Messages = memo(function Messages({
         entry?.kind === "message" &&
         entry.role === "assistant" &&
         entry.isFinal === true &&
-        assistantFinalBoundarySet.has(entry.id)
+        assistantFinalBoundarySet.has(entry.id) &&
+        (isThinking || entry.id === liveAssistantMessageId)
       ) {
         ids.add(entry.id);
       }
     }
     return ids;
-  }, [assistantFinalBoundarySet, isThinking, presentationRenderedItems]);
+  }, [assistantFinalBoundarySet, isThinking, liveAssistantMessageId, presentationRenderedItems]);
 
   const shouldRenderUserInputNode =
     (activeEngine === "codex" || activeEngine === "claude") &&
@@ -1780,6 +1906,41 @@ export const Messages = memo(function Messages({
     });
     setActiveAnchorId((previous) => (previous === messageId ? previous : messageId));
   }, []);
+
+  useEffect(() => {
+    if (!pendingJumpMessageId) {
+      return;
+    }
+    const targetNode = messageNodeByIdRef.current.get(pendingJumpMessageId);
+    if (!targetNode) {
+      return;
+    }
+    scrollToAnchor(pendingJumpMessageId);
+    setPendingJumpMessageId(null);
+  }, [pendingJumpMessageId, presentationRenderedItems, scrollToAnchor]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    const handleJumpToMessage = (event: Event) => {
+      const messageId =
+        event instanceof CustomEvent && typeof event.detail === "string" ? event.detail : "";
+      if (!messageId) {
+        return;
+      }
+      if (!messageNodeByIdRef.current.get(messageId) && !showAllHistoryItems) {
+        setPendingJumpMessageId(messageId);
+        handleShowAllHistoryItems();
+        return;
+      }
+      scrollToAnchor(messageId);
+    };
+    document.addEventListener(MESSAGE_JUMP_EVENT_NAME, handleJumpToMessage);
+    return () => {
+      document.removeEventListener(MESSAGE_JUMP_EVENT_NAME, handleJumpToMessage);
+    };
+  }, [handleShowAllHistoryItems, scrollToAnchor, showAllHistoryItems]);
 
   return (
     <div
@@ -1847,7 +2008,7 @@ export const Messages = memo(function Messages({
           isThinking={isThinking}
           isWorking={isWorking}
           lastDurationMs={lastDurationMs}
-          latestAssistantMessageId={latestAssistantMessageId}
+          liveAssistantMessageId={liveAssistantMessageId}
           latestReasoningLabel={workingIndicatorReasoningLabel}
           latestReasoningId={latestReasoningId}
           latestRetryMessage={latestRetryMessage}

@@ -25,8 +25,10 @@ import {
   buildThreadStreamCorrelationDimensions,
   completeThreadStreamTurn,
   noteThreadDeltaReceived,
+  noteThreadTextIngressReceived,
   noteThreadTurnStarted,
   reportThreadUpstreamPending,
+  type StreamIngressSource,
 } from "../utils/streamLatencyDiagnostics";
 import {
   buildCodexLivenessDiagnostic,
@@ -899,7 +901,7 @@ export function useThreadEventHandlers({
       threadId: string;
       itemId: string;
       textLength: number;
-      source: "delta" | "snapshot";
+      source: StreamIngressSource;
     }) => {
       if (interruptedThreadsRef.current.has(payload.threadId)) {
         return;
@@ -909,8 +911,26 @@ export function useThreadEventHandlers({
         return;
       }
       const deltaTimestamp = Date.now();
-      noteThreadDeltaReceived(payload.threadId, deltaTimestamp);
-      diagnostic.deltaCount += 1;
+      const source = payload.source;
+      const isDeltaIngress = source === "delta" || source === "snapshot";
+      if (isDeltaIngress) {
+        noteThreadDeltaReceived(payload.threadId, deltaTimestamp, {
+          source,
+          itemId: payload.itemId,
+          textLength: payload.textLength,
+        });
+        diagnostic.deltaCount += 1;
+      } else {
+        noteThreadTextIngressReceived(payload.threadId, {
+          source: payload.source,
+          itemId: payload.itemId,
+          textLength: payload.textLength,
+          timestamp: deltaTimestamp,
+        });
+      }
+      if (!isDeltaIngress) {
+        return;
+      }
       if (diagnostic.firstDeltaAt !== null) {
         return;
       }
@@ -1310,6 +1330,28 @@ export function useThreadEventHandlers({
     ],
   );
 
+  const onAgentMessageCompletedTracked = useCallback(
+    (payload: {
+      workspaceId: string;
+      threadId: string;
+      itemId: string;
+      text: string;
+    }) => {
+      onAgentMessageCompleted(payload);
+      if (interruptedThreadsRef.current.has(payload.threadId) || payload.text.length === 0) {
+        return;
+      }
+      recordAssistantStreamIngress({
+        workspaceId: payload.workspaceId,
+        threadId: payload.threadId,
+        itemId: payload.itemId,
+        textLength: payload.text.length,
+        source: "completion",
+      });
+    },
+    [interruptedThreadsRef, onAgentMessageCompleted, recordAssistantStreamIngress],
+  );
+
   const onItemStartedTracked = useCallback(
     (workspaceId: string, threadId: string, item: Record<string, unknown>) => {
       if (
@@ -1437,6 +1479,20 @@ export function useThreadEventHandlers({
                 : "delta",
           });
         }
+      }
+      if (
+        event.operation === "completeAgentMessage" &&
+        event.item.kind === "message" &&
+        event.item.role === "assistant" &&
+        event.item.text.length > 0
+      ) {
+        recordAssistantStreamIngress({
+          workspaceId: event.workspaceId,
+          threadId: event.threadId,
+          itemId: event.item.id,
+          textLength: event.item.text.length,
+          source: "completion",
+        });
       }
       if (!event.rawItem) {
         return;
@@ -1831,7 +1887,7 @@ export function useThreadEventHandlers({
       onBackgroundThreadAction,
       onAppServerEvent,
       onAgentMessageDelta: onAgentMessageDeltaTracked,
-      onAgentMessageCompleted,
+      onAgentMessageCompleted: onAgentMessageCompletedTracked,
       onNormalizedRealtimeEvent: onNormalizedRealtimeEventTracked,
       onItemStarted: onItemStartedTracked,
       onItemUpdated: onItemUpdatedTracked,
@@ -1865,7 +1921,7 @@ export function useThreadEventHandlers({
       onBackgroundThreadAction,
       onAppServerEvent,
       onAgentMessageDeltaTracked,
-      onAgentMessageCompleted,
+      onAgentMessageCompletedTracked,
       onNormalizedRealtimeEventTracked,
       onItemStartedTracked,
       onItemUpdatedTracked,

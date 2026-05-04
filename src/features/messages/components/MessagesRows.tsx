@@ -107,6 +107,7 @@ type ReasoningRowProps = {
   onToggle: (id: string) => void;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  presentationProfile?: PresentationProfile | null;
   streamMitigationProfile?: StreamMitigationProfile | null;
 };
 
@@ -133,8 +134,8 @@ type GeneratedImageRowProps = {
 };
 
 const LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS = 48;
-const CODEX_MEDIUM_STREAMING_THROTTLE_MS = 120;
-const CODEX_LARGE_STREAMING_THROTTLE_MS = 220;
+const CODEX_MEDIUM_STREAMING_THROTTLE_MS = 80;
+const CODEX_LARGE_STREAMING_THROTTLE_MS = 120;
 const CODEX_MEDIUM_STREAMING_MIN_LENGTH = 260;
 const CODEX_MEDIUM_STREAMING_MIN_LINES = 6;
 const CODEX_LARGE_STREAMING_MIN_LENGTH = 700;
@@ -211,6 +212,7 @@ function resolveAssistantMessageStreamingThrottleMs(
   isStreaming: boolean,
   activeEngine: MessagesEngine,
   mitigationProfile: StreamMitigationProfile | null | undefined,
+  presentationProfile: PresentationProfile | null | undefined,
   displayText: string,
 ) {
   if (!isStreaming) {
@@ -219,12 +221,17 @@ function resolveAssistantMessageStreamingThrottleMs(
   if (mitigationProfile?.messageStreamingThrottleMs) {
     return mitigationProfile.messageStreamingThrottleMs;
   }
-  if (item.role !== "assistant" || activeEngine !== "codex") {
-    return LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS;
+  const baselineThrottleMs =
+    presentationProfile?.assistantMarkdownStreamingThrottleMs ??
+    LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS;
+  const useStagedMarkdownThrottle =
+    presentationProfile?.useCodexStagedMarkdownThrottle ?? activeEngine === "codex";
+  if (item.role !== "assistant" || !useStagedMarkdownThrottle) {
+    return baselineThrottleMs;
   }
   const trimmedText = displayText.trim();
   if (!trimmedText) {
-    return LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS;
+    return baselineThrottleMs;
   }
   const lineCount = trimmedText.split(/\r?\n/).length;
   if (
@@ -239,28 +246,61 @@ function resolveAssistantMessageStreamingThrottleMs(
   ) {
     return CODEX_MEDIUM_STREAMING_THROTTLE_MS;
   }
-  return LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS;
+  return baselineThrottleMs;
 }
 
 function resolveReasoningStreamingThrottleMs(
   isLive: boolean,
   mitigationProfile: StreamMitigationProfile | null | undefined,
+  presentationProfile: PresentationProfile | null | undefined,
 ) {
   if (!isLive) {
     return 80;
   }
-  return mitigationProfile?.reasoningStreamingThrottleMs ?? 180;
+  return (
+    mitigationProfile?.reasoningStreamingThrottleMs ??
+    presentationProfile?.reasoningStreamingThrottleMs ??
+    180
+  );
 }
 
 function shouldUsePlainTextStreamingSurface(
   item: Extract<ConversationItem, { kind: "message" }>,
   isStreaming: boolean,
+  activeEngine: MessagesEngine,
   mitigationProfile: StreamMitigationProfile | null | undefined,
 ) {
   return (
     item.role === "assistant" &&
     isStreaming &&
+    activeEngine !== "codex" &&
     mitigationProfile?.renderPlainTextWhileStreaming === true
+  );
+}
+
+function shouldUseLightweightStreamingMarkdown(
+  item: Extract<ConversationItem, { kind: "message" }>,
+  isStreaming: boolean,
+  activeEngine: MessagesEngine,
+  presentationProfile: PresentationProfile | null | undefined,
+  displayText: string,
+) {
+  if (item.role !== "assistant" || !isStreaming) {
+    return false;
+  }
+  const useStagedMarkdownThrottle =
+    presentationProfile?.useCodexStagedMarkdownThrottle ?? activeEngine === "codex";
+  if (!useStagedMarkdownThrottle) {
+    return false;
+  }
+  const trimmedText = displayText.trim();
+  if (!trimmedText) {
+    return false;
+  }
+  const lineCount = trimmedText.split(/\r?\n/).length;
+  return (
+    trimmedText.length >= CODEX_MEDIUM_STREAMING_MIN_LENGTH ||
+    lineCount >= CODEX_MEDIUM_STREAMING_MIN_LINES
   );
 }
 
@@ -856,7 +896,15 @@ export const MessageRow = memo(function MessageRow({
   const usePlainTextStreamingSurface = shouldUsePlainTextStreamingSurface(
     item,
     isStreaming,
+    activeEngine,
     streamMitigationProfile,
+  );
+  const useLightweightStreamingMarkdown = !usePlainTextStreamingSurface && shouldUseLightweightStreamingMarkdown(
+    item,
+    isStreaming,
+    activeEngine,
+    presentationProfile,
+    displayText,
   );
   const livePlainTextClassName = `${resolvedMarkdownClassName} markdown-live-plain-text`;
   const handleRenderedAssistantValue = useCallback(
@@ -996,10 +1044,13 @@ export const MessageRow = memo(function MessageRow({
               isStreaming,
               activeEngine,
               streamMitigationProfile,
+              presentationProfile,
               displayText,
             )}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            liveRenderMode={useLightweightStreamingMarkdown ? "lightweight" : "full"}
+            progressiveReveal={useLightweightStreamingMarkdown}
             onRenderedValueChange={handleRenderedAssistantValue}
           />
         )
@@ -1101,6 +1152,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   onToggle,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  presentationProfile = null,
   streamMitigationProfile = null,
 }: ReasoningRowProps) {
   const { t } = useTranslation();
@@ -1155,6 +1207,7 @@ export const ReasoningRow = memo(function ReasoningRow({
               streamingThrottleMs={resolveReasoningStreamingThrottleMs(
                 isLive,
                 streamMitigationProfile,
+                presentationProfile,
               )}
               onOpenFileLink={onOpenFileLink}
               onOpenFileLinkMenu={onOpenFileLinkMenu}
