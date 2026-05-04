@@ -1130,12 +1130,13 @@ export function useAppShellSections(ctx: any) {
       activate?: boolean;
       injectedPrefix?: string;
       forceNewThread?: boolean;
+      existingRunId?: string | null;
     }): Promise<{ ok: true; threadId: string } | { ok: false; reason: string }> => {
       const task = kanbanTasksRef.current.find((entry) => entry.id === params.taskId);
       if (!task) {
         return { ok: false, reason: "task_not_found" };
       }
-      let taskRunId: string | null = null;
+      let taskRunId: string | null = params.existingRunId ?? null;
       let launchedSuccessfully = false;
       if (params.source !== "chained" && task.chain?.previousTaskId) {
         setTaskChainBlockedReason(task.id, "chain_requires_head_trigger");
@@ -1156,32 +1157,34 @@ export function useAppShellSections(ctx: any) {
         });
         return { ok: false, reason: "non_reentrant_trigger_blocked" };
       }
-      let taskRunResult: ReturnType<typeof beginKanbanTaskRunLifecycle> | null = null;
-      try {
-        taskRunResult = beginKanbanTaskRunLifecycle({
-          task,
-          source: params.source,
-        });
-      } catch (error) {
-        console.error("Failed to begin Kanban task run lifecycle", error);
-      }
-      if (taskRunResult && !taskRunResult.ok) {
-        if (taskRunResult.latestRunSummary) {
+      if (!taskRunId) {
+        let taskRunResult: ReturnType<typeof beginKanbanTaskRunLifecycle> | null = null;
+        try {
+          taskRunResult = beginKanbanTaskRunLifecycle({
+            task,
+            source: params.source,
+          });
+        } catch (error) {
+          console.error("Failed to begin Kanban task run lifecycle", error);
+        }
+        if (taskRunResult && !taskRunResult.ok) {
+          if (taskRunResult.latestRunSummary) {
+            kanbanUpdateTask(task.id, {
+              latestRunSummary: taskRunResult.latestRunSummary,
+            });
+          }
+          updateTaskExecution(task.id, {
+            lastSource: params.source,
+            blockedReason: taskRunResult.reason,
+          });
+          return { ok: false, reason: taskRunResult.reason };
+        }
+        if (taskRunResult) {
+          taskRunId = taskRunResult.run.runId;
           kanbanUpdateTask(task.id, {
             latestRunSummary: taskRunResult.latestRunSummary,
           });
         }
-        updateTaskExecution(task.id, {
-          lastSource: params.source,
-          blockedReason: taskRunResult.reason,
-        });
-        return { ok: false, reason: taskRunResult.reason };
-      }
-      if (taskRunResult) {
-        taskRunId = taskRunResult.run.runId;
-        kanbanUpdateTask(task.id, {
-          latestRunSummary: taskRunResult.latestRunSummary,
-        });
       }
 
       const lock = {
@@ -1469,6 +1472,7 @@ export function useAppShellSections(ctx: any) {
         source: "manual",
         activate: false,
         forceNewThread: true,
+        existingRunId: recovery.run.runId,
       });
     },
     [kanbanUpdateTask, launchKanbanTaskExecution, resolveTaskByRun],
@@ -1497,6 +1501,7 @@ export function useAppShellSections(ctx: any) {
         source: "manual",
         activate: false,
         forceNewThread: true,
+        existingRunId: recovery.run.runId,
       });
     },
     [kanbanUpdateTask, launchKanbanTaskExecution, resolveTaskByRun],
@@ -1517,10 +1522,9 @@ export function useAppShellSections(ctx: any) {
 
   const handleCancelTaskRun = useCallback(
     async (run: TaskRunRecord) => {
-      if (!run.linkedThreadId || !activeThreadId || activeThreadId !== run.linkedThreadId) {
-        return;
+      if (run.linkedThreadId && activeThreadId === run.linkedThreadId) {
+        await interruptTurn();
       }
-      await interruptTurn();
       const canceled = cancelTaskRunRecovery({ runId: run.runId, now: Date.now() });
       if (canceled.run) {
         kanbanUpdateTask(run.task.taskId, {
@@ -2155,7 +2159,7 @@ export function useAppShellSections(ctx: any) {
         artifacts: patch.artifacts,
         finishedAt: patch.finishedAt,
         now: patch.now,
-      } as any);
+      });
       if (result?.latestRunSummary) {
         kanbanUpdateTask(run.task.taskId, {
           latestRunSummary: result.latestRunSummary,

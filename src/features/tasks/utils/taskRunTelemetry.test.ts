@@ -67,6 +67,16 @@ describe("taskRunTelemetry", () => {
     expect(run.availableRecoveryActions).toContain("fork_new_run");
   });
 
+  it("does not settle active runs before thread status is available", () => {
+    const patch = deriveTaskRunTelemetryPatch({
+      run: makeRun({ status: "running" }),
+      threadStatus: undefined,
+      now: 40,
+    });
+
+    expect(patch).toBeNull();
+  });
+
   it("emits a minimal patch for completion telemetry updates", () => {
     const patch = deriveTaskRunTelemetryPatch({
       run: makeRun({ status: "running" }),

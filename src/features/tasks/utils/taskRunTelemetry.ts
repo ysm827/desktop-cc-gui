@@ -163,7 +163,8 @@ export function deriveTaskRunTelemetryPatch({
   if (threadStatus?.isProcessing && isTaskRunActive(run.status)) {
     nextStatus = run.planSnapshot || nextCurrentStep || nextLatestOutputSummary ? "running" : "planning";
   } else if (
-    !threadStatus?.isProcessing &&
+    threadStatus != null &&
+    threadStatus.isProcessing === false &&
     (run.status === "planning" || run.status === "running" || run.status === "waiting_input")
   ) {
     nextStatus = "completed";
