@@ -1858,3 +1858,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 308: 记录第一阶段架构硬化收敛
+
+**Date**: 2026-05-04
+**Task**: 记录第一阶段架构硬化收敛
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 按 phase1-architecture-hardening 提案完成第一阶段架构硬化收敛，并使用中文 Conventional Commit 提交。
+- 重点覆盖 tauri facade 拆分、clientStorage schema/recovery、thread pending resolution、selected agent session helper、Rust workspace snapshot 共享状态抽取、消息跳转事件品牌一致性，以及 OpenSpec 治理文档。
+
+主要改动：
+- 拆分 src/services/tauri.ts 中的 runtime mode 与 workspace runtime wrapper，保留旧 facade 导出面，降低 bridge 文件继续膨胀风险。
+- 为 clientStorage 增加 schema normalization / serialization，覆盖 legacy object store、invalid root、missing store、patch/full replace 写入等边界。
+- 抽取 selectedAgentSession 与 threadPendingResolution 纯逻辑，补充空值、blank turn id、trimmed turn id、旧 facade re-export 兼容性。
+- 新增 src-tauri/src/shared/workspace_snapshot.rs，复用 workspace + parent + settings 快照读取逻辑，保持错误文案与锁语义。
+- 将 message jump event 统一为 ccgui:jump-to-message，并更新 live behavior 测试。
+- 新增 openspec/changes/phase1-architecture-hardening 下 proposal/design/tasks/spec deltas/validation matrix/domain map，明确 win/mac 兼容写法、CI 门禁与回滚边界。
+
+涉及模块：
+- frontend services: src/services/tauri.ts, src/services/tauri/runtimeMode.ts, src/services/tauri/workspaceRuntime.ts, src/services/clientStorage.ts, src/services/clientStorageSchema.ts
+- frontend threads/app shell/messages: src/features/threads/**, src/app-shell-parts/**, src/features/messages/**, src/features/layout/**
+- backend shared state: src-tauri/src/shared/**
+- behavior spec: openspec/changes/phase1-architecture-hardening/**
+
+验证结果：
+- npm exec vitest run src/features/threads/hooks/useThreads.pendingResolution.test.ts src/services/clientStorage.test.ts src/services/tauri.test.ts src/app-shell-parts/selectedAgentSession.test.ts：124 tests passed。
+- npm run typecheck：通过。
+- git diff --check：通过。
+- 本轮 review 前同批次已通过 npm run lint、npm run check:runtime-contracts、npm run check:large-files:near-threshold、npm run check:large-files:gate、npm run check:heavy-test-noise、cargo test --manifest-path src-tauri/Cargo.toml workspace_snapshot，以及 OpenSpec strict validation。
+
+后续事项：
+- 人工重点验证新建/切换 thread、web-service Codex fallback、clientStorage 重启持久化、消息跳转、selected agent workspace 隔离。
+- large-file near-threshold watchlist 仍有既有 27 项，硬门禁已通过；后续继续按模块边界谨慎拆分，避免机械切行数。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ba009e7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
