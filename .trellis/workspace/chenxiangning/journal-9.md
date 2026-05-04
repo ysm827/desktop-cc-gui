@@ -1685,3 +1685,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 305: 优化 Codex 实时幕布收敛
+
+**Date**: 2026-05-04
+**Task**: 优化 Codex 实时幕布收敛
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 修复 Codex 长文本实时幕布在流式输出末尾出现全局卡顿、最后总结一次性大段输出的问题。
+- 保持实时阶段 Markdown 可读性，不回退为纯 plain text。
+- 补齐边界条件、跨平台链接处理、大文件治理和 heavy-test-noise 告警门禁验证。
+
+主要改动：
+- 新增 src/features/messages/components/LiveMarkdown.tsx，将轻量实时 Markdown/progressive reveal 逻辑从 Markdown.tsx 中拆出，降低大文件增长风险。
+- 更新 Markdown.tsx，复用正式 URL/file-link 安全边界，覆盖 javascript:、macOS/Windows 本地文件链接、非有限 progressive 配置等边界。
+- 更新 Messages.tsx 与 MessagesRows.tsx，Codex 实时输出保持 Markdown 可读，同时控制长文本渲染节奏。
+- 更新 useThreadEventHandlers.ts 与 streamLatencyDiagnostics.ts，区分 delta/snapshot/completion ingress，避免 completion 污染 delta cadence，并抑制重复 completion 诊断。
+- 补齐 Messages、Markdown file links、Codex live streaming、stream mitigation、stream latency diagnostics、thread event handlers 等测试。
+
+涉及模块：
+- frontend messages rendering
+- Codex live streaming presentation
+- stream latency diagnostics
+- test governance / regression coverage
+
+验证结果：
+- npm run lint：通过。
+- npm run typecheck：通过。
+- git diff --check：通过。
+- npm run check:large-files：通过，found=0。
+- npm run check:heavy-test-noise：通过，430 test files completed，act warnings=0，stdout payload lines=0，stderr payload lines=0。
+- npx vitest run src/features/messages/components/Messages.test.tsx src/features/messages/components/Markdown.file-links.test.tsx src/features/threads/utils/streamLatencyDiagnostics.test.ts src/features/messages/components/MessagesRows.stream-mitigation.test.tsx src/features/messages/components/Messages.codex-live-streaming.test.tsx src/features/threads/hooks/useThreadEventHandlers.test.ts：通过，6 files / 134 tests。
+
+后续事项：
+- 仍需基于真实 Codex 长输出进行人工体验回归，重点观察结尾阶段是否还有轻微 UI 卡顿。
+- 如果仍有长尾卡顿，应继续增加 render cost diagnostics，区分 Markdown parse、React commit、scroll anchoring 三类成本。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c90f5183` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
