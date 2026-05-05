@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 313
+- **Total Sessions**: 314
 - **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~237 | Active |
+| `journal-10.md` | ~297 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 314 | 2026-05-05 | 收口用户对话时间线主规范 | `9343c0b9` | `feature/v-0.4.13-1` |
 | 313 | 2026-05-05 | 打磨流式消息展示与用户对话时间线 | `2e87c819` | `feature/v-0.4.13-1` |
 | 312 | 2026-05-05 | 修复流式幕布长文输出卡顿 | `e3873027` | `feature/v-0.4.13-1` |
 | 311 | 2026-05-04 | 记录右侧面板拖拽提交优化 | `87845311acf113c3fa2909224321fe8d2c476a0f` | `feature/v-0.4.13-1` |

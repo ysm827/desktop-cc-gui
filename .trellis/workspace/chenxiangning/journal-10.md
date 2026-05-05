@@ -235,3 +235,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 314: 收口用户对话时间线主规范
+
+**Date**: 2026-05-05
+**Task**: 收口用户对话时间线主规范
+**Branch**: `feature/v-0.4.13-1`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 收口 `status-panel-latest-user-message-tab` 主 specs，使其与已归档的 `status-panel-user-conversation-timeline` 行为一致。
+- 盘点当前 active OpenSpec changes，归档所有满足门禁的 change；若不满足则给出阻塞。
+
+## 主要改动
+- 更新 `openspec/specs/status-panel-latest-user-message-tab/spec.md`：
+  - 将 tab 语义从“最新用户对话 / 最后一条预览”收口为“用户对话 / 时间线”。
+  - 补齐“多条用户消息按新到旧排序”“逐条四行展开/收起”“跳转主幕布消息锚点”等 requirement 与 scenarios。
+  - 保留 dock scoped、手动查看、不自动切 tab、空态稳定、popover 不接入等边界。
+- 盘点 active OpenSpec changes：
+  - `add-codex-structured-launch-profile`：done=0, todo=7
+  - `claude-code-mode-progressive-rollout`：done=23, todo=6
+  - `fix-windows-codex-app-server-wrapper-launch`：done=15, todo=3
+  - `project-memory-refactor`：done=0, todo=134
+- 结论：上述 active changes 均存在未完成 tasks，本轮未执行 archive。
+
+## 涉及模块
+- `openspec/specs/status-panel-latest-user-message-tab/spec.md`
+- `openspec/changes/archive/2026-05-04-status-panel-user-conversation-timeline/specs/status-panel-latest-user-message-tab/spec.md`（作为同步参考）
+
+## 验证结果
+- `openspec validate status-panel-latest-user-message-tab --type spec --strict` 通过。
+- `git status --short` 在业务提交前后均保持预期；当前业务提交后工作树干净。
+- `rg` 盘点确认主 specs 已不再停留在旧的“最新用户对话”主语义；旧文案残留仅存在历史 archive change 中。
+
+## 后续事项
+- 如果后续要继续清理 OpenSpec 存量，可按 change 逐个补齐 tasks，再执行 archive，而不是跳过任务门禁强行归档。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9343c0b9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
