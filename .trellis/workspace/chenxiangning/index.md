@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 320
+- **Total Sessions**: 321
 - **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~654 | Active |
+| `journal-10.md` | ~721 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 321 | 2026-05-06 | 归一化对话文件变更展示与预览交互 | `548dd2c2535c850cdc00276efb1165b24f091cc0` | `feature/vv-v0.4.14` |
 | 320 | 2026-05-06 | 默认禁用 OpenCode CLI | `14c86980` | `feature/vv-v0.4.14` |
 | 319 | 2026-05-06 | 修复 CLI 引擎门禁与 OpenCode 探测 | `12829631`, `1885e86a` | `feature/vv-v0.4.14` |
 | 318 | 2026-05-06 | 收敛 CLI 引擎启动探测与禁用开关 | `da2b59ab` | `feature/vv-v0.4.14` |

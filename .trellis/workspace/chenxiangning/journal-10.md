@@ -652,3 +652,70 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 321: 归一化对话文件变更展示与预览交互
+
+**Date**: 2026-05-06
+**Task**: 归一化对话文件变更展示与预览交互
+**Branch**: `feature/vv-v0.4.14`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 归一化 AI 对话里的 file-change facts，让消息幕布、右侧 workspace session activity、底部 status panel 的文件数量、路径身份与 +/- 统计一致。
+- 补齐右侧 activity panel 的文件交互：主点击打开并最大化，次按钮打开 diff 预览，并统一旧 diff modal 的关闭与分页交互。
+
+主要改动
+- 在 src/features/operation-facts/operationFacts.ts 抽共享 canonical file-change entries，统一多文件抽取、Windows 路径归一化、重复 patch header merge 与 event summary 聚合。
+- 在 session-activity adapter / panel 接入完整文件列表，增加删除文件安全 fallback、diff 预览弹窗、主点击 maximize 编排。
+- 在 status-panel 接入同一 file-change contract，统一 Edits 区文件数与增删统计口径。
+- 在 GitDiffPanel、GitDiffViewer、GitHistoryPanelView、GitHistoryPanelDialogs、useLayoutNodes 与相关样式中统一 diff modal 的 close icon、header controls、modal pager 以及 activity 打开后最大化行为。
+- 新增 openspec/changes/normalize-conversation-file-change-surfaces/，补齐 proposal、design、tasks 与 delta specs，明确门禁约束和兼容性写法。
+
+涉及模块
+- operation-facts
+- session-activity
+- status-panel
+- git diff / git history preview surfaces
+- layout maximize orchestration
+- OpenSpec change: normalize-conversation-file-change-surfaces
+
+验证结果
+- openspec validate normalize-conversation-file-change-surfaces 通过。
+- pnpm vitest run src/features/operation-facts/operationFacts.test.ts src/features/session-activity/adapters/buildWorkspaceSessionActivity.test.ts src/features/session-activity/components/WorkspaceSessionActivityPanel.test.tsx src/features/status-panel/components/StatusPanel.test.tsx 通过，136 tests passed。
+- npm run lint 通过。
+- npm run typecheck 通过。
+- npm run test 通过，430 test files completed。
+- npm run check:large-files 通过。
+- node --test scripts/check-large-files.test.mjs 通过。
+- node --test scripts/check-heavy-test-noise.test.mjs 通过。
+- npm run check:heavy-test-noise 通过，433 test files completed，act/stdout/stderr 噪音门禁通过。
+- git diff --check 通过。
+
+后续事项
+- 当前还有未提交的 backend 工作区改动：src-tauri/src/note_cards.rs、src-tauri/src/shared/workspace_snapshot.rs，本次未纳入提交。
+- 本次 OpenSpec change 已落盘并验证，但尚未 archive；若后续确认主 specs 同步策略，再决定是否归档。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `548dd2c2535c850cdc00276efb1165b24f091cc0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
