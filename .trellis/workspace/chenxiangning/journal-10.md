@@ -467,3 +467,66 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 318: 收敛 CLI 引擎启动探测与禁用开关
+
+**Date**: 2026-05-06
+**Task**: 收敛 CLI 引擎启动探测与禁用开关
+**Branch**: `feature/vv-v0.4.14`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 落地 OpenSpec change `control-cli-engine-startup-gates`
+- 在 CLI 验证区域为 Gemini CLI / OpenCode CLI 增加统一禁用开关
+- 统一收敛 Win/mac 的 OpenCode 启动探测噪音，避免禁用后仍触发探测或前台拉起
+
+主要改动:
+- 前端设置页新增 Gemini CLI / OpenCode CLI tabs 与 hard disable 开关，并补齐中英文文案与测试
+- useEngineController / EngineSelector / useOpenCodeSelection / app-shell 按 enabled flags 过滤引擎与预热路径，移除启动期 OpenCode commands fallback
+- Rust AppSettings 新增 geminiEnabled / opencodeEnabled 持久化字段与兼容默认值
+- backend engine detect、models、workspace CLI 入口、OpenCode command surface、daemon path 统一加 disabled short-circuit
+- OpenCode status detect 拆成 lightweight detect 与按需 load models，降低启动期 CLI 进程风暴
+- OpenSpec 提案、设计、delta specs、tasks 已同步回写
+
+涉及模块:
+- frontend settings / engine selection / opencode selection
+- src-tauri engine manager / commands / daemon bridge / workspace commands / settings storage
+- openspec/changes/control-cli-engine-startup-gates
+
+验证结果:
+- npx vitest run src/features/settings/hooks/useAppSettings.test.ts src/features/engine/hooks/useEngineController.test.tsx src/features/settings/components/SettingsView.test.tsx 通过
+- npm run lint 通过
+- npm run typecheck 通过
+- npm run test 通过（batched 430 test files）
+- npm run check:runtime-contracts 通过
+- npm run doctor:strict 通过
+- cargo test --manifest-path src-tauri/Cargo.toml 通过
+- openspec validate --all --strict --no-interactive 通过
+
+后续事项:
+- 若后续 remote backend 再扩展 Gemini/OpenCode 专属 surface，继续复用当前 disabled diagnostic 与 detect gating 契约
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da2b59ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
