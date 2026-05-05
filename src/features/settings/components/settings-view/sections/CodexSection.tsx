@@ -243,7 +243,9 @@ export function CodexSection({
   handleCommitRemoteHost,
   handleCommitRemoteToken,
 }: CodexSectionProps) {
-  const [activeTab, setActiveTab] = useState<"codex" | "claude">("codex");
+  const [activeTab, setActiveTab] = useState<
+    "codex" | "claude" | "gemini" | "opencode"
+  >("codex");
 
   if (!active) {
     return null;
@@ -324,10 +326,17 @@ export function CodexSection({
         </div>
       ) : null}
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "codex" | "claude")}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as "codex" | "claude" | "gemini" | "opencode")
+        }
+      >
         <TabsList>
           <TabsTab value="codex">{t("settings.cliValidationTabCodex")}</TabsTab>
           <TabsTab value="claude">{t("settings.cliValidationTabClaudeCode")}</TabsTab>
+          <TabsTab value="gemini">{t("settings.cliValidationTabGeminiCli")}</TabsTab>
+          <TabsTab value="opencode">{t("settings.cliValidationTabOpenCodeCli")}</TabsTab>
         </TabsList>
 
         <TabsPanel value="codex">
@@ -475,6 +484,54 @@ export function CodexSection({
               errorTitleKey="settings.claudeIssueDetected"
               showAppServer={false}
             />
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="gemini">
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="gemini-enabled">
+              {t("settings.cliEngineEnabledLabel")}
+            </label>
+            <label className="settings-toggle">
+              <input
+                id="gemini-enabled"
+                type="checkbox"
+                aria-label={t("settings.cliValidationTabGeminiCli")}
+                checked={appSettings.geminiEnabled !== false}
+                onChange={(event) =>
+                  void onUpdateAppSettings({
+                    ...appSettings,
+                    geminiEnabled: event.target.checked,
+                  })
+                }
+              />
+              <span>{t("settings.cliValidationTabGeminiCli")}</span>
+            </label>
+            <div className="settings-help">{t("settings.geminiCliDisableDescription")}</div>
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="opencode">
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="opencode-enabled">
+              {t("settings.cliEngineEnabledLabel")}
+            </label>
+            <label className="settings-toggle">
+              <input
+                id="opencode-enabled"
+                type="checkbox"
+                aria-label={t("settings.cliValidationTabOpenCodeCli")}
+                checked={appSettings.opencodeEnabled !== false}
+                onChange={(event) =>
+                  void onUpdateAppSettings({
+                    ...appSettings,
+                    opencodeEnabled: event.target.checked,
+                  })
+                }
+              />
+              <span>{t("settings.cliValidationTabOpenCodeCli")}</span>
+            </label>
+            <div className="settings-help">{t("settings.openCodeCliDisableDescription")}</div>
           </div>
         </TabsPanel>
       </Tabs>

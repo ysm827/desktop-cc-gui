@@ -1,11 +1,17 @@
 use super::*;
 
+async fn ensure_opencode_enabled(state: &State<'_, AppState>) -> Result<(), String> {
+    let settings = state.app_settings.lock().await.clone();
+    ensure_engine_enabled(&settings, EngineType::OpenCode)
+}
+
 /// List available OpenCode commands (cached for a short TTL).
 #[tauri::command]
 pub async fn opencode_commands_list(
     refresh: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Vec<OpenCodeCommandEntry>, String> {
+    ensure_opencode_enabled(&state).await?;
     let force_refresh = refresh.unwrap_or(false);
     let cache = OPENCODE_COMMANDS_CACHE.get_or_init(|| Mutex::new(None));
     if !force_refresh {
@@ -46,6 +52,7 @@ pub async fn opencode_agents_list(
     refresh: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Vec<OpenCodeAgentEntry>, String> {
+    ensure_opencode_enabled(&state).await?;
     let force_refresh = refresh.unwrap_or(false);
     let cache = OPENCODE_AGENTS_CACHE.get_or_init(|| Mutex::new(None));
     if !force_refresh {
@@ -101,6 +108,7 @@ pub async fn opencode_session_list(
     workspace_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<OpenCodeSessionEntry>, String> {
+    ensure_opencode_enabled(&state).await?;
     opencode_session_list_core(&state.workspaces, &state.engine_manager, &workspace_id).await
 }
 
@@ -149,6 +157,7 @@ pub async fn opencode_delete_session(
     session_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     opencode_delete_session_core(
         &state.workspaces,
         &state.engine_manager,
@@ -217,6 +226,7 @@ pub async fn opencode_stats(
     days: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -258,6 +268,7 @@ pub async fn opencode_export_session(
     output_path: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -303,6 +314,7 @@ pub async fn opencode_share_session(
     session_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -346,6 +358,7 @@ pub async fn opencode_import_session(
     source: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -382,6 +395,7 @@ pub async fn opencode_mcp_status(
     workspace_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -415,6 +429,7 @@ pub async fn opencode_provider_health(
     provider: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<OpenCodeProviderHealth, String> {
+    ensure_opencode_enabled(&state).await?;
     load_opencode_provider_health(&workspace_id, provider, &state).await
 }
 
@@ -423,6 +438,7 @@ pub async fn opencode_provider_catalog(
     workspace_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<OpenCodeProviderOption>, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -490,6 +506,7 @@ pub async fn opencode_provider_connect(
     provider_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -623,7 +640,9 @@ pub async fn opencode_mcp_toggle(
     server_name: Option<String>,
     enabled: Option<bool>,
     global_enabled: Option<bool>,
+    state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let cache = OPENCODE_MCP_TOGGLE_STATE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut guard = cache
         .lock()
@@ -662,6 +681,7 @@ pub async fn opencode_status_snapshot(
     variant: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<OpenCodeStatusSnapshot, String> {
+    ensure_opencode_enabled(&state).await?;
     let provider = derive_provider_from_model(model.as_deref());
     let provider_health =
         load_opencode_provider_health(&workspace_id, provider.clone(), &state).await?;
@@ -697,6 +717,7 @@ pub async fn opencode_lsp_diagnostics(
     file_path: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -736,6 +757,7 @@ pub async fn opencode_lsp_symbols(
     query: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -775,6 +797,7 @@ pub async fn opencode_lsp_document_symbols(
     file_uri: String,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -818,6 +841,7 @@ pub async fn opencode_lsp_definition(
     character: u32,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces
@@ -864,6 +888,7 @@ pub async fn opencode_lsp_references(
     include_declaration: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    ensure_opencode_enabled(&state).await?;
     let workspace_path = {
         let workspaces = state.workspaces.lock().await;
         workspaces

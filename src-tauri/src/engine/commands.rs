@@ -31,8 +31,10 @@ use super::remote_bridge::{
     call_remote_typed, remote_detect_engines_request, remote_engine_interrupt_request,
     remote_engine_send_message_sync_request,
 };
-use super::status::{detect_gemini_status, detect_opencode_status};
-use super::{EngineConfig, EngineStatus, EngineType};
+use super::status::{detect_gemini_status, load_opencode_models};
+use super::{
+    engine_disabled_diagnostic, engine_enabled_in_settings, EngineConfig, EngineStatus, EngineType,
+};
 
 #[path = "claude_forwarder.rs"]
 mod claude_forwarder;
@@ -55,6 +57,24 @@ const EVENT_FORWARDER_TIMEOUT_SECS: u64 = 30 * 60;
 /// Gemini may emit fallback reasoning shortly after turn/completed.
 /// Keep the forwarder alive briefly so realtime reasoning is not dropped.
 const GEMINI_POST_COMPLETION_REASONING_GRACE_MS: u64 = 8_000;
+
+async fn read_app_settings_snapshot(state: &State<'_, AppState>) -> crate::types::AppSettings {
+    state.app_settings.lock().await.clone()
+}
+
+fn ensure_engine_enabled(
+    settings: &crate::types::AppSettings,
+    engine_type: EngineType,
+) -> Result<(), String> {
+    if engine_enabled_in_settings(settings, engine_type) {
+        return Ok(());
+    }
+    Err(
+        engine_disabled_diagnostic(engine_type)
+            .unwrap_or("Engine is disabled in CLI validation settings")
+            .to_string(),
+    )
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum GeminiRenderLane {
@@ -822,7 +842,10 @@ pub async fn detect_engines(
         return call_remote_typed(&*state, &app, method, params).await;
     }
     let manager = &state.engine_manager;
-    Ok(manager.detect_engines().await)
+    let settings = read_app_settings_snapshot(&state).await;
+    Ok(manager
+        .detect_engines_with_gates(settings.gemini_enabled, settings.opencode_enabled)
+        .await)
 }
 
 /// Get the currently active engine
@@ -856,6 +879,8 @@ pub async fn switch_engine(
         return Ok(());
     }
     let manager = &state.engine_manager;
+    let settings = read_app_settings_snapshot(&state).await;
+    ensure_engine_enabled(&settings, engine_type)?;
     manager.set_active_engine(engine_type).await
 }
 
@@ -917,6 +942,10 @@ pub async fn is_engine_available(
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
     let manager = &state.engine_manager;
+    let settings = read_app_settings_snapshot(&state).await;
+    if !engine_enabled_in_settings(&settings, engine_type) {
+        return Ok(false);
+    }
     Ok(manager.is_engine_available(engine_type).await)
 }
 
@@ -924,7 +953,13 @@ pub async fn is_engine_available(
 #[tauri::command]
 pub async fn get_available_engines(state: State<'_, AppState>) -> Result<Vec<EngineType>, String> {
     let manager = &state.engine_manager;
-    Ok(manager.get_available_engines().await)
+    let settings = read_app_settings_snapshot(&state).await;
+    Ok(manager
+        .get_available_engines()
+        .await
+        .into_iter()
+        .filter(|engine| engine_enabled_in_settings(&settings, *engine))
+        .collect())
 }
 
 /// Get models for a specific engine
@@ -946,6 +981,8 @@ pub async fn get_engine_models(
         .await;
     }
     let manager = &state.engine_manager;
+    let settings = read_app_settings_snapshot(&state).await;
+    ensure_engine_enabled(&settings, engine_type)?;
 
     match engine_type {
         EngineType::OpenCode => {
@@ -954,10 +991,10 @@ pub async fn get_engine_models(
                 .as_ref()
                 .and_then(|cfg| cfg.bin_path.as_ref())
                 .map(|s| s.as_str());
-            let fresh_status = detect_opencode_status(custom_bin).await;
+            let fresh_models = load_opencode_models(custom_bin).await.unwrap_or_default();
 
-            if !fresh_status.models.is_empty() {
-                return Ok(fresh_status.models);
+            if !fresh_models.is_empty() {
+                return Ok(fresh_models);
             }
 
             if let Some(cached) = manager.get_engine_status(EngineType::OpenCode).await {
@@ -966,7 +1003,7 @@ pub async fn get_engine_models(
                 }
             }
 
-            Ok(fresh_status.models)
+            Ok(fresh_models)
         }
         EngineType::Gemini => {
             let config = manager.get_engine_config(EngineType::Gemini).await;
@@ -1067,6 +1104,8 @@ pub async fn engine_send_message(
     let active_engine = manager.get_active_engine().await;
     let requested_engine = engine;
     let effective_engine = requested_engine.unwrap_or(active_engine);
+    let settings = read_app_settings_snapshot(&state).await;
+    ensure_engine_enabled(&settings, effective_engine)?;
     log::info!(
         "[engine_send_message] engine={:?} active_engine={:?} workspace_id={} model={:?} continue_session={} thread_id={:?} session_id={:?} agent={:?} variant={:?}",
         effective_engine,

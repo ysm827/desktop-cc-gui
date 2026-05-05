@@ -204,8 +204,10 @@ pub async fn detect_codex_status(custom_bin: Option<&str>) -> EngineStatus {
     }
 }
 
-/// Detect OpenCode CLI installation status
-pub async fn detect_opencode_status(custom_bin: Option<&str>) -> EngineStatus {
+async fn detect_opencode_status_with_options(
+    custom_bin: Option<&str>,
+    include_models: bool,
+) -> EngineStatus {
     let safe_bin = resolve_safe_opencode_binary(custom_bin);
     let bin_path = match safe_bin {
         Ok(path) => Some(path),
@@ -256,9 +258,13 @@ pub async fn detect_opencode_status(custom_bin: Option<&str>) -> EngineStatus {
     }
 
     let home_dir = get_opencode_home_dir();
-    let (models, models_error) = match get_opencode_models(&bin, path_env.as_ref()).await {
-        Ok(models) => (models, None),
-        Err(err) => (Vec::new(), Some(err)),
+    let (models, models_error) = if include_models {
+        match get_opencode_models(&bin, path_env.as_ref()).await {
+            Ok(models) => (models, None),
+            Err(err) => (Vec::new(), Some(err)),
+        }
+    } else {
+        (Vec::new(), None)
     };
     let default_model = models.iter().find(|m| m.default).map(|m| m.id.clone());
 
@@ -273,6 +279,19 @@ pub async fn detect_opencode_status(custom_bin: Option<&str>) -> EngineStatus {
         features: EngineFeatures::opencode(),
         error: models_error,
     }
+}
+
+/// Detect OpenCode CLI installation status using lightweight startup probes only.
+pub async fn detect_opencode_status(custom_bin: Option<&str>) -> EngineStatus {
+    detect_opencode_status_with_options(custom_bin, false).await
+}
+
+/// Query OpenCode CLI for available models on demand.
+pub async fn load_opencode_models(custom_bin: Option<&str>) -> Result<Vec<ModelInfo>, String> {
+    let safe_bin = resolve_safe_opencode_binary(custom_bin)?;
+    let bin = safe_bin.to_string_lossy().to_string();
+    let path_env = build_codex_path_env(custom_bin);
+    get_opencode_models(&bin, path_env.as_ref()).await
 }
 
 /// Detect Gemini CLI installation status
@@ -995,6 +1014,38 @@ opencode/gpt-5-nano
 
         let _ = fs::remove_file(&script_path);
         let _ = fs::remove_dir_all(script_path.parent().unwrap_or(std::path::Path::new("")));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn detect_opencode_status_lightweight_skips_models_probe() {
+        let unique = format!(
+            "ccgui-opencode-light-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        let dir = std::env::temp_dir().join(unique);
+        fs::create_dir_all(&dir).expect("create temp cli dir");
+        let script_path = dir.join("opencode-status-cli");
+        let script_body =
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  echo '1.2.3'\n  exit 0\nfi\nif [ \"$1\" = \"--help\" ]; then\n  echo 'usage'\n  exit 0\nfi\nif [ \"$1\" = \"models\" ]; then\n  echo 'models should not run' >&2\n  exit 7\nfi\nexit 0\n";
+        fs::write(&script_path, script_body).expect("write temp cli script");
+        let mut permissions = fs::metadata(&script_path)
+            .expect("stat temp cli script")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("chmod temp cli script");
+
+        let status = detect_opencode_status(Some(script_path.to_string_lossy().as_ref())).await;
+        assert!(status.installed);
+        assert!(status.models.is_empty());
+        assert!(status.error.is_none());
+
+        let _ = fs::remove_file(&script_path);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[cfg(windows)]

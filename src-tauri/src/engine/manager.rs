@@ -15,7 +15,7 @@ use super::status::{
     detect_all_engines, detect_claude_status, detect_codex_status, detect_gemini_status,
     detect_opencode_status,
 };
-use super::{EngineConfig, EngineStatus, EngineType};
+use super::{disabled_engine_status, EngineConfig, EngineStatus, EngineType};
 
 /// Unified engine manager
 pub struct EngineManager {
@@ -85,6 +85,15 @@ impl EngineManager {
 
     /// Detect a single engine's status
     async fn detect_single_engine(&self, engine_type: EngineType) -> EngineStatus {
+        self.detect_single_engine_with_gates(engine_type, true, true).await
+    }
+
+    async fn detect_single_engine_with_gates(
+        &self,
+        engine_type: EngineType,
+        gemini_enabled: bool,
+        opencode_enabled: bool,
+    ) -> EngineStatus {
         let configs = self.engine_configs.read().await;
         let config = configs.get(&engine_type);
         let bin = config.and_then(|c| c.bin_path.as_deref());
@@ -92,6 +101,8 @@ impl EngineManager {
         let status = match engine_type {
             EngineType::Claude => detect_claude_status(bin).await,
             EngineType::Codex => detect_codex_status(bin).await,
+            EngineType::Gemini if !gemini_enabled => disabled_engine_status(engine_type),
+            EngineType::OpenCode if !opencode_enabled => disabled_engine_status(engine_type),
             EngineType::Gemini => detect_gemini_status(bin).await,
             EngineType::OpenCode => detect_opencode_status(bin).await,
         };
@@ -110,6 +121,14 @@ impl EngineManager {
 
     /// Detect all supported engines
     pub async fn detect_engines(&self) -> Vec<EngineStatus> {
+        self.detect_engines_with_gates(true, true).await
+    }
+
+    pub async fn detect_engines_with_gates(
+        &self,
+        gemini_enabled: bool,
+        opencode_enabled: bool,
+    ) -> Vec<EngineStatus> {
         let (claude_bin, codex_bin, gemini_bin, opencode_bin) = {
             let configs = self.engine_configs.read().await;
             (
@@ -131,10 +150,21 @@ impl EngineManager {
         let statuses = detect_all_engines(
             claude_bin.as_deref(),
             codex_bin.as_deref(),
-            gemini_bin.as_deref(),
-            opencode_bin.as_deref(),
+            gemini_enabled.then_some(gemini_bin.as_deref()).flatten(),
+            opencode_enabled.then_some(opencode_bin.as_deref()).flatten(),
         )
         .await;
+
+        let statuses = statuses
+            .into_iter()
+            .map(|status| match status.engine_type {
+                EngineType::Gemini if !gemini_enabled => disabled_engine_status(EngineType::Gemini),
+                EngineType::OpenCode if !opencode_enabled => {
+                    disabled_engine_status(EngineType::OpenCode)
+                }
+                _ => status,
+            })
+            .collect::<Vec<_>>();
 
         // Cache results
         let mut cached = self.engine_statuses.write().await;

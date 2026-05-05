@@ -767,7 +767,10 @@ impl DaemonState {
 
     pub(super) async fn detect_engines(&self) -> Vec<engine::EngineStatus> {
         self.sync_engine_configs().await;
-        self.engine_manager.detect_engines().await
+        let settings = self.app_settings.lock().await.clone();
+        self.engine_manager
+            .detect_engines_with_gates(settings.gemini_enabled, settings.opencode_enabled)
+            .await
     }
 
     pub(super) async fn get_active_engine(&self) -> engine::EngineType {
@@ -779,7 +782,18 @@ impl DaemonState {
         engine_type: engine::EngineType,
     ) -> Result<(), String> {
         self.sync_engine_configs().await;
-        let statuses = self.engine_manager.detect_engines().await;
+        let settings = self.app_settings.lock().await.clone();
+        if !engine::engine_enabled_in_settings(&settings, engine_type) {
+            return Err(
+                engine::engine_disabled_diagnostic(engine_type)
+                    .unwrap_or("Engine is disabled in CLI validation settings")
+                    .to_string(),
+            );
+        }
+        let statuses = self
+            .engine_manager
+            .detect_engines_with_gates(settings.gemini_enabled, settings.opencode_enabled)
+            .await;
         let installed = statuses
             .iter()
             .find(|entry| entry.engine_type == engine_type)
@@ -801,7 +815,11 @@ impl DaemonState {
         engine_type: engine::EngineType,
     ) -> Option<engine::EngineStatus> {
         self.sync_engine_configs().await;
-        let statuses = self.engine_manager.detect_engines().await;
+        let settings = self.app_settings.lock().await.clone();
+        let statuses = self
+            .engine_manager
+            .detect_engines_with_gates(settings.gemini_enabled, settings.opencode_enabled)
+            .await;
         statuses
             .into_iter()
             .find(|entry| entry.engine_type == engine_type)
@@ -811,6 +829,10 @@ impl DaemonState {
         &self,
         engine_type: engine::EngineType,
     ) -> Vec<engine::ModelInfo> {
+        let settings = self.app_settings.lock().await.clone();
+        if !engine::engine_enabled_in_settings(&settings, engine_type) {
+            return Vec::new();
+        }
         self.get_engine_status(engine_type)
             .await
             .map(|status| status.models)
@@ -847,6 +869,14 @@ impl DaemonState {
         self.sync_engine_configs().await;
         let active_engine = self.get_active_engine().await;
         let effective_engine = engine.unwrap_or(active_engine);
+        let settings = self.app_settings.lock().await.clone();
+        if !engine::engine_enabled_in_settings(&settings, effective_engine) {
+            return Err(
+                engine::engine_disabled_diagnostic(effective_engine)
+                    .unwrap_or("Engine is disabled in CLI validation settings")
+                    .to_string(),
+            );
+        }
         let normalized_custom_spec_root = normalize_custom_spec_root(custom_spec_root);
 
         match effective_engine {
@@ -1823,6 +1853,14 @@ impl DaemonState {
         &self,
         workspace_id: String,
     ) -> Result<Vec<OpenCodeSessionEntry>, String> {
+        let settings = self.app_settings.lock().await.clone();
+        if !engine::engine_enabled_in_settings(&settings, engine::EngineType::OpenCode) {
+            return Err(
+                engine::engine_disabled_diagnostic(engine::EngineType::OpenCode)
+                    .unwrap_or("OpenCode CLI is disabled in CLI validation settings")
+                    .to_string(),
+            );
+        }
         let workspace_path = {
             let workspaces = self.workspaces.lock().await;
             workspaces
