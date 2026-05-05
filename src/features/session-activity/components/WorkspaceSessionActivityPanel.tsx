@@ -5,7 +5,7 @@ import Bot from "lucide-react/dist/esm/icons/bot";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import FileCode2 from "lucide-react/dist/esm/icons/file-code-2";
-import FileDiff from "lucide-react/dist/esm/icons/file-diff";
+import GitCompareArrows from "lucide-react/dist/esm/icons/git-compare-arrows";
 import LayoutList from "lucide-react/dist/esm/icons/layout-list";
 import ListTodo from "lucide-react/dist/esm/icons/list-todo";
 import Search from "lucide-react/dist/esm/icons/search";
@@ -1645,9 +1645,9 @@ export function WorkspaceSessionActivityPanel({
                         handleOpenDiffPreview(fileChangeEntry);
                       }}
                     >
-                      <FileDiff
-                        size={16}
-                        strokeWidth={2.1}
+                      <GitCompareArrows
+                        size={18}
+                        strokeWidth={2.25}
                         aria-hidden
                         className="session-activity-file-row-action-icon"
                       />

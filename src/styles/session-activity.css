@@ -1423,25 +1423,25 @@
 .session-activity-file-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 8px 8px 22px;
+  gap: 4px;
+  padding: 0 8px 6px 22px;
 }
 
 .session-activity-file-row {
   display: flex;
-  align-items: stretch;
-  gap: 6px;
+  align-items: center;
+  gap: 2px;
 }
 
 .session-activity-file-row-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   flex: 1 1 auto;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: 12px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 11px;
   border: 1px solid var(--session-activity-file-row-border);
   background: var(--session-activity-file-row-surface);
   color: inherit;
@@ -1478,7 +1478,7 @@
 }
 
 .session-activity-file-row-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--session-activity-file-row-name-color);
 }
@@ -1489,9 +1489,9 @@
   gap: 4px;
   flex: 0 0 auto;
   margin-left: auto;
-  padding-left: 8px;
+  padding-left: 6px;
   align-self: center;
-  font-size: 11px;
+  font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -1508,19 +1508,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--session-activity-file-row-action-border);
-  background: var(--session-activity-file-row-action-surface);
-  box-shadow:
-    var(--session-activity-file-row-action-inset),
-    var(--session-activity-file-row-action-shadow);
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
   color: var(--session-activity-file-row-action-color);
   transition:
     transform 140ms ease,
-    border-color 140ms ease,
     background 140ms ease,
     color 140ms ease,
     box-shadow 140ms ease;
@@ -1532,12 +1530,15 @@
 
 .session-activity-file-row-action:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--session-activity-file-row-action-border-hover);
-  background: var(--session-activity-file-row-action-surface-hover);
+  background: color-mix(in srgb, var(--surface-hover, var(--surface-control, transparent)) 46%, transparent);
   color: var(--session-activity-file-row-action-color-hover);
-  box-shadow:
-    var(--session-activity-file-row-action-inset),
-    var(--session-activity-file-row-action-shadow-hover);
+  box-shadow: none;
+}
+
+.session-activity-file-row-action:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--surface-hover, var(--surface-control, transparent)) 52%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-info, #3b82f6) 52%, transparent);
 }
 
 .session-activity-file-row-action:disabled {
