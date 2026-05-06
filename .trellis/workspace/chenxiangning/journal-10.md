@@ -880,3 +880,1106 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 325: 本地合并 PR 493 自定义技能目录支持
+
+**Date**: 2026-05-06
+**Task**: 本地合并 PR 493 自定义技能目录支持
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 upstream PR #493 本地合并到当前分支 feature/v.0.4.14-2，并按仓库规则处理 merge 冲突与记录流程。
+主要改动：fetch upstream pull/493/head 到本地 pr-493 分支并执行 merge；唯一冲突出现在 .trellis/workspace/watsonk1998/index.md 与 journal-1.md，会话编号发生碰撞，已做语义合并并保留双方记录；PR 业务代码与相关环境文件按上游分支内容并入当前分支。
+涉及模块：src/features/settings；src/features/skills；src/features/composer；src/services/tauri.ts；src-tauri/src/skills.rs；src-tauri/src/shared/settings_core.rs；src-tauri/src/types.rs；src-tauri/src/bin/cc_gui_daemon.rs；.trellis/workspace/watsonk1998。
+验证结果：git diff --check 通过；npm run typecheck 通过；npm exec vitest -- run src/features/skills/hooks/useSkills.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/services/tauri.test.ts 共 115 项测试通过。
+后续事项：如需同步远端，再决定是否 push 当前分支；若不希望保留 PR 中带入的 .omx/**、findings.md、progress.md、task_plan.md 等过程文件，需要单独清理并再次确认范围。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f2c284c4e56a247f9365451184a0f3080ffd5558` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 326: 修复自定义技能目录回归
+
+**Date**: 2026-05-06
+**Task**: 修复自定义技能目录回归
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：对最近合并的自定义技能目录相关改动做功能审核收口，修复启动错误与 review 暴露的断链问题，并完成提交前回归验证。
+
+主要改动：
+- 修复 `SettingsView` 嵌入式 `SkillsSection` 未透传 `appSettings` 与 `onUpdateAppSettings`，消除 `customSkillDirectories` 读取时的启动崩溃。
+- 补齐 custom skill directories 到本地 Tauri 与 `cc_gui_daemon` 的 `external-absolute` allowlist，让读取、预览、写入、目录浏览都能访问自定义技能根目录。
+- 修复 `SkillsSection` 在 `custom` engine 下只识别首个目录的问题，改为支持多根目录加载、虚拟根节点展示与根路径摘要。
+- 新增/更新前端测试，覆盖嵌入式 props 透传和多 custom roots 浏览回归。
+
+涉及模块：
+- `src/features/settings/components/SettingsView.tsx`
+- `src/features/settings/components/SkillsSection.tsx`
+- `src/features/settings/components/SettingsView.test.tsx`
+- `src/features/settings/components/SkillsSection.test.tsx`
+- `src-tauri/src/workspaces/commands.rs`
+- `src-tauri/src/bin/cc_gui_daemon/daemon_state.rs`
+- `src-tauri/src/bin/cc_gui_daemon/file_access.rs`
+- `src-tauri/src/skills.rs`
+
+验证结果：
+- `npm run typecheck` 通过。
+- `npx eslint src/features/settings/components/SettingsView.tsx src/features/settings/components/SkillsSection.tsx src/features/settings/components/SettingsView.test.tsx src/features/settings/components/SkillsSection.test.tsx` 通过。
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx src/features/settings/components/SkillsSection.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/features/skills/hooks/useSkills.test.tsx src/services/tauri.test.ts` 通过，163 项测试全部通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml list_external_absolute_directory_children_returns_sorted_entries` 通过。
+
+后续事项：
+- 建议人工回归设置页 `MCP / Skills -> Skills` 嵌入入口、custom engine 多目录浏览、文件预览/编辑/Reveal 链路。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `daa2f145` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 327: 规则治理收敛与omx清理
+
+**Date**: 2026-05-06
+**Task**: 规则治理收敛与omx清理
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 建立治理文档的分层边界，收敛 AGENTS / Trellis spec / OpenSpec README-project 链路
+- 清退误入库的 .omx runtime artifact，并通过 .gitignore 阻止再次入库
+
+主要改动:
+- 新建 OpenSpec change streamline-governance-doc-stack，补齐 proposal/design/specs/tasks
+- 收敛 AGENTS.md 为短入口 + 全局 gate
+- 收敛 openspec/README.md 为导航入口，并补 openspec/project.md 的 entry surface 说明
+- 删除全部已跟踪 .omx 文件，并在 .gitignore 增加 .omx/
+
+涉及模块:
+- AGENTS.md
+- .gitignore
+- openspec/README.md
+- openspec/project.md
+- openspec/changes/streamline-governance-doc-stack/**
+- .omx/**
+
+验证结果:
+- openspec status --change streamline-governance-doc-stack --json -> artifacts 全部 done
+- openspec validate streamline-governance-doc-stack --strict -> 通过
+- git diff 审核确认 .omx tracked 文件全部标记删除，治理正文未新增新的重复入口
+
+后续事项:
+- 继续第二轮文档优化，进一步压缩和对齐治理文案
+- 视需要执行后续 OpenSpec sync/archive
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82a2fd2d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 328: CI 门禁修复与跨平台兼容性补强
+
+**Date**: 2026-05-06
+**Task**: CI 门禁修复与跨平台兼容性补强
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复 large-file governance 与 heavy-test-noise sentry 门禁
+- 补齐 batched integration runner 的跨平台调用方式
+- 将 SettingsView 与英文 locale 大文件继续拆分到可治理范围内
+
+主要改动:
+- package.json 改为通过 `node scripts/test-batched.mjs --include-heavy` 启动 integration，去掉 POSIX-only 环境变量前缀
+- scripts/test-batched.mjs 新增 CLI 参数解析与 `--include-heavy` 支持，保留 env fallback
+- 新增 scripts/test-batched.test.mjs，覆盖 CLI 参数与 fallback 行为
+- heavy-test-noise sentry workflow 增加 batched runner parser test
+- SettingsView 抽离 `useSystemProxySettings` hook，收敛系统代理相关状态与副作用
+- 英文 locale 新增 `en.part4.ts`，拆出 memory/time/about 文案并更新合并入口
+
+涉及模块:
+- `.github/workflows/*`
+- `scripts/test-batched*`
+- `src/features/settings/components/*`
+- `src/i18n/locales/*`
+
+验证结果:
+- `git diff --check`
+- `node --test scripts/check-large-files.test.mjs scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs`
+- `npm run check:large-files`
+- `npm run check:heavy-test-noise`
+
+后续事项:
+- 继续处理 `check:large-files:near-threshold` 剩余 27 个历史 watchlist 文件
+- 优先清理 P0/P1 runtime/hotpath 与可低风险拆分的 CSS/test 文件
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `342bc98d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 329: 收敛规则入口并对齐注入链路
+
+**Date**: 2026-05-06
+**Task**: 收敛规则入口并对齐注入链路
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：完成第二轮文档治理优化，并把规则分层从文档层落到实际 session-start / start / before-dev 入口链路。
+主要改动：新增 project-instruction-layering-guide；在 AGENTS、frontend/backend/guides index 中补齐规则分层入口；调整 openspec README 回指仓库级入口；修改 Codex/Claude session-start hook，先注入 AGENTS.md，再注入 workflow、openspec、spec index，并明确索引只是导航面；统一 start / before-dev 的手动读取顺序。
+涉及模块：AGENTS.md；openspec/README.md；.trellis/spec/guides/*；.trellis/spec/frontend/index.md；.trellis/spec/backend/index.md；.codex/hooks/session-start.py；.claude/hooks/session-start.py；.agents/skills/start|before-dev；.claude/commands/trellis/start|before-dev。
+验证结果：openspec validate streamline-governance-doc-stack --strict 通过；python3 -m py_compile .codex/hooks/session-start.py .claude/hooks/session-start.py 通过；两套 session-start hook 实际输出已确认包含 <project-entry>、<openspec> 与新的 ready 提示。
+后续事项：若后续继续治理，可再评估是否把 workflow.md 进一步缩成纯流程文档，避免与 AGENTS.md 形成长期双入口心智负担。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bc131f70` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 330: 收敛 workflow 流程手册职责
+
+**Date**: 2026-05-06
+**Task**: 收敛 workflow 流程手册职责
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续第二轮治理优化，把 .trellis/workflow.md 从混合型入口文档收敛为纯 Trellis 流程手册。
+主要改动：新增 ownership 段落，明确 AGENTS.md、workflow.md、.trellis/spec、openspec 的职责边界；将 workflow.md 中的泛模板路径示例改成 mossx 当前实际结构；删除对 repo 级 gate 的重复正文，统一回指 AGENTS.md；保留 Trellis 的 task lifecycle、session record、workspace/tasks/spec 结构与常用命令说明。
+涉及模块：.trellis/workflow.md。
+验证结果：git diff 确认本轮只修改 workflow.md；当前 HEAD 为 docs(governance): 收敛 workflow 流程手册职责；workflow.md 不再保留 spec/<package>/<layer> 这类旧模板路径，也不再重复 commit/session-record 的全局 gate 正文。
+后续事项：如要继续治理，可评估是否进一步压缩 workflow.md 中与具体 slash command 相关的说明，把它继续收敛为“流程与命令骨架”，将更细的命令语义留给各自 skill/command 文档。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5333184b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 331: 大文件治理首批 near-threshold 清理
+
+**Date**: 2026-05-06
+**Task**: 大文件治理首批 near-threshold 清理
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 提交首批历史 near-threshold 大文件治理改动
+- 在不改变行为的前提下，降低 large-file watchlist 存量
+- 保持 Windows / macOS 兼容的样式与测试读取路径不回退
+
+## 主要改动
+- 将 `src/i18n/locales/en.part1.ts`、`src/i18n/locales/zh.part1.ts` 继续拆分，新增 `en.part5.ts`、`zh.part4.ts`、`zh.part5.ts`
+- 将 `sidebar.css`、`spec-hub.css`、`messages.part1.css`、`composer.part2.css`、`git-history.part1.css`、`git-history.part2.css` 拆到更细的子文件
+- 更新样式测试，支持 `@import` 后的断言，避免因 CSS 模块化导致测试误判
+
+## 涉及模块
+- frontend i18n
+- frontend styles
+- style regression tests
+- governance / large-file near-threshold cleanup
+
+## 验证结果
+- `npm run check:large-files --silent` 通过，`found=0`
+- `npm run typecheck` 通过
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx src/i18n/locales/canvasCopy.snapshot.test.ts src/styles/layout-swapped-platform-guard.test.ts src/styles/settings-email-card-surface.test.ts src/styles/sidebar-titlebar-drag-region.test.ts src/styles/main.worktree-info-theme.test.ts src/features/git-history/components/GitHistoryPanel.test.tsx src/features/git-history/components/GitHistoryWorktreePanel.test.tsx src/features/spec/components/SpecHub.test.tsx src/features/messages/components/Messages.test.tsx` 通过
+- `git diff --check` 通过
+- `npm run check:large-files:near-threshold --silent` 从 27 降到 19
+
+## 后续事项
+- 继续处理剩余 19 个历史 near-threshold 告警
+- 优先拆解 P0/P1 的 runtime-critical 与 frontend hotpath 文件
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b6a57e05` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 332: 治理残留清理与入口对齐
+
+**Date**: 2026-05-06
+**Task**: 治理残留清理与入口对齐
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复第一轮/第二轮文档关联改造 review 中暴露的残留入口文档问题
+- 清理 openspec/project.md 中高漂移、易过期的治理快照内容
+
+主要改动:
+- 清理 .agents/skills/start/SKILL.md 与 .agents/skills/before-dev/SKILL.md 中的旧 package 模板路径
+- 清理 .claude/commands/trellis/start.md 与 .claude/commands/trellis/before-dev.md 中的旧 package 模板路径
+- 重写 openspec/project.md, 删除高漂移历史快照与过期统计, 收敛为当前治理快照
+
+涉及模块:
+- .agents/skills/**
+- .claude/commands/trellis/**
+- openspec/project.md
+
+验证结果:
+- rg 确认已无 spec/<package>/<layer>、cli/、docs-site/ 残留
+- git diff --check 通过
+- openspec validate streamline-governance-doc-stack --strict --no-interactive 通过
+
+后续事项:
+- session-start hook 注入体量仍偏大, 作为后续治理优化项单独评估
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `deeef7fb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 333: 收缩 session-start 注入上下文
+
+**Date**: 2026-05-06
+**Task**: 收缩 session-start 注入上下文
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 把 .claude/.codex 的 session-start 注入从重型全文模式收敛到最小入口模式
+- 降低首轮上下文噪音, 同时保留 AGENTS、task readiness 和 OpenSpec 导航能力
+
+主要改动:
+- 在 OpenSpec change `streamline-governance-doc-stack` 中补充 session-start 最小注入目标、任务和 spec delta
+- 新增共享 helper `.trellis/scripts/common/session_start_context.py`
+- 重写 `.codex/hooks/session-start.py` 与 `.claude/hooks/session-start.py`, 改为注入完整 AGENTS.md + current-state 摘要 + workflow TOC + OpenSpec 入口 + rule pointers + task status
+- 更新 `.trellis/spec/guides/project-instruction-layering-guide.md`, 明确禁止在 session-start hook 中内联完整 spec index 正文和大段 active task 列表
+
+涉及模块:
+- .claude/hooks/**
+- .codex/hooks/**
+- .trellis/scripts/common/**
+- .trellis/spec/guides/**
+- openspec/changes/streamline-governance-doc-stack/**
+
+验证结果:
+- python3 -m py_compile .trellis/scripts/common/session_start_context.py .codex/hooks/session-start.py .claude/hooks/session-start.py 通过
+- 两个 hook 实跑通过, 注入长度从约 15835 chars 收缩到 6670 chars
+- 关键块仍保留: current-state / project-entry / workflow / openspec / rule-pointers / task-status
+- openspec validate streamline-governance-doc-stack --strict --no-interactive 通过
+- git diff --check 通过
+
+后续事项:
+- 观察一段时间实际会话启动效果, 再决定是否继续压缩 AGENTS 注入或按任务类型做更细粒度裁剪
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c874b4cb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 334: 大文件治理第二批热路径拆分
+
+**Date**: 2026-05-06
+**Task**: 大文件治理第二批热路径拆分
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 继续清理 historical near-threshold watchlist
+- 优先处理 frontend hotpath，避免一开始就进入 P0 runtime / Rust 大文件
+- 保持外部 API / import 入口稳定，仅做 pure helper 与类型面拆分
+
+## 主要改动
+- `Composer.tsx` 抽离文件引用解析与 rewind preview 推导到 `composerFileReferences.ts`
+- `useThreadsReducer.ts` 抽离 reducer 核心 helper 与类型面到 `threadReducerCoreHelpers.ts`、`threadReducerTypes.ts`
+- `useAppShellSections.ts` 抽离 kanban / thread helper 到 `useAppShellSections.kanbanHelpers.ts`，并保留原有导出入口
+
+## 涉及模块
+- frontend composer
+- frontend threads reducer
+- app-shell orchestration helpers
+- governance / large-file near-threshold cleanup
+
+## 验证结果
+- `npm run check:large-files --silent` 通过，`found=0`
+- `npm run typecheck` 通过
+- `npx vitest run src/features/composer/components/Composer.rewind-confirm.test.tsx` 通过
+- `npx vitest run src/features/threads/hooks/useThreadsReducer.test.ts src/features/threads/hooks/useThreadsReducer.compaction.test.ts src/features/threads/hooks/useThreadsReducer.inline-code.test.ts src/features/threads/hooks/useThreadsReducer.completed-duplicate.test.ts src/features/threads/hooks/useThreadsReducer.generatedImage.test.ts src/features/threads/hooks/useThreadsReducer.threadlist-pending.test.ts` 通过
+- `npx vitest run src/app-shell-parts/useAppShellSections.kanban-text.test.ts` 通过
+- `git diff --check` 通过
+- `npm run check:large-files:near-threshold --silent` 从 19 降到 16
+
+## 后续事项
+- 剩余 16 项里优先考虑 `SettingsView.tsx`、`useThreads.ts`、`GitHistoryPanelImpl.tsx` 这类 P1 frontend hotpath
+- P0 Rust / runtime critical 与 `app-shell.tsx` 建议继续单批、小步提交
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `27cf8e61` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 335: 治理第三批前端热路径近阈值文件
+
+**Date**: 2026-05-06
+**Task**: 治理第三批前端热路径近阈值文件
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 historical large-file near-threshold 告警，保持按模块小批次提交。
+- 本批只处理 frontend hotpath，不混入 Rust/runtime critical 文件。
+
+主要改动:
+- 将 SettingsView 的 basic behavior 内联区域抽为独立的 BasicBehaviorSection，保留 terminal shell、system proxy、notification sound 等既有行为。
+- 将 useThreads 中 completion email 编排抽为独立的 useThreadCompletionEmail hook，保留 turn 绑定、terminal settlement、toast/debug 逻辑。
+- 将 src/features/settings/components/SettingsView.tsx 从 2680 行降到 2222 行。
+- 将 src/features/threads/hooks/useThreads.ts 从 2676 行降到 2379 行。
+- near-threshold 历史告警从 16 个降到 14 个。
+
+涉及模块:
+- src/features/settings/components/SettingsView.tsx
+- src/features/settings/components/settings-view/sections/BasicBehaviorSection.tsx
+- src/features/threads/hooks/useThreads.ts
+- src/features/threads/hooks/useThreadCompletionEmail.ts
+
+验证结果:
+- git diff --check: 通过
+- npm run check:large-files --silent: found=0
+- npm run check:large-files:near-threshold --silent: found=14
+- npm run typecheck: 通过
+- npm run lint: 通过
+- npx vitest run src/features/threads/hooks/useThreads.memory-race.integration.test.tsx src/features/threads/hooks/useThreads.integration.test.tsx src/features/threads/hooks/useThreads.pendingResolution.test.ts: 3 files / 41 tests 通过
+
+后续事项:
+- 下一批优先继续清理 git-history hotpath：GitHistoryPanelImpl.tsx 与 useGitHistoryPanelInteractions.tsx。
+- 再之后分离剩余 Rust P0/P1 与测试大文件告警，继续保持小批次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `db41179c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 336: 继续清理 git-history 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 git-history 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按小批次清理 large-file near-threshold 历史告警，先完成 git-history 前端热路径这一批。
+
+主要改动
+- 新增 src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelBranchContextMenu.tsx，抽离 branch context menu 的 action 组装、update/fetch 分支更新、键盘导航与菜单定位逻辑。
+- 新增 src/features/git-history/components/git-history-panel/components/GitHistoryPanelTypes.ts，收口 GitHistoryPanel 的 feature-local 类型定义。
+- 调整 src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelInteractions.tsx，删除内联 branch context menu 大段逻辑，改为调用新子 hook。
+- 调整 src/features/git-history/components/git-history-panel/components/GitHistoryPanelImpl.tsx，移除顶部重复类型定义并压缩到 near-threshold 告警线以下。
+
+涉及模块
+- git-history panel components
+- git-history panel hooks
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=12（从 13 降到 12；GitHistoryPanelImpl 和 useGitHistoryPanelInteractions 均已移出告警）
+- npm run typecheck 通过
+- npm run lint 通过
+- npx vitest run src/features/git-history/components/GitHistoryPanel.test.tsx：1 file / 38 tests passed
+
+后续事项
+- 下一批优先处理剩余 bridge/runtime critical Rust 模块或 tests 长文件，保持单批同模块推进。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4a844a440216e1fde2cefa8ab8d0383740b233dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 337: 继续清理 runtime 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 runtime 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按同模块小批次清理剩余 near-threshold 告警，优先处理 P0 runtime 模块中低风险、可独立抽离的持久化簇。
+
+主要改动
+- 新增 src-tauri/src/runtime/ledger.rs，抽离 PersistedRuntimeLedger 与 write_json_atomically 的 runtime ledger 持久化实现。
+- 调整 src-tauri/src/runtime/mod.rs，引入 ledger 子模块并移除内联持久化代码，保留原有调用点与行为不变。
+- 保留 Windows 原子写替换分支（rename 前 remove_file）与现有错误传播语义，未修改 runtime contract。
+
+涉及模块
+- runtime manager
+- runtime ledger persistence
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=11（从 12 降到 11；runtime/mod.rs 已移出告警）
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过
+
+后续事项
+- 剩余高风险项优先是 src-tauri/src/codex/mod.rs、src-tauri/src/backend/app_server.rs、src/app-shell.tsx、src-tauri/src/computer_use/mod.rs，以及测试长文件批次。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d72f9b912f2ebe258d06f14654ef3d67814c20d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 338: 继续清理 daemon 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 daemon 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按 backend 同模块小批次推进 near-threshold 清理，处理 cc_gui_daemon 中低回归、可独立抽离的线程标题生成簇。
+
+主要改动
+- 新增 src-tauri/src/bin/cc_gui_daemon/thread_title_generation.rs，迁移 DaemonState::generate_thread_title 的 helper-thread 创建、事件收集、归档与标题落库逻辑。
+- 调整 src-tauri/src/bin/cc_gui_daemon/daemon_state.rs，仅保留模块声明与其他 daemon 状态编排，移除内联的大段标题生成实现。
+- 修复迁移后 Rust 可见性边界，确保上层 cc_gui_daemon 入口仍可调用标题生成能力。
+
+涉及模块
+- cc_gui_daemon daemon_state
+- thread title generation flow
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=10（从 11 降到 10；daemon_state.rs 已移出告警）
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过
+
+后续事项
+- 剩余告警集中在 4 个 P0 bridge/runtime critical 文件与 6 个测试长文件，下一批建议优先继续做 app_server/codex/computer_use/app-shell 之一的 domain 拆分。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1dc103fda91251ae5872a9e62a3ae2b338ceac51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 339: 拆分 app server events 输入路由测试
+
+**Date**: 2026-05-06
+**Task**: 拆分 app server events 输入路由测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，优先处理低风险 frontend test 文件。
+主要改动：
+- 新增 useAppServerEvents.request-user-input.test.tsx，承接 requestUserInput 相关 6 个测试。
+- 将 runtime-ended、compaction、token usage 的零散测试归并到对应专用 test 文件。
+- 将 useAppServerEvents.test.tsx 从 2996 行降到 2404 行，移出 near-threshold 告警。
+涉及模块：src/features/app/hooks/useAppServerEvents*.test.tsx
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=9
+- npx vitest run src/features/app/hooks/useAppServerEvents*.test.tsx：9 files / 70 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：继续按同模块小批次清理剩余 test near-threshold 文件，优先评估 Messages.test.tsx 或 SpecHub.test.tsx。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23f7b329` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 340: 拆分消息视图行为测试
+
+**Date**: 2026-05-06
+**Task**: 拆分消息视图行为测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，沿用 messages 模块现有 sibling test 拆分模式。
+主要改动：
+- 将 Messages.test.tsx 中的 opencode waiting hint、working activity、turn boundary 测试迁移到专用 sibling test 文件。
+- 扩充 Messages.live-behavior.test.tsx 与 Messages.turn-boundaries.test.tsx，保持行为域一致。
+- 将 Messages.test.tsx 从 2806 行降到 2475 行，移出 near-threshold 告警。
+涉及模块：src/features/messages/components/Messages*.test.tsx
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=8
+- npx vitest run src/features/messages/components/Messages.test.tsx src/features/messages/components/Messages.live-behavior.test.tsx src/features/messages/components/Messages.turn-boundaries.test.tsx：3 files / 113 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：继续清理剩余 4 个 test near-threshold 文件，优先评估 SpecHub.test.tsx 或 threads 目录内已有 sibling test 的拆分机会。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9bacb07e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 341: 拆分线程列表路径兼容测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程列表路径兼容测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，并将跨平台路径兼容回归测试从巨型主测试文件中独立出来。
+主要改动：
+- 新增 useThreadActions.workspace-path.test.tsx，承接 Windows/macOS 路径规范化与 file URI 兼容场景。
+- 从 useThreadActions.test.tsx 移出 /private、\\?、UNC、/System/Volumes/Data、file://、/mnt/c 等路径匹配测试。
+- 将 useThreadActions.test.tsx 从 2786 行降到 2511 行，移出 near-threshold 告警。
+涉及模块：src/features/threads/hooks/useThreadActions*.test.tsx
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=7
+- npx vitest run src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useThreadActions.workspace-path.test.tsx：2 files / 51 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：继续清理剩余 3 个 test near-threshold 文件（SpecHub / useThreadMessaging / historyLoaders），再评估是否进入 P0 runtime bridge 文件拆分。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c967865f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 342: 拆分线程历史加载测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程历史加载测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，并按 loader 责任边界拆分 historyLoaders 大测试文件。
+主要改动：
+- 将 Claude loader 的高层 snapshot/userInput/fallback 场景回收到 claudeHistoryLoader.test.ts。
+- 再把 Claude parse 场景中的 tool_result 去重与 reasoning snapshot 折叠测试迁移到专用文件。
+- 将 historyLoaders.test.ts 从 2742 行降到 2558 行，移出 near-threshold 告警。
+涉及模块：src/features/threads/loaders/historyLoaders.test.ts、src/features/threads/loaders/claudeHistoryLoader.test.ts
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=6
+- npx vitest run src/features/threads/loaders/historyLoaders.test.ts src/features/threads/loaders/claudeHistoryLoader.test.ts：2 files / 63 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：剩余 near-threshold 为 SpecHub.test.tsx、useThreadMessaging.test.tsx 与 4 个 P0 runtime/bridge 文件；后续建议先清掉最后两个 test 文件，再谨慎进入 P0 backend/app-shell 模块。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `028bc80c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 343: 拆分线程消息命令入口测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程消息命令入口测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 large-file near-threshold 告警，优先处理 src/features/threads/hooks/useThreadMessaging.test.tsx。
+- 在不改变行为的前提下，按命令入口模块拆分测试，并保留 Windows/macOS 路径兼容回归覆盖。
+
+主要改动:
+- 新增 src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx，集中承载 /review、/mcp、/lsp、/import、/resume 命令入口测试。
+- 从 src/features/threads/hooks/useThreadMessaging.test.tsx 移除上述入口测试与配套 Windows/no-path workspace 场景、专用 mock 初始化，使主文件回落到 near-threshold 以下。
+- 保留并验证 Windows absolute path、extended path、relative path 与空 workspace path 的 LSP document path 兼容行为。
+
+涉及模块:
+- src/features/threads/hooks/useThreadMessaging.test.tsx
+- src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx
+
+验证结果:
+- git diff --check 通过。
+- npx vitest run src/features/threads/hooks/useThreadMessaging.test.tsx src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx src/features/threads/hooks/useThreadMessaging.context-injection.test.tsx src/features/threads/hooks/useThreadMessaging.spec-root.test.tsx 通过（101 tests）。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 6 降到 5。
+
+后续事项:
+- 继续拆分 src/features/spec/components/SpecHub.test.tsx，清空剩余 frontend test 告警。
+- 再评估 4 个 P0 runtime 文件的拆分顺序与风险。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `460fe657` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 344: 拆分规范中心布局交互测试
+
+**Date**: 2026-05-06
+**Task**: 拆分规范中心布局交互测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 清理 src/features/spec/components/SpecHub.test.tsx 的 large-file near-threshold 告警。
+- 以布局/导航交互为边界拆分测试，不引入行为回归。
+
+主要改动:
+- 新增 src/features/spec/components/SpecHub.reader-layout.test.tsx，集中 reader outline、detached window、changes pane resize、control center collapse、filter view state 隔离等布局交互测试。
+- 新增 src/features/spec/components/SpecHub.test-support.tsx，抽离 SpecHub 测试共用 mock、i18n、Markdown render 和基础 hook state 生成器。
+- 精简 src/features/spec/components/SpecHub.test.tsx，仅保留其余业务流与 action/proposal 相关测试。
+
+涉及模块:
+- src/features/spec/components/SpecHub.test.tsx
+- src/features/spec/components/SpecHub.reader-layout.test.tsx
+- src/features/spec/components/SpecHub.test-support.tsx
+
+验证结果:
+- git diff --check 通过。
+- npx vitest run src/features/spec/components/SpecHub.test.tsx src/features/spec/components/SpecHub.reader-layout.test.tsx 通过（44 tests）。
+- npm run lint 通过。
+- npm run typecheck 通过。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 5 降到 4。
+
+后续事项:
+- 只剩 4 个 P0 runtime 文件：src-tauri/src/codex/mod.rs、src-tauri/src/backend/app_server.rs、src/app-shell.tsx、src-tauri/src/computer_use/mod.rs。
+- 下一步优先评估 app_server.rs 与 codex/mod.rs 的低风险拆分切口，再视情况处理 app-shell.tsx。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `61136c6f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 345: 外提运行时测试模块
+
+**Date**: 2026-05-06
+**Task**: 外提运行时测试模块
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 large-file near-threshold，优先处理 3 个 Rust bridge/runtime-critical 文件。
+- 在不改变 runtime 行为的前提下，选择最低风险的机械拆分路径。
+
+主要改动:
+- 将 src-tauri/src/backend/app_server.rs 内嵌 tests 模块外提到 src-tauri/src/backend/app_server_tests.rs。
+- 将 src-tauri/src/codex/mod.rs 内嵌 tests 模块外提到 src-tauri/src/codex/codex_tests.rs。
+- 将 src-tauri/src/computer_use/mod.rs 内嵌 tests 模块外提到 src-tauri/src/computer_use/computer_use_tests.rs。
+- 主模块改为 #[cfg(test)] #[path = "..._tests.rs"] mod tests;，保持同层私有可见性与测试覆盖不变。
+
+涉及模块:
+- src-tauri/src/backend/app_server.rs
+- src-tauri/src/backend/app_server_tests.rs
+- src-tauri/src/codex/mod.rs
+- src-tauri/src/codex/codex_tests.rs
+- src-tauri/src/computer_use/mod.rs
+- src-tauri/src/computer_use/computer_use_tests.rs
+
+验证结果:
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过。
+- git diff --check 通过。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 4 降到 1。
+
+后续事项:
+- 剩余唯一告警是 src/app-shell.tsx，需要按跨层风险单独处理。
+- 修改 app-shell 前继续保持 cross-layer checklist，避免影响 tauri/service/runtime 主链路。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8498b474` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

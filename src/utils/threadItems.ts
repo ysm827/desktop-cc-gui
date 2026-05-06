@@ -1,4 +1,5 @@
 import type { ConversationItem } from "../types";
+import i18n from "../i18n";
 import { findEquivalentReasoningObservationIndex } from "../features/threads/assembly/conversationNormalization";
 import { normalizeAgentIcon } from "./agentIcons";
 import {
@@ -635,7 +636,7 @@ function normalizeAskUserQuestionHistoryItems(items: ConversationItem[]) {
               id: `request-user-input-submitted-${matchedToolId}`,
               kind: "tool",
               toolType: "requestUserInputSubmitted",
-              title: "请求输入",
+              title: i18n.t("approval.inputRequested"),
               detail: buildRequestUserInputSubmittedDetail(templates, parsedAnswer),
               status: "completed",
               output: parsedAnswer.rawSelectionText,

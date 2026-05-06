@@ -1275,6 +1275,9 @@ const zhPart2 = {
     submitFailed: "提交失败，请重试。",
     submit: "提交",
     submitted: "已提交",
+    noAnswerProvided: "（未填写）",
+    noDisplayableAnswer: "（未提供可展示的答案）",
+    userInputSubmittedBanner: "[用户输入已提交]",
   },
 
   askUserQuestion: {
@@ -2138,6 +2141,10 @@ const zhPart2 = {
     sessionStoppedForFusion: "正在切换到融合回复，等待新的接续事件…",
     turnFailed: "会话失败。",
     turnFailedWithMessage: "会话失败：{{message}}",
+    claudeMcpRouteMapped:
+      "MCP 路由提示：检测到 `playwright-mcp`，当前会话已自动映射为 `chrome-devtools`。",
+    claudeMcpRouteUnavailable:
+      "MCP 路由提示：检测到 `playwright-mcp`，但当前会话未确认可见该工具。",
     turnFailedToStart: "会话启动失败。",
     turnFailedToStartWithMessage: "会话启动失败：{{message}}",
     turnStalled: "用户输入已提交，但恢复链停住了。你可以从当前可见状态继续。",

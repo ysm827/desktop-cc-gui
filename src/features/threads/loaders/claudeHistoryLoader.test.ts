@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
-import { parseClaudeHistoryMessages } from "./claudeHistoryLoader";
+import {
+  createClaudeHistoryLoader,
+  parseClaudeHistoryMessages,
+} from "./claudeHistoryLoader";
 
 type AssistantMessageItem = Extract<ConversationItem, { kind: "message" }> & {
   role: "assistant";
@@ -449,5 +452,191 @@ describe("parseClaudeHistoryMessages", () => {
       role: "assistant",
       text: "三个文件都创建好了。",
     });
+  });
+
+  it("merges Claude tool result by tool_use_id and avoids duplicate tool rows", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        id: "toolu_123",
+        kind: "tool",
+        tool_name: "read",
+        text: '{"file_path":"README.md"}',
+      },
+      {
+        id: "result_456",
+        kind: "tool",
+        toolType: "result",
+        tool_use_id: "toolu_123",
+        text: "ok",
+      },
+    ]);
+
+    const toolItems = items.filter(
+      (item): item is Extract<(typeof items)[number], { kind: "tool" }> =>
+        item.kind === "tool",
+    );
+    expect(toolItems).toHaveLength(1);
+    expect(toolItems[0]).toEqual(
+      expect.objectContaining({
+        id: "toolu_123",
+        status: "completed",
+        output: "ok",
+      }),
+    );
+  });
+
+  it("collapses repeated claude reasoning snapshots with different ids", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "reasoning",
+        id: "reason-1",
+        text: "先检查项目目录结构和入口模块，再确认核心路由",
+      },
+      {
+        kind: "reasoning",
+        id: "reason-2",
+        text: "先检查项目目录结构和入口模块，再确认核心路由并定位状态来源",
+      },
+      {
+        kind: "reasoning",
+        id: "reason-3",
+        text: "先检查项目目录结构和入口模块，再确认核心路由并定位状态来源",
+      },
+    ]);
+
+    const reasoning = items.filter(
+      (item): item is Extract<(typeof items)[number], { kind: "reasoning" }> =>
+        item.kind === "reasoning",
+    );
+    expect(reasoning).toHaveLength(1);
+    expect(reasoning[0]?.content).toBe(
+      "先检查项目目录结构和入口模块，再确认核心路由并定位状态来源",
+    );
+  });
+});
+
+describe("createClaudeHistoryLoader", () => {
+  it("loads claude jsonl messages and merges tool result into tool call", async () => {
+    const loader = createClaudeHistoryLoader({
+      workspaceId: "ws-2",
+      workspacePath: "/tmp/ws-2",
+      loadClaudeSession: vi.fn().mockResolvedValue({
+        messages: [
+          {
+            kind: "message",
+            id: "user-1",
+            role: "user",
+            text: "run test",
+            images: ["/tmp/claude-shot.png"],
+          },
+          {
+            kind: "tool",
+            id: "tool-1",
+            toolType: "commandExecution",
+            title: "Command",
+            text: "npm run test",
+          },
+          {
+            kind: "tool",
+            id: "tool-1-result",
+            toolType: "result",
+            title: "Command",
+            text: "ok",
+          },
+        ],
+      }),
+    });
+
+    const snapshot = await loader.load("claude:session-1");
+    expect(snapshot.engine).toBe("claude");
+    expect(snapshot.items).toHaveLength(2);
+    expect(snapshot.items[0]).toEqual(
+      expect.objectContaining({
+        kind: "message",
+        role: "user",
+        images: ["/tmp/claude-shot.png"],
+      }),
+    );
+    const tool = snapshot.items[1];
+    expect(tool?.kind).toBe("tool");
+    if (tool?.kind === "tool") {
+      expect(tool.status).toBe("completed");
+      expect(tool.output).toBe("ok");
+    }
+  });
+
+  it("hydrates claude pending askuserquestion into snapshot userInputQueue", async () => {
+    const loader = createClaudeHistoryLoader({
+      workspaceId: "ws-claude-ask",
+      workspacePath: "/tmp/ws-claude-ask",
+      loadClaudeSession: vi.fn().mockResolvedValue({
+        messages: [
+          {
+            kind: "tool",
+            id: "tool-ask-pending-1",
+            tool_name: "AskUserQuestion",
+            tool_input: {
+              questions: [
+                {
+                  id: "project-type",
+                  header: "项目类型",
+                  question: "请选择项目类型",
+                  multiSelect: false,
+                  options: [
+                    { label: "Web应用", description: "前端应用" },
+                    { label: "服务端", description: "后端服务" },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    });
+
+    const snapshot = await loader.load("claude:session-ask-pending");
+    expect(snapshot.engine).toBe("claude");
+    expect(snapshot.userInputQueue).toEqual([
+      {
+        workspace_id: "ws-claude-ask",
+        request_id: "tool-ask-pending-1",
+        params: {
+          thread_id: "claude:session-ask-pending",
+          turn_id: "",
+          item_id: "tool-ask-pending-1",
+          questions: [
+            {
+              id: "project-type",
+              header: "项目类型",
+              question: "请选择项目类型",
+              isOther: true,
+              isSecret: false,
+              options: [
+                { label: "Web应用", description: "前端应用" },
+                { label: "服务端", description: "后端服务" },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("emits fallback warnings when workspace path is unavailable", async () => {
+    const loader = createClaudeHistoryLoader({
+      workspaceId: "ws-3",
+      workspacePath: null,
+      loadClaudeSession: vi.fn(),
+    });
+
+    const snapshot = await loader.load("claude:session-missing");
+    expect(snapshot.items).toEqual([]);
+    expect(snapshot.fallbackWarnings.map((entry) => entry.code)).toEqual(
+      expect.arrayContaining([
+        "missing_items",
+        "missing_plan",
+        "missing_user_input_queue",
+      ]),
+    );
   });
 });

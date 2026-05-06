@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
+import i18n from "../../../../i18n";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getToolDisplayName, isBashTool, resolveToolStatus } from "./toolConstants";
 
 describe("resolveToolStatus", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("zh");
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage("zh");
+  });
+
   it("returns completed for explicit completion status even without output", () => {
     expect(resolveToolStatus("completed", false)).toBe("completed");
     expect(resolveToolStatus("success", false)).toBe("completed");
@@ -26,6 +35,11 @@ describe("resolveToolStatus", () => {
 
   it("maps askuserquestion to ask user question display name", () => {
     expect(getToolDisplayName("askuserquestion")).toBe("询问用户问题");
+  });
+
+  it("follows the active locale when component translation context is unavailable", async () => {
+    await i18n.changeLanguage("en");
+    expect(getToolDisplayName("webfetch")).toBe("Web fetch");
   });
 
   it("treats exec_command and write_stdin as command tools", () => {

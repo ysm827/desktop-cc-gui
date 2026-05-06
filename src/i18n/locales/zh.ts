@@ -1,6 +1,8 @@
 import zhPart1 from "./zh.part1";
 import zhPart2 from "./zh.part2";
 import zhPart3 from "./zh.part3";
+import zhPart4 from "./zh.part4";
+import zhPart5 from "./zh.part5";
 
 const zhPart2Settings = (zhPart2 as { settings?: Partial<typeof zhPart1.settings> }).settings ?? {};
 const zhPart3Settings = (zhPart3 as { settings?: Partial<typeof zhPart1.settings> }).settings ?? {};
@@ -11,6 +13,8 @@ const zh = {
   ...zhPart1,
   ...zhPart2,
   ...zhPart3,
+  ...zhPart4,
+  ...zhPart5,
   composer: {
     ...zhPart1.composer,
     ...zhPart2Composer,

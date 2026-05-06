@@ -130,6 +130,7 @@ describe("Messages user input parsing", () => {
     expect(userText?.textContent ?? "").toBe("请帮我优化这段 UI。");
     expect(container.querySelector(".message-agent-tag-text")).toBeNull();
     expect(agentIconButton).toBeTruthy();
+    expect(agentIconButton?.getAttribute("aria-label")).toBe("Show agent badge: 前端专家");
     if (agentIconButton) {
       fireEvent.click(agentIconButton);
     }
@@ -165,6 +166,9 @@ describe("Messages user input parsing", () => {
     expect(userText?.textContent ?? "").toBe("这是一段用户原始内容。");
     const agentIconButton = container.querySelector(".message-agent-icon-button");
     expect(agentIconButton).toBeTruthy();
+    expect(agentIconButton?.getAttribute("aria-label")).toBe(
+      "Show agent badge: 擅长前后端桌面全局架构和编码",
+    );
     expect(container.querySelector(".message-agent-tag-text")).toBeNull();
   });
 

@@ -1,4 +1,5 @@
 import type { ConversationItem, RequestUserInputRequest } from "../../../types";
+import i18n from "../../../i18n";
 import {
   extractClaudeApprovalResumeEntries,
   stripClaudeApprovalResumeArtifacts,
@@ -865,7 +866,7 @@ export function parseClaudeHistoryMessages(messagesData: unknown): ConversationI
       id: submittedItemId,
       kind: "tool",
       toolType: "requestUserInputSubmitted",
-      title: "请求输入",
+      title: i18n.t("approval.inputRequested"),
       detail,
       status: "completed",
       output: parseResult.rawSelectionText,

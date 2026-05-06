@@ -1246,7 +1246,11 @@ export const MessageRow = memo(function MessageRow({
         className="message-agent-icon-button"
         onClick={handleToggleAgentBadge}
         aria-expanded={isAgentBadgeExpanded}
-        aria-label={selectedAgentName ? `显示智能体标签：${selectedAgentName}` : "显示智能体标记"}
+        aria-label={
+          selectedAgentName
+            ? t("messages.agentBadgeWithNameAriaLabel", { name: selectedAgentName })
+            : t("messages.agentBadgeAriaLabel")
+        }
         title={selectedAgentName ?? undefined}
       >
         <AgentIcon
@@ -1364,43 +1368,20 @@ export const GeneratedImageRow = memo(function GeneratedImageRow({
   workspaceId = null,
 }: GeneratedImageRowProps) {
   const { t } = useTranslation();
-  const generatedImageTitle =
-    t("messages.generatedImageTitle") === "messages.generatedImageTitle"
-      ? "生成图片"
-      : t("messages.generatedImageTitle");
-  const generatedImageProcessingLabel =
-    t("messages.generatedImageProcessing") === "messages.generatedImageProcessing"
-      ? "制作中"
-      : t("messages.generatedImageProcessing");
-  const generatedImageCompletedLabel =
-    t("messages.generatedImageCompleted") === "messages.generatedImageCompleted"
-      ? "已完成"
-      : t("messages.generatedImageCompleted");
-  const generatedImageDegradedLabel =
-    t("messages.generatedImageDegraded") === "messages.generatedImageDegraded"
-      ? "已完成"
-      : t("messages.generatedImageDegraded");
-  const generatedImageProcessingHint =
-    t("messages.generatedImageProcessingHint") === "messages.generatedImageProcessingHint"
-      ? "这张图片仍在生成中，稍后会自动展示预览。"
-      : t("messages.generatedImageProcessingHint");
-  const generatedImageDegradedHint =
-    t("messages.generatedImageDegradedHint") === "messages.generatedImageDegradedHint"
-      ? "图片已生成完成，但当前预览恢复失败。"
-      : t("messages.generatedImageDegradedHint");
+  const generatedImageTitle = t("messages.generatedImageTitle");
+  const generatedImageProcessingLabel = t("messages.generatedImageProcessing");
+  const generatedImageCompletedLabel = t("messages.generatedImageCompleted");
+  const generatedImageDegradedLabel = t("messages.generatedImageDegraded");
+  const generatedImageProcessingHint = t("messages.generatedImageProcessingHint");
+  const generatedImageDegradedHint = t("messages.generatedImageDegradedHint");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const imageItems = useMemo(
     () =>
       item.images.map((image, index) => ({
         src: image.src,
-        label:
-          t("messages.generatedImagePreviewLabel", {
-            index: index + 1,
-          }) === "messages.generatedImagePreviewLabel"
-            ? `打开生成图片 ${index + 1}`
-            : t("messages.generatedImagePreviewLabel", {
-                index: index + 1,
-              }),
+        label: t("messages.generatedImagePreviewLabel", {
+          index: index + 1,
+        }),
         localPath: image.localPath ?? null,
       })),
     [item.images, t],

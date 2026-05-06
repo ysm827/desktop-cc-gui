@@ -537,8 +537,8 @@ export function useThreadMessaging({
             },
           });
           claudeMcpOutputNotice = rewriteResult.applied
-            ? "MCP 路由提示：检测到 `playwright-mcp`，当前会话已自动映射为 `chrome-devtools`。"
-            : `MCP 路由提示：检测到 \`playwright-mcp\`，但当前会话未确认可见该工具。`;
+            ? t("threads.claudeMcpRouteMapped")
+            : t("threads.claudeMcpRouteUnavailable");
         }
       }
       if (resolvedEngine === "claude") {

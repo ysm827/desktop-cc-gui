@@ -65,126 +65,23 @@ import {
 import type { WorkspaceHomeDeleteResult } from "../features/workspaces/components/WorkspaceHome";
 import type { EngineType, MessageSendOptions, WorkspaceInfo } from "../types";
 import type { KanbanContextMode } from "../features/kanban/utils/contextMode";
-import type { ComposerSessionSelection } from "./selectedComposerSession";
+import {
+  isRewindSupportedThreadId,
+  resolvePendingSessionThreadCandidate,
+  resolveTaskThreadId,
+  stripComposerKanbanTagsPreserveFormatting,
+  syncKanbanExecutionEngineAndModel,
+} from "./useAppShellSections.kanbanHelpers";
+export {
+  resolvePendingSessionThreadCandidate,
+  resolveTaskThreadId,
+  shouldSyncComposerEngineForKanbanExecution,
+  stripComposerKanbanTagsPreserveFormatting,
+  syncKanbanExecutionEngineAndModel,
+} from "./useAppShellSections.kanbanHelpers";
 
-const KANBAN_TAG_REGEX = /&@[^\s]+/g;
 const KANBAN_SCHEDULER_INTERVAL_MS = 20_000;
 const KANBAN_EXECUTION_LOCK_STALE_MS = 120_000;
-
-export function stripComposerKanbanTagsPreserveFormatting(text: string): string {
-  if (!text || !text.includes("&@")) {
-    return text;
-  }
-  const stripped = text.replace(KANBAN_TAG_REGEX, "");
-  return stripped
-    .replace(/[ \t]+(\r?\n)/g, "$1")
-    .replace(/(\r?\n)[ \t]+/g, "$1")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
-}
-
-export function resolveTaskThreadId(
-  threadId: string | null | undefined,
-  resolveCanonicalThreadId?: ((threadId: string) => string) | null,
-): string | null {
-  if (!threadId) {
-    return null;
-  }
-  if (!resolveCanonicalThreadId) {
-    return threadId;
-  }
-  const canonical = resolveCanonicalThreadId(threadId);
-  return canonical || threadId;
-}
-
-export function resolvePendingSessionThreadCandidate(params: {
-  pendingThreadId: string;
-  workspaceThreadIds: string[];
-  occupiedThreadIds: Set<string>;
-}): string | null {
-  const isClaudePending = params.pendingThreadId.startsWith("claude-pending-");
-  const isOpenCodePending = params.pendingThreadId.startsWith("opencode-pending-");
-  if (!isClaudePending && !isOpenCodePending) {
-    return null;
-  }
-  const sessionPrefix = isClaudePending ? "claude:" : "opencode:";
-  const candidates = params.workspaceThreadIds.filter(
-    (threadId) =>
-      threadId.startsWith(sessionPrefix) &&
-      !params.occupiedThreadIds.has(threadId),
-  );
-  return candidates.length === 1 ? candidates[0] : null;
-}
-
-export function shouldSyncComposerEngineForKanbanExecution(params: {
-  activate?: boolean;
-}): boolean {
-  return params.activate !== false;
-}
-
-export async function syncKanbanExecutionEngineAndModel(params: {
-  activate?: boolean;
-  engine: "claude" | "codex";
-  modelId?: string | null;
-  setActiveEngine: (engine: "claude" | "codex") => Promise<void> | void;
-}): Promise<{
-  shouldSyncComposerSelection: boolean;
-  outboundModel?: string;
-  composerSelection: ComposerSessionSelection | null;
-}> {
-  const shouldSyncComposerSelection = shouldSyncComposerEngineForKanbanExecution({
-    activate: params.activate,
-  });
-  if (shouldSyncComposerSelection) {
-    await params.setActiveEngine(params.engine);
-  }
-  if (!params.modelId) {
-    return {
-      shouldSyncComposerSelection,
-      outboundModel: undefined,
-      composerSelection: null,
-    };
-  }
-  if (!shouldSyncComposerSelection) {
-    return {
-      shouldSyncComposerSelection,
-      outboundModel: params.modelId,
-      composerSelection: null,
-    };
-  }
-  return {
-    shouldSyncComposerSelection,
-    outboundModel: undefined,
-    composerSelection: {
-      modelId: params.modelId,
-      effort: null,
-    },
-  };
-}
-
-function isRewindSupportedThreadId(threadId: string): boolean {
-  const normalized = threadId.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  if (normalized.startsWith("claude:") || normalized.startsWith("codex:")) {
-    return true;
-  }
-  if (
-    normalized.startsWith("claude-pending-") ||
-    normalized.startsWith("codex-pending-") ||
-    normalized.startsWith("gemini:") ||
-    normalized.startsWith("gemini-pending-") ||
-    normalized.startsWith("opencode:") ||
-    normalized.startsWith("opencode-pending-")
-  ) {
-    return false;
-  }
-  if (normalized.includes(":")) {
-    return false;
-  }
-  return true;
-}
 
 export function useAppShellSections(ctx: any) {
   const {
