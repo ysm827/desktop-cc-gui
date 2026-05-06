@@ -1576,3 +1576,56 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 338: 继续清理 daemon 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 daemon 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按 backend 同模块小批次推进 near-threshold 清理，处理 cc_gui_daemon 中低回归、可独立抽离的线程标题生成簇。
+
+主要改动
+- 新增 src-tauri/src/bin/cc_gui_daemon/thread_title_generation.rs，迁移 DaemonState::generate_thread_title 的 helper-thread 创建、事件收集、归档与标题落库逻辑。
+- 调整 src-tauri/src/bin/cc_gui_daemon/daemon_state.rs，仅保留模块声明与其他 daemon 状态编排，移除内联的大段标题生成实现。
+- 修复迁移后 Rust 可见性边界，确保上层 cc_gui_daemon 入口仍可调用标题生成能力。
+
+涉及模块
+- cc_gui_daemon daemon_state
+- thread title generation flow
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=10（从 11 降到 10；daemon_state.rs 已移出告警）
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过
+
+后续事项
+- 剩余告警集中在 4 个 P0 bridge/runtime critical 文件与 6 个测试长文件，下一批建议优先继续做 app_server/codex/computer_use/app-shell 之一的 domain 拆分。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1dc103fda91251ae5872a9e62a3ae2b338ceac51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
