@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-11.md`
-- **Total Sessions**: 350
+- **Total Sessions**: 351
 - **Last Active**: 2026-05-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-11.md` | ~259 | Active |
+| `journal-11.md` | ~292 | Active |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
@@ -39,6 +39,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 351 | 2026-05-07 | 收紧结果面板文件推断与阻断提示 | `94cc8b50` | `feature/v.0.4.14-2` |
 | 350 | 2026-05-07 | 结果检查点替换编辑汇总面板 | `c1d6cd7e` | `feature/v.0.4.14-2` |
 | 349 | 2026-05-06 | 清理幕布可见文案尾债并修复测试门禁 | `6794fe13` | `feature/v.0.4.14-2` |
 | 348 | 2026-05-06 | 修复幕布 i18n 残留与请求输入标题 | `0a8cbd9e` | `feature/v.0.4.14-2` |

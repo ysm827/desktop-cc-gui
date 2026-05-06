@@ -257,3 +257,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 351: 收紧结果面板文件推断与阻断提示
+
+**Date**: 2026-05-07
+**Task**: 收紧结果面板文件推断与阻断提示
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+单独提交 status-panel 相关修复：按 active turn 收口结果面板事实，排除 Codex tool payload dotted field 误入文件变化，并补充 blocked command 的自动恢复等待提示。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94cc8b50` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
