@@ -4,6 +4,19 @@
 
 ---
 
+## Ownership
+
+- `AGENTS.md`
+  - 仓库级入口、规则优先级、最小读取路径、全局 gate
+- `.trellis/workflow.md`
+  - Trellis 的执行流程、命令顺序、task/session 生命周期
+- `.trellis/spec/**`
+  - frontend / backend / guides 的实现规范与检查清单
+- `openspec/**`
+  - behavior requirement、proposal / design / tasks、verify / sync / archive
+
+---
+
 ## Table of Contents
 
 1. [Quick Start (Do This First)](#quick-start-do-this-first)
@@ -53,25 +66,24 @@ python3 ./.trellis/scripts/task.py list          # Active tasks
 git status && git log --oneline -10              # Git state
 ```
 
-### Step 2: Read Project Guidelines [MANDATORY]
+### Step 2: Read Project Entry And Guideline Indexes
 
-**CRITICAL**: Read guidelines before writing any code:
+Start from the canonical repo entry, then expand into the relevant guideline indexes:
 
 ```bash
-# Discover available packages and spec layers
-python3 ./.trellis/scripts/get_context.py --mode packages
+cat AGENTS.md
 
-# Read the spec index for each relevant module
-cat .trellis/spec/<package>/<layer>/index.md
-
-# Always read shared guides
+# Read relevant implementation indexes
+cat .trellis/spec/frontend/index.md
+cat .trellis/spec/backend/index.md
 cat .trellis/spec/guides/index.md
 ```
 
-**Why this matters?**
-- Understand which spec layers apply to your task
-- Know coding standards for the packages you'll modify
-- Learn the overall code quality requirements
+If the task is about rule entry, documentation governance, ignore policy, or host hooks, also read:
+
+```bash
+cat .trellis/spec/guides/project-instruction-layering-guide.md
+```
 
 ### Step 3: Before Coding - Read Specific Guidelines (Required)
 
@@ -79,9 +91,9 @@ Based on your task, read the **detailed** guideline files listed in each spec in
 
 ```bash
 # The index points to specific files — read those, not just the index
-cat .trellis/spec/<package>/<layer>/error-handling.md
-cat .trellis/spec/<package>/<layer>/conventions.md
-# etc. — based on what the Pre-Development Checklist lists
+cat .trellis/spec/frontend/component-guidelines.md
+cat .trellis/spec/backend/error-handling.md
+# etc. — based on what the relevant checklist points to
 ```
 
 ---
@@ -90,11 +102,11 @@ cat .trellis/spec/<package>/<layer>/conventions.md
 
 ### Core Principles
 
-1. **Read Before Write** - Understand context before starting
-2. **Follow Standards** - [!] **MUST read `.trellis/spec/` guidelines before coding**
+1. **Project Entry First** - Start from `AGENTS.md`, then enter the relevant Trellis/OpenSpec surface
+2. **Process Over Memory** - Use task scripts, context scripts, and recorded workflow instead of ad-hoc recall
 3. **Incremental Development** - Complete one task at a time
 4. **Record Promptly** - Update tracking files immediately after completion
-5. **Document Limits** - [!] **Max 2000 lines per journal document**
+5. **Document Limits** - Keep each journal document within the configured size limit
 
 ### File System
 
@@ -127,17 +139,17 @@ cat .trellis/spec/<package>/<layer>/conventions.md
 |-- tasks/               # Task tracking
 |   +-- {MM}-{DD}-{name}/
 |       +-- task.json
-|-- spec/                # [!] MUST READ before coding
-|   |-- frontend/        # Frontend guidelines (if applicable)
-|   |   |-- index.md               # Start here - guidelines index
-|   |   +-- *.md                   # Topic-specific docs
-|   |-- backend/         # Backend guidelines (if applicable)
-|   |   |-- index.md               # Start here - guidelines index
-|   |   +-- *.md                   # Topic-specific docs
-|   +-- guides/          # Thinking guides
-|       |-- index.md                      # Guides index
-|       |-- cross-layer-thinking-guide.md # Pre-implementation checklist
-|       +-- *.md                          # Other guides
+|-- spec/                # Implementation rules
+|   |-- frontend/        # Frontend guidelines
+|   |   |-- index.md
+|   |   +-- *.md
+|   |-- backend/         # Backend guidelines
+|   |   |-- index.md
+|   |   +-- *.md
+|   +-- guides/          # Thinking guides and governance boundaries
+|       |-- index.md
+|       |-- project-instruction-layering-guide.md
+|       +-- *.md
 +-- workflow.md             # This document
 ```
 
@@ -159,19 +171,13 @@ python3 ./.trellis/scripts/get_context.py --json
 
 ### Step 2: Read Development Guidelines [!] REQUIRED
 
-**[!] CRITICAL: MUST read guidelines before writing any code**
-
-Based on what you'll develop, read the corresponding guidelines:
+Follow the canonical reading order in `AGENTS.md`, then read the corresponding Trellis docs:
 
 ```bash
-# Discover available packages and spec layers
-python3 ./.trellis/scripts/get_context.py --mode packages
-
-# Read spec indexes for relevant modules
-cat .trellis/spec/<package>/<layer>/index.md
-
-# For cross-layer features
-cat .trellis/spec/guides/cross-layer-thinking-guide.md
+cat AGENTS.md
+cat .trellis/spec/frontend/index.md
+cat .trellis/spec/backend/index.md
+cat .trellis/spec/guides/index.md
 ```
 
 ### Step 3: Select Task to Develop
@@ -206,8 +212,8 @@ python3 ./.trellis/scripts/task.py create "<title>" --slug <task-name>
    --> Writes .trellis/.current-task; future sessions see it in <current-state>
 
 4. Write code according to guidelines
-   --> Read .trellis/spec/ docs relevant to your task
-   --> For cross-layer: read .trellis/spec/guides/
+   --> Read the specific docs pointed to by the relevant Pre-Development Checklist
+   --> For cross-layer or governance tasks: read the relevant guide under .trellis/spec/guides/
 
 5. Self-test
    --> Run project's lint/test commands (see spec docs)
@@ -215,20 +221,15 @@ python3 ./.trellis/scripts/task.py create "<title>" --slug <task-name>
 
 6. Commit code
    --> git add <files>
-   --> git commit -m "type(scope): 中文动宾短句"
-       Format: feat/fix/docs/refactor/test/chore
-       Rule: human / AI commits MUST use Chinese Conventional Commits by default
-       Example: fix(startup): 修复 Linux AppImage Wayland 启动兼容守卫
+   --> Follow the commit gate defined in AGENTS.md
+   --> Typical format: git commit -m "type(scope): 中文动宾短句"
 
 7. Record session (mandatory after successful commit)
-   --> If the AI executed `git commit`, it MUST continue into this step automatically unless the user explicitly opts out
-   --> Run from repo root only; use repo-relative paths, never user-specific absolute paths
+   --> Follow the Trellis Session Record gate in AGENTS.md
    --> python3 ./.trellis/scripts/get_context.py --mode record
    --> cat << 'EOF' | python3 ./.trellis/scripts/add_session.py --stdin --title "Title" --commit "hash"
        Task goal, main changes, affected modules, validation results, follow-ups
        EOF
-   --> If developer is not initialized, first auto-resolve from TRELLIS_DEVELOPER / git user.name / git user.email local-part / a unique existing workspace
-   --> Only ask the collaborator for a developer id if those signals still cannot determine one uniquely
    --> Verify the Trellis metadata commit and report both the code commit hash and record commit hash
 
 8. Verify and close spec loop
@@ -249,7 +250,7 @@ python3 ./.trellis/scripts/task.py create "<title>" --slug <task-name>
 - [OK] Manual feature testing passes
 
 **Project-specific checks**:
-- See `.trellis/spec/<package>/<layer>/quality-guidelines.md` for package-specific checks
+- See `.trellis/spec/frontend/quality-guidelines.md` or `.trellis/spec/backend/quality-guidelines.md` as applicable
 
 ---
 
@@ -274,12 +275,7 @@ This automatically:
 3. Appends session content
 4. Updates index.md (sessions count, history table)
 
-Multi-user / multi-machine rules:
-- Run commands from the repository root.
-- Use repo-relative paths such as `./.trellis/scripts/add_session.py`.
-- Do not write user-specific absolute paths into commands or documentation.
-- Do not guess the developer id. Let `.trellis/.developer` drive the active workspace; if missing, first auto-resolve from `TRELLIS_DEVELOPER`, `git config user.name`, `git config user.email` local-part, or a unique existing workspace, and only ask the collaborator when those signals are insufficient.
-- `add_session.py` auto-detects branch/package where possible and writes to `.trellis/workspace/<active-developer>/`.
+For repo-wide constraints around developer resolution, path style, and mandatory record flow, follow `AGENTS.md`.
 
 ### Pre-end Checklist
 
@@ -369,10 +365,10 @@ python3 ./.trellis/scripts/task.py list-archive    # List archived tasks
 
 1. **Before session start**:
    - Run `python3 ./.trellis/scripts/get_context.py` for full context
-   - [!] **MUST read** relevant `.trellis/spec/` docs
+   - Read `AGENTS.md`, then the relevant Trellis/OpenSpec docs for the task
 
 2. **During development**:
-   - [!] **Follow** `.trellis/spec/` guidelines
+   - Follow the specific guideline files referenced by the relevant index checklists
    - For cross-layer features, use `/trellis:check-cross-layer`
    - Develop only one task at a time
    - Run lint and tests frequently
@@ -380,18 +376,17 @@ python3 ./.trellis/scripts/task.py list-archive    # List archived tasks
 3. **After development complete**:
    - Use `/trellis:finish-work` for completion checklist
    - After fix bug, use `/trellis:break-loop` for deep analysis
-   - Commits after testing passes MUST use Chinese Conventional Commits by default
+   - Follow `AGENTS.md` for commit and session-record gates
    - Use `add_session.py` to record progress
-   - If the AI itself performed `git commit`, do not end the workflow before `add_session.py` is executed unless the user explicitly says to skip recording
 
 ### [X] DON'T - Should Not Do
 
-1. [!] **Don't** skip reading `.trellis/spec/` guidelines
+1. [!] **Don't** skip `AGENTS.md` or the relevant Trellis/OpenSpec docs
 2. [!] **Don't** let journal single file exceed 2000 lines
 3. **Don't** develop multiple unrelated tasks simultaneously
 4. **Don't** commit code with lint/test errors
 5. **Don't** forget to update spec docs after learning something
-6. [!] **Don't** use English-only or non-Conventional commit messages unless the user explicitly requests that exception
+6. **Don't** duplicate repo-wide gate wording here when the canonical rule already lives in `AGENTS.md`
 
 ---
 
@@ -401,19 +396,10 @@ python3 ./.trellis/scripts/task.py list-archive    # List archived tasks
 
 | Task Type | Must-read Document |
 |-----------|-------------------|
-| Frontend work | `frontend/index.md` → relevant docs |
-| Backend work | `backend/index.md` → relevant docs |
-| Cross-Layer Feature | `guides/cross-layer-thinking-guide.md` |
-
-### Commit Convention
-
-```bash
-git commit -m "type(scope): 中文动宾短句"
-```
-
-**Type**: feat, fix, docs, refactor, test, chore
-**Scope**: Module name (e.g., startup, trellis, openspec)
-**Rule**: 中文提交为默认硬约束；AI 若执行 `git commit`，必须先校验标题格式，再继续 `add_session.py`
+| Frontend work | `AGENTS.md` → `.trellis/spec/frontend/index.md` → relevant docs |
+| Backend work | `AGENTS.md` → `.trellis/spec/backend/index.md` → relevant docs |
+| Cross-Layer Feature | `AGENTS.md` → `.trellis/spec/guides/index.md` → relevant guides |
+| Governance / rule entry | `AGENTS.md` → `.trellis/spec/guides/project-instruction-layering-guide.md` |
 
 ### Common Commands
 
@@ -443,4 +429,4 @@ Following this workflow ensures:
 - [OK] Knowledge accumulation in spec docs
 - [OK] Transparent team collaboration
 
-**Core Philosophy**: Read before write, follow standards, record promptly, capture learnings
+**Core Philosophy**: Start from the project entry, follow the process, record promptly, capture learnings
