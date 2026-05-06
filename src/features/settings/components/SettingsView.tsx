@@ -104,7 +104,6 @@ import Shield from "lucide-react/dist/esm/icons/shield";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
 import MoreHorizontalIcon from "lucide-react/dist/esm/icons/more-horizontal";
 import Users from "lucide-react/dist/esm/icons/users";
-import { pushErrorToast } from "../../../services/toasts";
 import {
   normalizeHexColor,
   HEX_COLOR_PATTERN,
@@ -169,6 +168,7 @@ import {
   SHOW_GIT_ENTRY,
   TEMPORARILY_DISABLED_SIDEBAR_SECTIONS as BASE_DISABLED_SIDEBAR_SECTIONS,
 } from "./settings-view/settingsViewConstants";
+import { useSystemProxySettings } from "./settings-view/hooks/useSystemProxySettings";
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -343,15 +343,6 @@ export function SettingsView({
         : groupedWorkspaces.flatMap((group) => group.workspaces),
     [allWorkspaces, groupedWorkspaces],
   );
-  const [systemProxyEnabledDraft, setSystemProxyEnabledDraft] = useState(
-    appSettings.systemProxyEnabled ?? false,
-  );
-  const [systemProxyUrlDraft, setSystemProxyUrlDraft] = useState(
-    appSettings.systemProxyUrl ?? "",
-  );
-  const [systemProxyError, setSystemProxyError] = useState<string | null>(null);
-  const [systemProxyNotice, setSystemProxyNotice] = useState<InlineNoticeState>(null);
-  const [systemProxySaving, setSystemProxySaving] = useState(false);
   const handleHistoryCompletionToggle = useCallback(() => {
     const next = !historyCompletionEnabled;
     setHistoryCompletionEnabledState(next);
@@ -379,6 +370,21 @@ export function SettingsView({
   const [shortcutDrafts, setShortcutDrafts] = useState<ShortcutDrafts>(() =>
     buildShortcutDrafts(appSettings),
   );
+  const {
+    handleSaveSystemProxy,
+    handleSystemProxyUrlChange,
+    handleToggleSystemProxy,
+    systemProxyDirty,
+    systemProxyEnabledDraft,
+    systemProxyError,
+    systemProxyNotice,
+    systemProxySaving,
+    systemProxyUrlDraft,
+  } = useSystemProxySettings({
+    appSettings,
+    onUpdateAppSettings,
+    t,
+  });
   const normalizedUserMsgColor = useMemo(
     () => normalizeHexColor(appSettings.userMsgColor),
     [appSettings.userMsgColor],
@@ -587,137 +593,12 @@ export function SettingsView({
     };
   }, []);
   useEffect(() => {
-    setSystemProxyEnabledDraft(appSettings.systemProxyEnabled ?? false);
-    setSystemProxyUrlDraft(appSettings.systemProxyUrl ?? "");
-    setSystemProxyError(null);
-  }, [appSettings.systemProxyEnabled, appSettings.systemProxyUrl]);
-
-  useEffect(() => {
-    if (!systemProxyNotice) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setSystemProxyNotice(null);
-    }, 2600);
-    return () => window.clearTimeout(timer);
-  }, [systemProxyNotice]);
-
-  useEffect(() => {
     diagnosticsBundleMountedRef.current = true;
     return () => {
       diagnosticsBundleMountedRef.current = false;
       diagnosticsBundleRequestIdRef.current += 1;
     };
   }, []);
-
-  const updateSystemProxySettings = useCallback(async (
-    nextEnabled: boolean,
-    nextProxyUrl: string,
-    successMessage: string,
-    rollbackDraft: {
-      enabled: boolean;
-      proxyUrl: string;
-    },
-  ) => {
-    const trimmedProxyUrl = nextProxyUrl.trim();
-    if (nextEnabled && !trimmedProxyUrl) {
-      const message = t("settings.behaviorProxyRequired");
-      setSystemProxyEnabledDraft(rollbackDraft.enabled);
-      setSystemProxyUrlDraft(rollbackDraft.proxyUrl);
-      setSystemProxyError(message);
-      setSystemProxyNotice(null);
-      return false;
-    }
-
-    setSystemProxySaving(true);
-    setSystemProxyError(null);
-    setSystemProxyNotice(null);
-    try {
-      await onUpdateAppSettings({
-        ...appSettings,
-        systemProxyEnabled: nextEnabled,
-        systemProxyUrl: trimmedProxyUrl || null,
-      });
-      setSystemProxyNotice({
-        kind: "success",
-        message: successMessage,
-      });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setSystemProxyEnabledDraft(rollbackDraft.enabled);
-      setSystemProxyUrlDraft(rollbackDraft.proxyUrl);
-      setSystemProxyError(message);
-      setSystemProxyNotice(null);
-      pushErrorToast({
-        title: t("common.error"),
-        message,
-      });
-      return false;
-    } finally {
-      setSystemProxySaving(false);
-    }
-  }, [
-    appSettings,
-    onUpdateAppSettings,
-    t,
-  ]);
-
-  const handleSaveSystemProxy = useCallback(async () => {
-    await updateSystemProxySettings(
-      systemProxyEnabledDraft,
-      systemProxyUrlDraft,
-      t("settings.behaviorProxySaved"),
-      {
-        enabled: appSettings.systemProxyEnabled ?? false,
-        proxyUrl: appSettings.systemProxyUrl ?? "",
-      },
-    );
-  }, [
-    appSettings.systemProxyEnabled,
-    appSettings.systemProxyUrl,
-    systemProxyEnabledDraft,
-    systemProxyUrlDraft,
-    t,
-    updateSystemProxySettings,
-  ]);
-
-  const handleToggleSystemProxy = useCallback((checked: boolean) => {
-    if (systemProxySaving) {
-      return;
-    }
-    const rollbackDraft = {
-      enabled: appSettings.systemProxyEnabled ?? false,
-      proxyUrl: appSettings.systemProxyUrl ?? "",
-    };
-    const nextProxyUrl = checked
-      ? systemProxyUrlDraft
-      : (systemProxyUrlDraft.trim() || rollbackDraft.proxyUrl);
-
-    setSystemProxyEnabledDraft(checked);
-    setSystemProxyError(null);
-    setSystemProxyNotice(null);
-
-    void updateSystemProxySettings(
-      checked,
-      nextProxyUrl,
-      checked
-        ? t("settings.behaviorProxyEnabledSuccess")
-        : t("settings.behaviorProxyDisabledSuccess"),
-      rollbackDraft,
-    );
-  }, [
-    appSettings.systemProxyEnabled,
-    appSettings.systemProxyUrl,
-    systemProxySaving,
-    systemProxyUrlDraft,
-    t,
-    updateSystemProxySettings,
-  ]);
-
-  const systemProxyDirty =
-    (appSettings.systemProxyEnabled ?? false) !== systemProxyEnabledDraft ||
-    (appSettings.systemProxyUrl ?? "") !== systemProxyUrlDraft;
 
   useEffect(() => {
     setClaudePathDraft(appSettings.claudeBin ?? "");
@@ -2140,11 +2021,9 @@ export function SettingsView({
                               id="system-proxy-url"
                               className="settings-proxy-input"
                               value={systemProxyUrlDraft}
-                              onChange={(event) => {
-                                setSystemProxyUrlDraft(event.target.value);
-                                setSystemProxyError(null);
-                                setSystemProxyNotice(null);
-                              }}
+                              onChange={(event) =>
+                                handleSystemProxyUrlChange(event.target.value)
+                              }
                               placeholder={t("settings.behaviorProxyAddressPlaceholder")}
                               spellCheck={false}
                               autoCapitalize="off"

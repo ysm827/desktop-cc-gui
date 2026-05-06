@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Heavy test noise parser tests
-        run: node --test scripts/check-heavy-test-noise.test.mjs
+        run: node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs
       - name: Heavy test noise gate
         run: npm run check:heavy-test-noise
       - name: Upload heavy test noise log
