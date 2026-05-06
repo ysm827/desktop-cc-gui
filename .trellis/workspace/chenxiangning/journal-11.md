@@ -189,3 +189,71 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 350: 结果检查点替换编辑汇总面板
+
+**Date**: 2026-05-07
+**Task**: 结果检查点替换编辑汇总面板
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：把底部旧 Edits 面板收口为更紧凑的 Result/结果 checkpoint 面板，并修正全文 diff、文件跳转、验证提示、去冗余布局、跨平台命令提示等问题，最终完成本地业务提交。
+
+主要改动：
+- 用 status-panel checkpoint 替换旧 Edits 语义，统一 dock / popover 的结果展示结构与 i18n。
+- 新增 deterministic checkpoint 聚合层，从文件变更、命令、验证、任务、子代理事实推导 verdict、summary、risks、next actions。
+- 收口文件列表交互：文件名直接打开编辑，行内 diff 图标走原左侧 diff，总计行图标打开 checkpoint diff modal。
+- 补齐绝对路径到 workspace 相对路径的归一化，修复 session activity 与 checkpoint diff 预览的路径兼容。
+- 过滤 search/read 等只读工具噪音与伪路径，避免污染 checkpoint 文件变化面板。
+- 迁移 bottomActivity.edits 到 bottomActivity.checkpoint 的 visibility 偏好与相关测试。
+- Gradle 验证建议改为跨平台的 gradle 命令提示，避免 Windows 下出现 ./gradlew shell 假设。
+- 同步 OpenSpec change replace-edits-with-checkpoint 的 proposal/design/tasks/specs。
+
+涉及模块：
+- src/features/status-panel/**
+- src/features/operation-facts/**
+- src/features/session-activity/**
+- src/features/layout/**
+- src/features/client-ui-visibility/**
+- src/i18n/locales/**
+- src/styles/status-panel.css
+- openspec/changes/replace-edits-with-checkpoint/**
+
+验证结果：
+- focused Vitest：status-panel / checkpoint / operation-facts / workspace-session-activity 通过。
+- npm run typecheck 通过。
+- npm run lint 通过。
+- npm run check:large-files:near-threshold 通过。
+- npm run check:large-files:gate 通过。
+- npm run check:heavy-test-noise 通过，act/stdout/stderr payload 噪音为 0，仅保留 1 条环境级 npm warning。
+- node --test scripts/check-large-files.test.mjs scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs 通过。
+- openspec validate replace-edits-with-checkpoint --strict --no-interactive 通过。
+
+后续事项：
+- 如需正式结束该 change，下一步可继续做 openspec sync/archive。
+- 当前业务提交 hash：c1d6cd7e。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c1d6cd7e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
