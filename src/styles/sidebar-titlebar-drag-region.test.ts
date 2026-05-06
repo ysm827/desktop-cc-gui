@@ -1,10 +1,19 @@
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const sidebarCss = readFileSync(
+function readCssWithImports(filePath: string): string {
+  const css = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+  const importPattern = /^@import\s+"(.+?)";$/gm;
+
+  return css.replace(importPattern, (_, relativeImportPath: string) =>
+    readCssWithImports(resolve(dirname(filePath), relativeImportPath)),
+  );
+}
+
+const sidebarCss = readCssWithImports(
   fileURLToPath(new URL("./sidebar.css", import.meta.url)),
-  "utf8",
 );
 
 function getCssRuleBlock(css: string, selector: string): string {

@@ -22,8 +22,8 @@ const baseCss = normalizeLineEndings(
 const mainCss = normalizeLineEndings(
   readFileSync(fileURLToPath(new URL("./main.css", import.meta.url)), "utf8"),
 );
-const sidebarCss = normalizeLineEndings(
-  readFileSync(fileURLToPath(new URL("./sidebar.css", import.meta.url)), "utf8"),
+const sidebarCss = readCssWithImports(
+  fileURLToPath(new URL("./sidebar.css", import.meta.url)),
 );
 const messagesCss = readCssWithImports(
   fileURLToPath(new URL("./messages.css", import.meta.url)),
