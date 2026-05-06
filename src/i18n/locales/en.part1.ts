@@ -2061,6 +2061,8 @@ const enPart1 = {
     noteCardContextSummaryCount: "{{count}} notes",
     noteCardContextExpand: "Expand",
     noteCardContextCollapse: "Collapse",
+    agentBadgeAriaLabel: "Agent badge",
+    agentBadgeWithNameAriaLabel: "Show agent badge: {{name}}",
     generatedImageTitle: "Generated image",
     generatedImageProcessing: "Making",
     generatedImageCompleted: "Completed",

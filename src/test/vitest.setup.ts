@@ -130,6 +130,10 @@ vi.mock("react-i18next", () => ({
         "sidebar.switchAccount": "Switch account",
         "sidebar.signIn": "Sign in",
         "threads.size": "Size",
+        "threads.claudeMcpRouteMapped":
+          "MCP routing notice: detected `playwright-mcp`, automatically mapped this session to `chrome-devtools`.",
+        "threads.claudeMcpRouteUnavailable":
+          "MCP routing notice: detected `playwright-mcp`, but this session has not confirmed that tool is visible.",
         "app.title": "ccgui",
         "app.subtitle": "Orchestrate agents across your local projects.",
         "home.latestAgents": "Latest agents",
@@ -144,6 +148,17 @@ vi.mock("react-i18next", () => ({
         "home.refreshUsage": "Refresh usage",
         "messages.reasoningProcessBoundary": "Thinking Process",
         "messages.finalMessageBoundary": "Final Message",
+        "messages.agentBadgeAriaLabel": "Agent badge",
+        "messages.agentBadgeWithNameAriaLabel": `Show agent badge: ${String(params?.name ?? "")}`,
+        "messages.generatedImageTitle": "Generated image",
+        "messages.generatedImageProcessing": "Making",
+        "messages.generatedImageCompleted": "Completed",
+        "messages.generatedImageDegraded": "Completed",
+        "messages.generatedImageProcessingHint":
+          "The image is still rendering for this prompt.",
+        "messages.generatedImageDegradedHint":
+          "The image finished rendering, but the preview could not be restored.",
+        "messages.generatedImagePreviewLabel": `Open generated image ${String(params?.index ?? "")}`,
         "home.workspace": "Workspace",
         "home.allWorkspaces": "All workspaces",
         "home.view": "View",

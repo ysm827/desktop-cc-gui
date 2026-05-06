@@ -2175,6 +2175,10 @@ const enPart2 = {
     sessionStoppedForFusion: "Switching to the merged follow-up and waiting for resume evidence...",
     turnFailed: "Turn failed.",
     turnFailedWithMessage: "Turn failed: {{message}}",
+    claudeMcpRouteMapped:
+      "MCP routing notice: detected `playwright-mcp`, automatically mapped this session to `chrome-devtools`.",
+    claudeMcpRouteUnavailable:
+      "MCP routing notice: detected `playwright-mcp`, but this session has not confirmed that tool is visible.",
     turnFailedToStart: "Turn failed to start.",
     turnFailedToStartWithMessage: "Turn failed to start: {{message}}",
     turnStalled: "Turn stalled after user input. You can continue from the latest visible state.",

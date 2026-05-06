@@ -2058,6 +2058,8 @@ const zhPart1 = {
     noteCardContextSummaryCount: "{{count}} 条便签",
     noteCardContextExpand: "展开",
     noteCardContextCollapse: "收起",
+    agentBadgeAriaLabel: "显示智能体标记",
+    agentBadgeWithNameAriaLabel: "显示智能体标签：{{name}}",
     generatedImageTitle: "生成图片",
     generatedImageProcessing: "制作中",
     generatedImageCompleted: "已完成",

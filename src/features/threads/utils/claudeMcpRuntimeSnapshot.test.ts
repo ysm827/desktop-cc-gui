@@ -11,7 +11,8 @@ describe("claudeMcpRuntimeSnapshot", () => {
   it("injects pending MCP notice into first assistant delta and completed text", () => {
     const workspaceId = "ws-notice-delta";
     const threadId = "claude:session-1";
-    const notice = "MCP 路由提示：检测到 `playwright-mcp`，当前会话已自动映射为 `chrome-devtools`。";
+    const notice =
+      "MCP routing notice: detected `playwright-mcp`, automatically mapped this session to `chrome-devtools`.";
 
     setPendingClaudeMcpOutputNotice(workspaceId, threadId, notice);
 
@@ -50,7 +51,7 @@ describe("claudeMcpRuntimeSnapshot", () => {
     const workspaceId = "ws-notice-rename";
     const pendingThreadId = "claude-pending-abc";
     const finalizedThreadId = "claude:session-abc";
-    const notice = "MCP 路由提示：fallback rename";
+    const notice = "MCP routing notice: fallback rename";
 
     setPendingClaudeMcpOutputNotice(workspaceId, pendingThreadId, notice);
     const delta = applyPendingClaudeMcpOutputNoticeToAgentDelta(

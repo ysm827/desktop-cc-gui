@@ -151,6 +151,18 @@ Live rendering for Codex, Claude Code, and Gemini MUST preserve progressive visi
 - **AND** the labels MUST update when the active locale changes
 - **AND** the renderer MUST NOT hardcode Chinese copy as the primary production UI source
 
+#### Scenario: generated image cards use locale-driven visible copy
+
+- **WHEN** the curtain renders generated image title, status, hint, or preview action labels
+- **THEN** those user-visible labels MUST come from i18n resources
+- **AND** the renderer MUST NOT keep component-local hardcoded Chinese fallback copy for those surfaces
+
+#### Scenario: agent badge accessibility label follows locale
+
+- **WHEN** the curtain renders a user message agent badge toggle
+- **THEN** its accessible label MUST come from i18n resources
+- **AND** the label MUST include the selected agent name through interpolation when available
+
 #### Scenario: visible text growth is tracked by live assistant item
 - **WHEN** any supported engine receives assistant text deltas for a live item
 - **THEN** visible text diagnostics MUST be keyed by thread and item id
