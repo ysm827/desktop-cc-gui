@@ -1767,3 +1767,49 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 342: 拆分线程历史加载测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程历史加载测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，并按 loader 责任边界拆分 historyLoaders 大测试文件。
+主要改动：
+- 将 Claude loader 的高层 snapshot/userInput/fallback 场景回收到 claudeHistoryLoader.test.ts。
+- 再把 Claude parse 场景中的 tool_result 去重与 reasoning snapshot 折叠测试迁移到专用文件。
+- 将 historyLoaders.test.ts 从 2742 行降到 2558 行，移出 near-threshold 告警。
+涉及模块：src/features/threads/loaders/historyLoaders.test.ts、src/features/threads/loaders/claudeHistoryLoader.test.ts
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=6
+- npx vitest run src/features/threads/loaders/historyLoaders.test.ts src/features/threads/loaders/claudeHistoryLoader.test.ts：2 files / 63 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：剩余 near-threshold 为 SpecHub.test.tsx、useThreadMessaging.test.tsx 与 4 个 P0 runtime/bridge 文件；后续建议先清掉最后两个 test 文件，再谨慎进入 P0 backend/app-shell 模块。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `028bc80c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
