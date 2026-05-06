@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 334
+- **Total Sessions**: 335
 - **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~1408 | Active |
+| `journal-10.md` | ~1469 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 335 | 2026-05-06 | 治理第三批前端热路径近阈值文件 | `db41179c` | `feature/v.0.4.14-2` |
 | 334 | 2026-05-06 | 大文件治理第二批热路径拆分 | `27cf8e61` | `feature/v.0.4.14-2` |
 | 333 | 2026-05-06 | 收缩 session-start 注入上下文 | `c874b4cb` | `feature/v.0.4.14-2` |
 | 332 | 2026-05-06 | 治理残留清理与入口对齐 | `deeef7fb` | `feature/v.0.4.14-2` |

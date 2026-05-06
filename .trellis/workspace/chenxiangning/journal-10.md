@@ -1406,3 +1406,64 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 335: 治理第三批前端热路径近阈值文件
+
+**Date**: 2026-05-06
+**Task**: 治理第三批前端热路径近阈值文件
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 historical large-file near-threshold 告警，保持按模块小批次提交。
+- 本批只处理 frontend hotpath，不混入 Rust/runtime critical 文件。
+
+主要改动:
+- 将 SettingsView 的 basic behavior 内联区域抽为独立的 BasicBehaviorSection，保留 terminal shell、system proxy、notification sound 等既有行为。
+- 将 useThreads 中 completion email 编排抽为独立的 useThreadCompletionEmail hook，保留 turn 绑定、terminal settlement、toast/debug 逻辑。
+- 将 src/features/settings/components/SettingsView.tsx 从 2680 行降到 2222 行。
+- 将 src/features/threads/hooks/useThreads.ts 从 2676 行降到 2379 行。
+- near-threshold 历史告警从 16 个降到 14 个。
+
+涉及模块:
+- src/features/settings/components/SettingsView.tsx
+- src/features/settings/components/settings-view/sections/BasicBehaviorSection.tsx
+- src/features/threads/hooks/useThreads.ts
+- src/features/threads/hooks/useThreadCompletionEmail.ts
+
+验证结果:
+- git diff --check: 通过
+- npm run check:large-files --silent: found=0
+- npm run check:large-files:near-threshold --silent: found=14
+- npm run typecheck: 通过
+- npm run lint: 通过
+- npx vitest run src/features/threads/hooks/useThreads.memory-race.integration.test.tsx src/features/threads/hooks/useThreads.integration.test.tsx src/features/threads/hooks/useThreads.pendingResolution.test.ts: 3 files / 41 tests 通过
+
+后续事项:
+- 下一批优先继续清理 git-history hotpath：GitHistoryPanelImpl.tsx 与 useGitHistoryPanelInteractions.tsx。
+- 再之后分离剩余 Rust P0/P1 与测试大文件告警，继续保持小批次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `db41179c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
