@@ -1097,3 +1097,41 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 329: 收敛规则入口并对齐注入链路
+
+**Date**: 2026-05-06
+**Task**: 收敛规则入口并对齐注入链路
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：完成第二轮文档治理优化，并把规则分层从文档层落到实际 session-start / start / before-dev 入口链路。
+主要改动：新增 project-instruction-layering-guide；在 AGENTS、frontend/backend/guides index 中补齐规则分层入口；调整 openspec README 回指仓库级入口；修改 Codex/Claude session-start hook，先注入 AGENTS.md，再注入 workflow、openspec、spec index，并明确索引只是导航面；统一 start / before-dev 的手动读取顺序。
+涉及模块：AGENTS.md；openspec/README.md；.trellis/spec/guides/*；.trellis/spec/frontend/index.md；.trellis/spec/backend/index.md；.codex/hooks/session-start.py；.claude/hooks/session-start.py；.agents/skills/start|before-dev；.claude/commands/trellis/start|before-dev。
+验证结果：openspec validate streamline-governance-doc-stack --strict 通过；python3 -m py_compile .codex/hooks/session-start.py .claude/hooks/session-start.py 通过；两套 session-start hook 实际输出已确认包含 <project-entry>、<openspec> 与新的 ready 提示。
+后续事项：若后续继续治理，可再评估是否把 workflow.md 进一步缩成纯流程文档，避免与 AGENTS.md 形成长期双入口心智负担。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bc131f70` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
