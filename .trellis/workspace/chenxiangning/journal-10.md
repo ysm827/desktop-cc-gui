@@ -1721,3 +1721,49 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 341: 拆分线程列表路径兼容测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程列表路径兼容测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，并将跨平台路径兼容回归测试从巨型主测试文件中独立出来。
+主要改动：
+- 新增 useThreadActions.workspace-path.test.tsx，承接 Windows/macOS 路径规范化与 file URI 兼容场景。
+- 从 useThreadActions.test.tsx 移出 /private、\\?、UNC、/System/Volumes/Data、file://、/mnt/c 等路径匹配测试。
+- 将 useThreadActions.test.tsx 从 2786 行降到 2511 行，移出 near-threshold 告警。
+涉及模块：src/features/threads/hooks/useThreadActions*.test.tsx
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=7
+- npx vitest run src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useThreadActions.workspace-path.test.tsx：2 files / 51 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：继续清理剩余 3 个 test near-threshold 文件（SpecHub / useThreadMessaging / historyLoaders），再评估是否进入 P0 runtime bridge 文件拆分。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c967865f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
