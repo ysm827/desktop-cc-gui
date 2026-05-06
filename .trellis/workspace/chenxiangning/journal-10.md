@@ -1924,3 +1924,62 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 345: 外提运行时测试模块
+
+**Date**: 2026-05-06
+**Task**: 外提运行时测试模块
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 large-file near-threshold，优先处理 3 个 Rust bridge/runtime-critical 文件。
+- 在不改变 runtime 行为的前提下，选择最低风险的机械拆分路径。
+
+主要改动:
+- 将 src-tauri/src/backend/app_server.rs 内嵌 tests 模块外提到 src-tauri/src/backend/app_server_tests.rs。
+- 将 src-tauri/src/codex/mod.rs 内嵌 tests 模块外提到 src-tauri/src/codex/codex_tests.rs。
+- 将 src-tauri/src/computer_use/mod.rs 内嵌 tests 模块外提到 src-tauri/src/computer_use/computer_use_tests.rs。
+- 主模块改为 #[cfg(test)] #[path = "..._tests.rs"] mod tests;，保持同层私有可见性与测试覆盖不变。
+
+涉及模块:
+- src-tauri/src/backend/app_server.rs
+- src-tauri/src/backend/app_server_tests.rs
+- src-tauri/src/codex/mod.rs
+- src-tauri/src/codex/codex_tests.rs
+- src-tauri/src/computer_use/mod.rs
+- src-tauri/src/computer_use/computer_use_tests.rs
+
+验证结果:
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过。
+- git diff --check 通过。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 4 降到 1。
+
+后续事项:
+- 剩余唯一告警是 src/app-shell.tsx，需要按跨层风险单独处理。
+- 修改 app-shell 前继续保持 cross-layer checklist，避免影响 tauri/service/runtime 主链路。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8498b474` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
