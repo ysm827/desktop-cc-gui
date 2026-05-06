@@ -1173,3 +1173,62 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 331: 大文件治理首批 near-threshold 清理
+
+**Date**: 2026-05-06
+**Task**: 大文件治理首批 near-threshold 清理
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 提交首批历史 near-threshold 大文件治理改动
+- 在不改变行为的前提下，降低 large-file watchlist 存量
+- 保持 Windows / macOS 兼容的样式与测试读取路径不回退
+
+## 主要改动
+- 将 `src/i18n/locales/en.part1.ts`、`src/i18n/locales/zh.part1.ts` 继续拆分，新增 `en.part5.ts`、`zh.part4.ts`、`zh.part5.ts`
+- 将 `sidebar.css`、`spec-hub.css`、`messages.part1.css`、`composer.part2.css`、`git-history.part1.css`、`git-history.part2.css` 拆到更细的子文件
+- 更新样式测试，支持 `@import` 后的断言，避免因 CSS 模块化导致测试误判
+
+## 涉及模块
+- frontend i18n
+- frontend styles
+- style regression tests
+- governance / large-file near-threshold cleanup
+
+## 验证结果
+- `npm run check:large-files --silent` 通过，`found=0`
+- `npm run typecheck` 通过
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx src/i18n/locales/canvasCopy.snapshot.test.ts src/styles/layout-swapped-platform-guard.test.ts src/styles/settings-email-card-surface.test.ts src/styles/sidebar-titlebar-drag-region.test.ts src/styles/main.worktree-info-theme.test.ts src/features/git-history/components/GitHistoryPanel.test.tsx src/features/git-history/components/GitHistoryWorktreePanel.test.tsx src/features/spec/components/SpecHub.test.tsx src/features/messages/components/Messages.test.tsx` 通过
+- `git diff --check` 通过
+- `npm run check:large-files:near-threshold --silent` 从 27 降到 19
+
+## 后续事项
+- 继续处理剩余 19 个历史 near-threshold 告警
+- 优先拆解 P0/P1 的 runtime-critical 与 frontend hotpath 文件
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b6a57e05` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
