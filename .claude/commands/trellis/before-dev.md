@@ -13,12 +13,13 @@ Execute these steps:
    ```
 
 3. **Identify which specs apply** to your task based on:
-   - Which package you're modifying (e.g., `cli/`, `docs-site/`)
+   - Which implementation layer you're modifying (`frontend`, `backend`, or repo-level docs/governance)
    - What type of work (backend, frontend, unit-test, docs, etc.)
 
 4. **Read the spec index** for each relevant module:
    ```bash
-   cat .trellis/spec/<package>/<layer>/index.md
+   cat .trellis/spec/frontend/index.md
+   cat .trellis/spec/backend/index.md
    ```
    Follow the **"Pre-Development Checklist"** section in the index.
 

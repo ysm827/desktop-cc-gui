@@ -51,10 +51,11 @@ This shows: developer identity, git status, current task (if any), active tasks.
 python3 ./.trellis/scripts/get_context.py --mode packages
 ```
 
-This shows available packages and their spec layers. Read the relevant spec indexes:
+This shows available spec layers for the current single-repo project. Read the relevant spec indexes:
 
 ```bash
-cat .trellis/spec/<package>/<layer>/index.md   # Package-specific guidelines
+cat .trellis/spec/frontend/index.md            # Frontend guidelines
+cat .trellis/spec/backend/index.md             # Backend guidelines
 cat .trellis/spec/guides/index.md              # Thinking guides (always read)
 ```
 
