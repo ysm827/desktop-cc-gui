@@ -1039,3 +1039,56 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 370: 收口 manage-project-session-folders
+
+**Date**: 2026-05-08
+**Task**: 收口 manage-project-session-folders
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+完成 workspace session folders 的后端边界加固、前端可用性优化、OpenSpec 任务收口与本地提交。
+
+### Main Changes
+
+本次完成 OpenSpec change `manage-project-session-folders` 收口，提交 `b94501a3 feat(session-folders): 完善会话文件夹管理与历史归属加固`。
+
+主要内容：
+- 后端 session folder assignment 增加 source session owner 校验，拒绝跨项目、未归属或 shared session 污染目标 workspace。
+- folder metadata mutation 收口到 workspace-scoped lock + atomic write，覆盖 folder CRUD、assignment、archive/delete cleanup，降低并发 read-modify-write 覆盖风险。
+- session catalog scan 增加 bounded/exhaustive 语义：纯 status=all 无 keyword 列表保留 bounded scan；默认 active、archived、keyword、summary、owner lookup 使用 exhaustive scan，避免深页 session 被搜索、统计或移动校验漏掉。
+- 前端持久化项目级 folder 展开/折叠状态，清理删除 folder 的 stale collapsed id。
+- 大量 Move to folder 目标时使用 searchable picker，Project root 始终可达，当前目标禁用，目标范围限定当前项目。
+- OpenSpec proposal/design/spec/tasks 同步，拖拽相关任务已移除，6.3 人工验证已由用户确认完成，进度 30/30。
+
+验证：
+- `cargo test --manifest-path src-tauri/Cargo.toml session_management` 通过。
+- `npx vitest run --maxWorkers 1 --minWorkers 1 src/features/app/hooks/useSidebarMenus.test.tsx src/features/app/components/Sidebar.test.tsx src/features/app/utils/workspaceSessionFolders.test.ts` 通过。
+- `npm run typecheck` 通过。
+- `openspec validate manage-project-session-folders --strict` 通过。
+- `git diff --check` 通过。
+- 用户已完成桌面人工验证：same-project menu move works、cross-project move rejected、Claude/Codex/Gemini histories visible/degraded as expected。
+
+后续状态：
+- `manage-project-session-folders` 已满足归档条件，可进入 OpenSpec archive。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b94501a3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
