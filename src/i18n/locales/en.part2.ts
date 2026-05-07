@@ -1890,6 +1890,7 @@ const enPart2 = {
         title: "Commit confirmation",
         path: "Path:",
         files: "Files to commit",
+        toggleAllFiles: "Toggle all commit files",
         staged: "Staged",
       },
     },

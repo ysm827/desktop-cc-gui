@@ -1859,6 +1859,7 @@ const zhPart2 = {
         title: "提交确认",
         path: "路径:",
         files: "提交文件",
+        toggleAllFiles: "切换全部提交文件",
         staged: "已暂存",
       },
     },

@@ -6,7 +6,7 @@
 
 #### Scenario: checkpoint evidence reuses canonical file aggregate
 
-- **WHEN** `Checkpoint` 展示文件数量与 `+/-` evidence
+- **WHEN** `Checkpoint` 计算文件数量与 `+/-` totals
 - **THEN** 这些数字 MUST 来自共享 canonical file-change source
 - **AND** MUST NOT 通过新的独立推断器重新计算
 
@@ -19,13 +19,13 @@
 #### Scenario: checkpoint and git working tree file counts stay aligned
 
 - **WHEN** workspace Git status has provided current working tree files and totals
-- **THEN** `Checkpoint` evidence MUST use those working tree files as canonical file facts
-- **AND** the evidence summary MUST match the file list rendered in the same result panel
+- **THEN** `Checkpoint` MUST use those working tree files as canonical file facts
+- **AND** the file list, key changes, and totals rendered in the same result panel MUST stay aligned
 - **AND** stale historical tool file changes MUST NOT override current Git working tree facts
 
 ### Requirement: Checkpoint Surface MUST Optimize For Convenience And Scanability
 
-`Checkpoint` 模块 MUST 优先帮助用户做下一步决策，而不是再次堆叠所有底层 telemetry。Evidence 区域 MUST 使用紧凑、可扫读的布局，只展示验证事实；文件数量与 `+/-` 汇总由 `文件变化` 区域承载，避免同屏重复。
+`Checkpoint` 模块 MUST 优先帮助用户做下一步决策，而不是再次堆叠所有底层 telemetry。Evidence 区域 MUST 使用紧凑、可扫读的布局，只展示验证事实；文件数量与 `+/-` 汇总由 `文件变化` 区域承载，避免同屏重复。`review_diff` MAY appear both as a recommended next action and as file-list controls, but all entries MUST route to the same checkpoint diff review behavior.
 
 #### Scenario: next actions stay short and actionable
 
@@ -33,15 +33,25 @@
 - **THEN** 系统 MUST 将推荐动作限制在少量高价值入口
 - **AND** 每个动作 MUST 指向已有真实操作或详情入口
 
+#### Scenario: review diff next action opens checkpoint diff review
+
+- **WHEN** `Checkpoint` renders a `review_diff` next action
+- **AND** the user clicks it
+- **THEN** the module MUST open the checkpoint diff review modal
+- **AND** the same file set MUST be available from the file-change list diff controls
+
 #### Scenario: git-backed commit action opens a reusable commit confirmation dialog
 
 - **WHEN** `Checkpoint` renders a result while the Git area has staged or unstaged file changes
 - **AND** the user clicks the commit action
 - **THEN** the module MUST open a commit confirmation dialog instead of silently calling commit
 - **AND** the dialog MUST reuse the existing Git commit message state, commit generation callback, file selection behavior, and commit callback
+- **AND** the dialog file-list header MUST expose one checkbox that toggles all selectable commit files
+- **AND** the header checkbox MUST show an indeterminate state when only part of the selectable file set is selected
+- **AND** locked hybrid staged/unstaged file entries MUST remain selected and MUST NOT be cleared by the batch toggle
 - **AND** the final commit button MUST remain disabled until a commit message and at least one selected file are present
 - **AND** selecting unstaged files MUST route through the existing scoped commit operation rather than implementing a second staging workflow
-- **AND** the next-action area MUST NOT render a separate review-diff action because diff review remains available from the file-change list itself
+- **AND** the commit flow MUST NOT implement a second staging workflow
 
 #### Scenario: novice user can understand current state without reading raw file diffs
 

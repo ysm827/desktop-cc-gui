@@ -75,6 +75,9 @@ interface StatusPanelProps {
   onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
   commitLoading?: boolean;
   commitError?: string | null;
+  preferredDockTab?: TabType | null;
+  preferredDockTabRequestKey?: number;
+  onExpandToDock?: () => void;
 }
 
 type StatusPanelTabDefinition = {
@@ -176,6 +179,9 @@ export const StatusPanel = memo(function StatusPanel({
   onCommit,
   commitLoading = false,
   commitError = null,
+  preferredDockTab = null,
+  preferredDockTabRequestKey = 0,
+  onExpandToDock,
 }: StatusPanelProps) {
   const { t } = useTranslation();
   const deferredItems = useDeferredValue(items);
@@ -341,6 +347,19 @@ export const StatusPanel = memo(function StatusPanel({
     visibleDockTabs,
     dockTabAvailability,
   );
+  const resolvedPreferredDockTab =
+    variant === "dock" &&
+    preferredDockTab &&
+    isDockTabVisible(variant, preferredDockTab, showPlanTab, visibleDockTabs, dockTabAvailability)
+      ? preferredDockTab
+      : null;
+
+  useEffect(() => {
+    if (!resolvedPreferredDockTab) {
+      return;
+    }
+    setOpenTab(resolvedPreferredDockTab);
+  }, [preferredDockTabRequestKey, resolvedPreferredDockTab]);
 
   useEffect(() => {
     if (variant === "dock") {
@@ -535,6 +554,16 @@ export const StatusPanel = memo(function StatusPanel({
           commitError={commitError}
           stagedFiles={workspaceGitStagedFiles}
           unstagedFiles={workspaceGitUnstagedFiles}
+          onExpandToDock={
+            onExpandToDock
+              ? () => {
+                  onExpandToDock();
+                  if (variant !== "dock") {
+                    setOpenTab(null);
+                  }
+                }
+              : undefined
+          }
           onAfterSelect={() => {
             if (variant !== "dock") {
               setOpenTab(null);

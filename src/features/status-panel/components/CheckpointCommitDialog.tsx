@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Check from "lucide-react/dist/esm/icons/check";
 import X from "lucide-react/dist/esm/icons/x";
@@ -8,6 +8,7 @@ import {
   CommitButton,
   useGitCommitSelection,
 } from "../../git/components/GitDiffPanelCommitScope";
+import { normalizeGitPath } from "../../git/utils/commitScope";
 import type { FileChangeSummary } from "../types";
 
 type CheckpointCommitDialogProps = {
@@ -77,10 +78,30 @@ export function CheckpointCommitDialog({
     selectedCommitPaths,
     setCommitSelection,
   } = useGitCommitSelection({ stagedFiles, unstagedFiles: fallbackUnstagedFiles });
+  const selectAllCheckboxRef = useRef<HTMLInputElement | null>(null);
   const stagedPathSet = useMemo(
     () => new Set(stagedFiles.map((entry) => entry.path)),
     [stagedFiles],
   );
+  const selectableCommitPaths = useMemo(
+    () => commitDialogFiles
+      .map((file) => file.commitPath)
+      .filter((path) => !isCommitPathLocked(path)),
+    [commitDialogFiles, isCommitPathLocked],
+  );
+  const includedCommitPathSet = useMemo(
+    () => new Set(includedCommitPaths),
+    [includedCommitPaths],
+  );
+  const selectedSelectableCommitPathCount = selectableCommitPaths.filter((path) =>
+    includedCommitPathSet.has(normalizeGitPath(path)),
+  ).length;
+  const hasSelectableCommitPaths = selectableCommitPaths.length > 0;
+  const areAllSelectableCommitPathsSelected =
+    hasSelectableCommitPaths &&
+    selectedSelectableCommitPathCount === selectableCommitPaths.length;
+  const isSelectAllCommitPathsIndeterminate =
+    selectedSelectableCommitPathCount > 0 && !areAllSelectableCommitPathsSelected;
   const hasAnyChanges = commitDialogFiles.length > 0;
   const canGenerateCommitMessage =
     Boolean(onGenerateCommitMessage) &&
@@ -95,6 +116,19 @@ export function CheckpointCommitDialog({
     }
     void onGenerateCommitMessage?.("zh", "codex", selectedCommitPaths);
   };
+  const handleToggleAllCommitPaths = () => {
+    if (!hasSelectableCommitPaths || commitLoading) {
+      return;
+    }
+    setCommitSelection(selectableCommitPaths, !areAllSelectableCommitPathsSelected);
+  };
+
+  useEffect(() => {
+    if (!selectAllCheckboxRef.current) {
+      return;
+    }
+    selectAllCheckboxRef.current.indeterminate = isSelectAllCommitPathsIndeterminate;
+  }, [isSelectAllCommitPathsIndeterminate]);
 
   return (
     <div
@@ -178,6 +212,14 @@ export function CheckpointCommitDialog({
           <div className="sp-checkpoint-commit-files">
             <div className="sp-checkpoint-commit-files-header">
               <div>
+                <input
+                  ref={selectAllCheckboxRef}
+                  type="checkbox"
+                  checked={areAllSelectableCommitPathsSelected}
+                  disabled={!hasSelectableCommitPaths || commitLoading}
+                  aria-label={t("statusPanel.checkpoint.commitDialog.toggleAllFiles")}
+                  onChange={handleToggleAllCommitPaths}
+                />
                 <span>{t("statusPanel.checkpoint.commitDialog.files")}</span>
                 <strong>{commitDialogFiles.length}</strong>
               </div>
@@ -188,7 +230,7 @@ export function CheckpointCommitDialog({
             </div>
             <div className="sp-checkpoint-commit-file-list">
               {commitDialogFiles.map((file) => {
-                const isSelected = includedCommitPaths.includes(file.commitPath);
+                const isSelected = includedCommitPathSet.has(normalizeGitPath(file.commitPath));
                 const isLocked = isCommitPathLocked(file.commitPath);
                 const isStaged = stagedPathSet.has(file.commitPath);
                 return (

@@ -1,131 +1,111 @@
 ## Context
 
-`replace-edits-with-checkpoint` 已交付核心架构：四态判词、三层数据模型、固定 UI 骨架。但实际走查暴露了 7 个一致性问题——从「keyChanges 第一个条目被无条件丢弃」到「commit 按钮无响应」到「compact 模式名存实亡」。
+`replace-edits-with-checkpoint` 已交付核心架构：四态判词、三层数据模型、固定 UI 骨架。本 change 的后续实现已经把 `Checkpoint/结果` 从「聚合 telemetry」收口为「基于当前 workspace 事实的决策面板」。
 
-本次设计的目标不是推翻现有架构，而是在同一架构内做 targeted refinement：修复信息丢失、补全交互断链、提升信息密度、细化判决规则。
+当前代码事实：
+
+- `StatusPanel` 在 workspace Git facts 可用时，将 `workspaceGitFiles` 转换为 `canonicalFileFacts` 并传入 `buildCheckpointViewModel`
+- `CheckpointPanel` 保留 `review_diff` 作为 Next Actions 的真实入口，并通过同一套 checkpoint diff modal 展示文件 diff
+- `FileChangesList` 承载 changed-file count、`+/-` 总计、总览 diff 入口与文件行 diff 入口
+- Evidence 区域只展示 required / optional validation groups，不重复渲染文件摘要
+- `commit` action 打开 `CheckpointCommitDialog`，复用现有 Git commit message、generate message、file selection 与 scoped commit callback
+
+本设计同步这些实现事实，避免 proposal / design / tasks 继续描述早期设想。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- 修复所有已识别的 P0/P1 问题
 - 保持 `CheckpointViewModel` schema 兼容
-- 继续遵循现有 dock/status panel 视觉约束
-- 为 canonical file facts 预留接口但不实现切换
+- 让 checkpoint 的文件事实优先来自当前 workspace Git working tree
+- 让 Evidence 聚焦 validation facts，避免与 FileChangesList 重复
+- 保留 `review_diff` 与 `commit` 两类真实 Next Actions
+- 通过 commit confirmation dialog 接入已有 Git commit flow
+- 放宽 summary 采纳范围，但不让 summary 改写 facts / verdict
 
 **Non-Goals:**
 
 - 不新增 verdict 状态类型
-- 不重构 `CheckpointPanel` 的组件树结构
 - 不修改 conversation storage / message schema
+- 不重做右侧 activity panel
+- 不引入第二套 Git staging 或 commit workflow
 
 ## Decisions
 
-### Decision 1：Key Changes 用视觉层级替代切片
+### Decision 1：Key Changes 不再依赖切片隐藏信息
 
-`checkpoint.keyChanges.slice(1)` 的原始意图可能是避免在 Key Changes 区域重复 Hero 区已有信息。但实际上 Hero 区只展示 headline + summary，并不渲染 keyChanges 内容。
+初版问题来自无条件 `keyChanges.slice(1)`：Hero 区只展示 headline + summary，并不承载 `keyChanges[0]` 的明细，因此切片会造成文件 / task / agent 维度丢失。
 
-**选项 A：保留切片，在 Hero 区补渲染 keyChanges[0]**
+采用方案：Key Changes 的数据层保持完整，文件维度在 FileChangesList 中做详细呈现；`buildKeyChanges` 继续产出 files / tasks / agents 的完整摘要。
 
-- 优点：不改变 Key Changes 区域行为
-- 缺点：Hero 区信息过载，且 Hero 设计本就不承载文件/Task/Agent 明细
+### Decision 2：文件事实优先使用 workspace Git working tree
 
-**选项 B：移除切片，Key Changes 区域展示全部条目**
+`StatusPanel` 将当前 Git working tree 文件映射为 `FileChangeSummary[]`，并作为 `canonicalFileFacts` 传入 `buildCheckpointViewModel`。当 Git facts 存在时，checkpoint evidence、key changes、file list、totals 都使用这组当前事实；Git facts 不存在时才回退到历史 tool fileChanges。
 
-- 优点：信息完整，用户一眼看到所有变更维度
-- 缺点：当只有 1 个 keyChange 时，区域略显「单薄」
+这个选择比只预留接口更直接：用户看到的结果区必须与 Git 区当前工作树一致，避免 stale tool fileChanges 覆盖真实未提交变更。
 
-**选项 C：移除切片，首个 keyChange 使用更大字号/primary 样式**
+### Decision 3：Evidence 只展示 validation facts
 
-- 优点：信息完整 + 主次分明
-- 缺点：需要新增视觉变体
+早期设想是在 Evidence 顶部增加 `+N/-M across K files` 摘要。但当前实现已经把文件数量和 `+/-` 统一放到 FileChangesList。继续在 Evidence 重复展示会降低扫描效率。
 
-**采用选项 B**（最小改动），后期可迭代到 C。
+采用方案：
 
-### Decision 2：commit action 接入现有 Git 提交流程
+- Evidence 渲染 required validation row
+- Evidence 渲染 optional validation row
+- todos / subagents 用紧凑 badge 展示
+- 缺失验证命令只在非 `needs_review` 场景中提示，避免把「需要人工判断」误导成「只要跑命令」
 
-当前 `commit` action 只是一个无响应的按钮。本 change 通过 `onCommit` callback prop 将点击事件向上传递，由 StatusPanel 容器层接入已有的 Git commit 流程。
+### Decision 4：review diff 保持为真实 Next Action
 
-具体：
+当前实现保留 `review_diff` action，并由 `handleReviewDiff` 打开 checkpoint diff modal。FileChangesList 也提供总览 diff 和文件行 diff 入口。
 
-- `CheckpointPanel` 新增 `onCommit?: () => void` prop
-- `StatusPanel` 从 app-shell 获取 commit 入口并传入
-- 若 `onCommit` 未提供，commit 按钮不渲染
+这不是双轨 workflow，而是同一能力的两个入口：
 
-### Decision 3：compact 模式三区精简
+- Next Actions 负责决策层的推荐动作
+- FileChangesList 负责文件层的就地查看
 
-compact 模式（popover）当前与 dock 视觉一致，违背设计文档中「共享语义、不同密度」的约束。
+### Decision 5：commit action 进入可复用确认弹窗
 
-compact 模式变更：
+`commit` action 不直接提交。点击后打开 `CheckpointCommitDialog`：
 
-- **保留**：Verdict hero（含 verdict badge + headline + summary）
-- **保留**：Evidence compact 卡片（validations + todos/subagents badges）
-- **隐藏**：FileChangesList（移至「展开完整结果」入口）
-- **隐藏**：Risks（仅在有高风险时显示精简 warning）
-- **新增**：「在 dock 中查看完整结果」的展开入口
+- 复用 app shell 注入的 `commitMessage`
+- 复用 `onCommitMessageChange`
+- 复用 `onGenerateCommitMessage`
+- 复用 `useGitCommitSelection`
+- 复用 scoped `onCommit(selectedPaths)`
+- commit button 由现有 `CommitButton` 控制 disabled 状态
 
-### Decision 4：Evidence 卡片顶部加一行文件变更摘要
+这样避免在 checkpoint 内实现第二套 staging / commit 语义。
 
-在 validations 列表上方添加一行紧凑摘要：
+### Decision 6：Verdict 只把 required validation failure 升级为 blocked
 
-```
-+N/-M across K files  ·  N tasks (M done)  ·  K agents (M done)
-```
+判决规则保留 `blocked` 的高优先级，但缩窄触发面：
 
-仅在有对应数据时显示对应部分。此摘要来自 `checkpoint.evidence` 中已有字段，不引入新数据源。
+- failed subagent 仍为 `blocked`
+- required validation failure 仍为 `blocked`
+- failed command 能分类为 required validation kind 时为 `blocked`
+- optional / custom command failure 降级为 `needs_review`
 
-### Decision 5：validations 分组展示
+这样可以避免普通读文件、搜索、辅助命令失败把整个结果误判为阻塞。
 
-当前 validations 是扁平列表。改为：
+### Decision 7：Summary 是解释层，不是事实源
 
-```
-Required
-  tests    ✓ pass
-  lint     ✗ not_run   [npm run lint]
+Summary 采纳策略同步当前代码：
 
-Optional
-  typecheck  ✓ pass
-  build      — not_observed
-```
-
-- required/optional 判定来自 `validationProfile`
-- 已存在的「一键复制命令」按钮保留在 `not_run` 的 required validation 旁
-
-### Decision 6：Verdict 引入命令严重性判定
-
-当前规则：任何 command error → blocked。改为：
-
-- 命令对应的 validation kind 在 `requiredKinds` 中 → 仍判 blocked
-- 命令对应的 validation kind 不在 `requiredKinds` 中 → 降级为 needs_review
-- 无法分类的命令（custom）→ 降级为 needs_review
-
-实现：在 `resolveVerdict` 中增加 `failedCommandKind` 参数，对照 `validationProfile.requiredKinds` 判定。
-
-### Decision 7：Summary 策略三处放宽
-
-1. **running 状态允许采纳**：当 verdict 为 running 且摘要不包含「完成/通过/成功」等词汇时，允许模型解释当前进度
-2. **放宽 POSITIVE_SUMMARY_HINT**：仅在有 fail/error 事实时拒绝正面摘要，而非一律拒绝
-3. **扩展摘要来源**：除 `kind === "review"` 外，也检查最近的 `kind === "message"` 且 `role === "assistant"` 的总结性内容（以 `## Summary` 或 `总结` 开头）
-
-### Decision 8：canonical file facts 桥接
-
-在 `buildCheckpointViewModel` 的输入类型中新增可选参数：
-
-```ts
-canonicalFileFacts?: FileChangeSummary[] | null;
-```
-
-当该参数存在时，优先使用 canonical facts 构建 fileChanges 相关字段；否则回退到现有 `input.fileChanges`。
-
-本 change 不接入实际 canonical source，仅确保接口兼容。
+- `blocked` 不采纳 generated summary
+- high severity risk 不采纳 generated summary
+- `running` 可采纳 generated summary
+- assistant message 只有存在明确 `## Summary` / `## 总结` / `## 摘要` heading 时才可作为 summary source
+- 普通 assistant answer 不会被误用为 checkpoint summary
+- 正面 summary 在 unsettled evidence 下会被过滤，避免伪造「全部通过 / 可提交」
 
 ## Risks / Trade-offs
 
-- [Risk] Verdict 规则调整后可能出现漏判 → Mitigation：保留 `blocked` 优先级最高，仅在非 required 命令失败时降级
-- [Risk] compact 模式移除内容后用户找不到文件列表 → Mitigation：在 compact 底部提供显式展开入口
-- [Risk] Summary 放宽后可能采纳误导性摘要 → Mitigation：保留 fail/error 事实检查作为硬门禁
+- [Risk] `review_diff` 同时出现在 Next Actions 与 FileChangesList 入口，可能显得重复。Mitigation：两者指向同一 modal，分别服务决策层与文件层。
+- [Risk] Git working tree facts 覆盖历史 tool fileChanges 后，历史消息中的变更可能不再出现在结果区。Mitigation：结果区目标是当前可提交事实，历史解释仍由 conversation timeline 承载。
+- [Risk] `needs_review` 隐藏缺失验证命令后，用户可能少一步提示。Mitigation：Next Action hint 明确进入 review，validation groups 仍显示缺失状态。
 
 ## Open Questions
 
-- commit 流程是否沿用现有 `src/features/git/` 下的提交流程，还是需要全局 commit modal？
-- compact 模式中 validations 的 `not_run` 命令是否仍然展示（空间有限）？
+- `onExpandToDock` 当前已作为 compact 入口 prop 暴露，但 `StatusPanel` 尚未传入实际切换逻辑；是否要在下一轮把 popover 的「在 dock 中查看完整结果」接到布局状态。
+- `CheckpointActionType` 仍保留 `open_risk` / `retry` 类型但当前不生成可见 action；是否要在后续清理类型，还是保留兼容空间。

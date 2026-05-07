@@ -1348,6 +1348,13 @@
   gap: 8px;
 }
 
+.sp-checkpoint-commit-files-header input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--sp-commit-accent);
+}
+
 .sp-checkpoint-commit-files-header strong {
   color: var(--sp-commit-text);
   font-size: 13px;

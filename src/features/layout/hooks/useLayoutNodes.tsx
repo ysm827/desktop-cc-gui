@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useReducer, useRef, type DragEvent, type MouseEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useReducer, useRef, useState, type DragEvent, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
@@ -33,7 +33,7 @@ import { StatusPanel } from "../../status-panel/components/StatusPanel";
 import { useStatusPanelData } from "../../status-panel/hooks/useStatusPanelData";
 import { useGlobalRuntimeNoticeDock } from "../../notifications/hooks/useGlobalRuntimeNoticeDock";
 import type { AgentTaskScrollRequest } from "../../messages/types";
-import type { SubagentInfo } from "../../status-panel/types";
+import type { SubagentInfo, TabType } from "../../status-panel/types";
 import type {
   EditorHighlightTarget,
   EditorNavigationLocation,
@@ -751,6 +751,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     workspaceId: null,
     threadId: null,
   });
+  const [preferredDockStatusTab, setPreferredDockStatusTab] = useState<{
+    tab: TabType;
+    requestKey: number;
+  } | null>(null);
   const activeThreadStatus = options.activeThreadId
     ? options.threadStatusById[options.activeThreadId] ?? null
     : null;
@@ -1483,6 +1487,14 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     isStatusPanelEngine &&
     options.bottomStatusPanelExpanded &&
     (hasStatusPanelActivity || options.bottomStatusPanelExpanded);
+  const openBottomStatusPanel = options.onOpenPlanPanel;
+  const handleExpandCheckpointToDock = useCallback(() => {
+    openBottomStatusPanel();
+    setPreferredDockStatusTab((previous) => ({
+      tab: "checkpoint",
+      requestKey: (previous?.requestKey ?? 0) + 1,
+    }));
+  }, [openBottomStatusPanel]);
   const activeThreadSummary =
     options.activeWorkspaceId && options.activeThreadId
       ? (options.threadsByWorkspace[options.activeWorkspaceId] ?? []).find(
@@ -2103,6 +2115,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onCommit={options.onCommit}
       commitLoading={options.commitLoading}
       commitError={options.commitError}
+      preferredDockTab={preferredDockStatusTab?.tab ?? null}
+      preferredDockTabRequestKey={preferredDockStatusTab?.requestKey ?? 0}
+      onExpandToDock={handleExpandCheckpointToDock}
     />
   ) : null;
 
