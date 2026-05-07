@@ -131,6 +131,7 @@ export type ConversationItem =
       kind: "tool";
       toolType: string;
       engineSource?: EngineType;
+      turnId?: string;
       title: string;
       detail: string;
       status?: string;
@@ -157,6 +158,7 @@ export type ThreadSummary = {
   partialSource?: string;
   isDegraded?: boolean;
   degradedReason?: string;
+  folderId?: string | null;
   nativeThreadIds?: string[];
 };
 
@@ -487,6 +489,8 @@ export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
   terminalShellPath: string | null;
+  geminiEnabled: boolean;
+  opencodeEnabled: boolean;
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
@@ -535,6 +539,7 @@ export type AppSettings = {
   lightThemePresetId?: LightThemePresetId;
   darkThemePresetId?: DarkThemePresetId;
   customThemePresetId?: ThemePresetId;
+  customSkillDirectories?: string[];
   canvasWidthMode: CanvasWidthMode;
   layoutMode?: LayoutMode;
   userMsgColor: string;

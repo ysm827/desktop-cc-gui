@@ -71,6 +71,8 @@ describe("useAppSettings", () => {
     expect(result.current.settings.codexUnifiedExecPolicy).toBe("inherit");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
+    expect(result.current.settings.geminiEnabled).toBe(true);
+    expect(result.current.settings.opencodeEnabled).toBe(false);
     expect(result.current.settings.claudeBin).toBeNull();
     expect(result.current.settings.codexAutoCompactionEnabled).toBe(true);
     expect(result.current.settings.codexAutoCompactionThresholdPercent).toBe(92);
@@ -126,6 +128,51 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.terminalShellPath).toBe(
       "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+    );
+  });
+
+  it("normalizes custom skill directories while loading settings", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      customSkillDirectories: [
+        "  ~/shared-skills  ",
+        "",
+        "~/shared-skills",
+        "/opt/team-skills",
+      ],
+    } as AppSettings);
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.settings.customSkillDirectories).toEqual([
+      "~/shared-skills",
+      "/opt/team-skills",
+    ]);
+  });
+
+  it("normalizes custom skill directories before persisting settings", async () => {
+    getAppSettingsMock.mockResolvedValue({} as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    updateAppSettingsMock.mockResolvedValue({
+      ...result.current.settings,
+      customSkillDirectories: ["/team-skills"],
+    });
+
+    await act(async () => {
+      await result.current.saveSettings({
+        ...result.current.settings,
+        customSkillDirectories: [" /team-skills ", "/team-skills", ""],
+      });
+    });
+
+    expect(updateAppSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customSkillDirectories: ["/team-skills"],
+      }),
     );
   });
 
@@ -207,9 +254,22 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiFontFamily).toMatch(/^Monaco,/);
     expect(result.current.settings.codeFontFamily).toMatch(/^Monaco,/);
     expect(result.current.settings.backendMode).toBe("local");
+    expect(result.current.settings.opencodeEnabled).toBe(false);
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
     expect(result.current.settings.performanceCompatibilityModeEnabled).toBe(false);
+  });
+
+  it("preserves explicitly enabled OpenCode gate while loading settings", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      opencodeEnabled: true,
+    } as AppSettings);
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.settings.opencodeEnabled).toBe(true);
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {

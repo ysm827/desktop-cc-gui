@@ -1,3 +1,5 @@
+import i18n from "../../../../i18n";
+
 /**
  * 工具类型常量和判断函数
  * Tool type constants and helper functions
@@ -92,30 +94,30 @@ export function getToolDisplayNames(t: (key: string) => string): Record<string, 
   };
 }
 
-// 静态回退映射 (中文，当 t 函数不可用时使用)
+// 静态 key 回退映射，当没有组件级 t 函数时走全局 i18n
 const TOOL_DISPLAY_NAMES_FALLBACK: Record<string, string> = {
-  read: '读取文件',
-  read_file: '读取文件',
-  edit: '编辑文件',
-  write: '写入文件',
-  notebookedit: '编辑笔记本',
-  bash: '运行命令',
-  shell: '运行命令',
-  terminal: '运行命令',
-  shell_command: '运行命令',
-  run_terminal_cmd: '运行命令',
-  execute_command: '执行命令',
-  grep: '搜索',
-  glob: '文件匹配',
-  search: '搜索',
-  find: '查找文件',
-  webfetch: '网页获取',
-  websearch: '网络搜索',
-  task: '子任务',
-  todowrite: '待办列表',
-  askuserquestion: '询问用户问题',
-  diff: 'Diff对比',
-  result: '结果',
+  read: 'tools.readFile',
+  read_file: 'tools.readFile',
+  edit: 'tools.editFile',
+  write: 'tools.writeFile',
+  notebookedit: 'tools.editNotebook',
+  bash: 'tools.runCommand',
+  shell: 'tools.runCommand',
+  terminal: 'tools.runCommand',
+  shell_command: 'tools.runCommand',
+  run_terminal_cmd: 'tools.runCommand',
+  execute_command: 'tools.executeCommand',
+  grep: 'tools.search',
+  glob: 'tools.fileMatch',
+  search: 'tools.search',
+  find: 'tools.findFile',
+  webfetch: 'tools.webFetch',
+  websearch: 'tools.webSearch',
+  task: 'tools.subtask',
+  todowrite: 'tools.todoList',
+  askuserquestion: 'tools.userInputRequest',
+  diff: 'tools.diffCompare',
+  result: 'tools.result',
 };
 
 const FAILED_TOOL_STATUS_REGEX = /(fail|error|cancel(?:led)?|abort|timeout|timed[_ -]?out)/;
@@ -243,9 +245,9 @@ export function getToolDisplayName(toolName: string, title?: string, t?: (key: s
       return translatedNames[lower];
     }
   } else {
-    // 回退到静态映射
-    if (TOOL_DISPLAY_NAMES_FALLBACK[lower]) {
-      return TOOL_DISPLAY_NAMES_FALLBACK[lower];
+    const fallbackKey = TOOL_DISPLAY_NAMES_FALLBACK[lower];
+    if (fallbackKey) {
+      return i18n.t(fallbackKey);
     }
   }
 
@@ -257,11 +259,11 @@ export function getToolDisplayName(toolName: string, title?: string, t?: (key: s
     if (isSearchTool(lower)) return t("tools.search");
     if (isWebTool(lower)) return t("tools.webRequest");
   } else {
-    if (isReadTool(lower)) return '读取文件';
-    if (isEditTool(lower)) return '编辑文件';
-    if (isBashTool(lower)) return '运行命令';
-    if (isSearchTool(lower)) return '搜索';
-    if (isWebTool(lower)) return '网络请求';
+    if (isReadTool(lower)) return i18n.t("tools.readFile");
+    if (isEditTool(lower)) return i18n.t("tools.editFile");
+    if (isBashTool(lower)) return i18n.t("tools.runCommand");
+    if (isSearchTool(lower)) return i18n.t("tools.search");
+    if (isWebTool(lower)) return i18n.t("tools.webRequest");
   }
 
   // MCP 工具特殊处理

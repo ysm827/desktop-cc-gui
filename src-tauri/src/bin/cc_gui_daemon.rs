@@ -54,6 +54,7 @@ mod state {
         pub(crate) sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
         pub(crate) app_settings: Mutex<AppSettings>,
         pub(crate) storage_path: PathBuf,
+        pub(crate) settings_path: PathBuf,
         pub(crate) runtime_manager: RuntimeManager,
         pub(crate) engine_manager: EngineManager,
     }
@@ -72,6 +73,9 @@ mod session_management;
 #[allow(dead_code)]
 #[path = "../shared/mod.rs"]
 mod shared;
+#[allow(dead_code)]
+#[path = "../skills.rs"]
+mod skills;
 #[path = "../storage.rs"]
 mod storage;
 #[path = "../text_encoding.rs"]
@@ -627,17 +631,14 @@ fn parse_opencode_session_list(stdout: &str) -> Vec<OpenCodeSessionEntry> {
     entries
 }
 
-fn resolve_opencode_bin(config: Option<&engine::EngineConfig>) -> String {
-    if let Some(custom) = config.and_then(|entry| entry.bin_path.as_ref()) {
-        return custom.clone();
-    }
-    backend::app_server::find_cli_binary("opencode", None)
+fn resolve_opencode_bin(config: Option<&engine::EngineConfig>) -> Result<String, String> {
+    let custom_bin = config.and_then(|entry| entry.bin_path.as_deref());
+    backend::app_server_cli::resolve_safe_opencode_binary(custom_bin)
         .map(|path| path.to_string_lossy().to_string())
-        .unwrap_or_else(|| "opencode".to_string())
 }
 
-fn build_opencode_command(config: Option<&engine::EngineConfig>) -> Command {
-    let bin = resolve_opencode_bin(config);
+fn build_opencode_command(config: Option<&engine::EngineConfig>) -> Result<Command, String> {
+    let bin = resolve_opencode_bin(config)?;
     let mut command = backend::app_server::build_command_for_binary(&bin);
     if let Some(home_dir) = config.and_then(|entry| entry.home_dir.as_ref()) {
         command.env("OPENCODE_HOME", home_dir);
@@ -649,7 +650,7 @@ fn build_opencode_command(config: Option<&engine::EngineConfig>) -> Command {
             }
         }
     }
-    command
+    Ok(command)
 }
 
 fn parse_engine_type_string(value: Option<&str>) -> Option<engine::EngineType> {
@@ -1575,6 +1576,55 @@ async fn handle_rpc_request(
                 .await?;
             serde_json::to_value(response).map_err(|err| err.to_string())
         }
+        "list_workspace_session_folders" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let tree = state.list_workspace_session_folders(workspace_id).await?;
+            serde_json::to_value(tree).map_err(|err| err.to_string())
+        }
+        "create_workspace_session_folder" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let name = parse_string(&params, "name")?;
+            let parent_id = parse_optional_string(&params, "parentId");
+            let mutation = state
+                .create_workspace_session_folder(workspace_id, name, parent_id)
+                .await?;
+            serde_json::to_value(mutation).map_err(|err| err.to_string())
+        }
+        "rename_workspace_session_folder" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let folder_id = parse_string(&params, "folderId")?;
+            let name = parse_string(&params, "name")?;
+            let mutation = state
+                .rename_workspace_session_folder(workspace_id, folder_id, name)
+                .await?;
+            serde_json::to_value(mutation).map_err(|err| err.to_string())
+        }
+        "move_workspace_session_folder" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let folder_id = parse_string(&params, "folderId")?;
+            let parent_id = parse_optional_string(&params, "parentId");
+            let mutation = state
+                .move_workspace_session_folder(workspace_id, folder_id, parent_id)
+                .await?;
+            serde_json::to_value(mutation).map_err(|err| err.to_string())
+        }
+        "delete_workspace_session_folder" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let folder_id = parse_string(&params, "folderId")?;
+            state
+                .delete_workspace_session_folder(workspace_id, folder_id)
+                .await?;
+            Ok(json!({ "ok": true }))
+        }
+        "assign_workspace_session_folder" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let session_id = parse_string(&params, "sessionId")?;
+            let folder_id = parse_optional_string(&params, "folderId");
+            let assignment = state
+                .assign_workspace_session_folder(workspace_id, session_id, folder_id)
+                .await?;
+            serde_json::to_value(assignment).map_err(|err| err.to_string())
+        }
         "load_gemini_session" => {
             let workspace_path = parse_string(&params, "workspacePath")?;
             let session_id = parse_string(&params, "sessionId")?;
@@ -1731,7 +1781,9 @@ async fn handle_rpc_request(
         }
         "skills_list" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
-            state.skills_list(workspace_id).await
+            let custom_skill_roots =
+                parse_optional_string_array(&params, "customSkillRoots").unwrap_or_default();
+            state.skills_list(workspace_id, custom_skill_roots).await
         }
         "list_thread_titles" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

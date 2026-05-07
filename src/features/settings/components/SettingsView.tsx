@@ -1,27 +1,7 @@
 // @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import type { DropResult } from "@hello-pangea/dnd";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -34,20 +14,14 @@ import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
-import Download from "lucide-react/dist/esm/icons/download";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  FolderOpen,
   Globe,
   Monitor,
   Cog,
   Keyboard,
   ExternalLink,
-  Info,
-  Check,
-  Wifi,
-  Save,
   Mail,
   Archive,
   NotebookPen,
@@ -87,7 +61,6 @@ import { AgentSettingsSection } from "./AgentSettingsSection";
 import { PlaceholderSection } from "./PlaceholderSection";
 import { CommitSection } from "./CommitSection";
 import { PromptSection } from "./PromptSection";
-import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import { UsageSection } from "./UsageSection";
 import { McpSection } from "./McpSection";
 import { SkillsSection } from "./SkillsSection";
@@ -104,14 +77,11 @@ import Shield from "lucide-react/dist/esm/icons/shield";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
 import MoreHorizontalIcon from "lucide-react/dist/esm/icons/more-horizontal";
 import Users from "lucide-react/dist/esm/icons/users";
-import { pushErrorToast } from "../../../services/toasts";
 import {
   normalizeHexColor,
   HEX_COLOR_PATTERN,
   getContrastingTextColor,
 } from "../../../utils/colorUtils";
-import {
-} from "../../../utils/platform";
 import {
   isHistoryCompletionEnabled,
   setHistoryCompletionEnabled,
@@ -144,6 +114,7 @@ import { WebServiceSettings } from "./settings-view/sections/WebServiceSettings"
 import { EmailSenderSettings } from "./settings-view/sections/EmailSenderSettings";
 import { DictationSection } from "./settings-view/sections/DictationSection";
 import { ExperimentalToggleRow } from "./settings-view/components/ExperimentalToggleRow";
+import { BasicBehaviorSection } from "./settings-view/sections/BasicBehaviorSection";
 import {
   buildShortcutDrafts,
   shortcutDraftKeyBySetting,
@@ -169,6 +140,7 @@ import {
   SHOW_GIT_ENTRY,
   TEMPORARILY_DISABLED_SIDEBAR_SECTIONS as BASE_DISABLED_SIDEBAR_SECTIONS,
 } from "./settings-view/settingsViewConstants";
+import { useSystemProxySettings } from "./settings-view/hooks/useSystemProxySettings";
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -343,15 +315,6 @@ export function SettingsView({
         : groupedWorkspaces.flatMap((group) => group.workspaces),
     [allWorkspaces, groupedWorkspaces],
   );
-  const [systemProxyEnabledDraft, setSystemProxyEnabledDraft] = useState(
-    appSettings.systemProxyEnabled ?? false,
-  );
-  const [systemProxyUrlDraft, setSystemProxyUrlDraft] = useState(
-    appSettings.systemProxyUrl ?? "",
-  );
-  const [systemProxyError, setSystemProxyError] = useState<string | null>(null);
-  const [systemProxyNotice, setSystemProxyNotice] = useState<InlineNoticeState>(null);
-  const [systemProxySaving, setSystemProxySaving] = useState(false);
   const handleHistoryCompletionToggle = useCallback(() => {
     const next = !historyCompletionEnabled;
     setHistoryCompletionEnabledState(next);
@@ -379,6 +342,21 @@ export function SettingsView({
   const [shortcutDrafts, setShortcutDrafts] = useState<ShortcutDrafts>(() =>
     buildShortcutDrafts(appSettings),
   );
+  const {
+    handleSaveSystemProxy,
+    handleSystemProxyUrlChange,
+    handleToggleSystemProxy,
+    systemProxyDirty,
+    systemProxyEnabledDraft,
+    systemProxyError,
+    systemProxyNotice,
+    systemProxySaving,
+    systemProxyUrlDraft,
+  } = useSystemProxySettings({
+    appSettings,
+    onUpdateAppSettings,
+    t,
+  });
   const normalizedUserMsgColor = useMemo(
     () => normalizeHexColor(appSettings.userMsgColor),
     [appSettings.userMsgColor],
@@ -587,137 +565,12 @@ export function SettingsView({
     };
   }, []);
   useEffect(() => {
-    setSystemProxyEnabledDraft(appSettings.systemProxyEnabled ?? false);
-    setSystemProxyUrlDraft(appSettings.systemProxyUrl ?? "");
-    setSystemProxyError(null);
-  }, [appSettings.systemProxyEnabled, appSettings.systemProxyUrl]);
-
-  useEffect(() => {
-    if (!systemProxyNotice) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setSystemProxyNotice(null);
-    }, 2600);
-    return () => window.clearTimeout(timer);
-  }, [systemProxyNotice]);
-
-  useEffect(() => {
     diagnosticsBundleMountedRef.current = true;
     return () => {
       diagnosticsBundleMountedRef.current = false;
       diagnosticsBundleRequestIdRef.current += 1;
     };
   }, []);
-
-  const updateSystemProxySettings = useCallback(async (
-    nextEnabled: boolean,
-    nextProxyUrl: string,
-    successMessage: string,
-    rollbackDraft: {
-      enabled: boolean;
-      proxyUrl: string;
-    },
-  ) => {
-    const trimmedProxyUrl = nextProxyUrl.trim();
-    if (nextEnabled && !trimmedProxyUrl) {
-      const message = t("settings.behaviorProxyRequired");
-      setSystemProxyEnabledDraft(rollbackDraft.enabled);
-      setSystemProxyUrlDraft(rollbackDraft.proxyUrl);
-      setSystemProxyError(message);
-      setSystemProxyNotice(null);
-      return false;
-    }
-
-    setSystemProxySaving(true);
-    setSystemProxyError(null);
-    setSystemProxyNotice(null);
-    try {
-      await onUpdateAppSettings({
-        ...appSettings,
-        systemProxyEnabled: nextEnabled,
-        systemProxyUrl: trimmedProxyUrl || null,
-      });
-      setSystemProxyNotice({
-        kind: "success",
-        message: successMessage,
-      });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setSystemProxyEnabledDraft(rollbackDraft.enabled);
-      setSystemProxyUrlDraft(rollbackDraft.proxyUrl);
-      setSystemProxyError(message);
-      setSystemProxyNotice(null);
-      pushErrorToast({
-        title: t("common.error"),
-        message,
-      });
-      return false;
-    } finally {
-      setSystemProxySaving(false);
-    }
-  }, [
-    appSettings,
-    onUpdateAppSettings,
-    t,
-  ]);
-
-  const handleSaveSystemProxy = useCallback(async () => {
-    await updateSystemProxySettings(
-      systemProxyEnabledDraft,
-      systemProxyUrlDraft,
-      t("settings.behaviorProxySaved"),
-      {
-        enabled: appSettings.systemProxyEnabled ?? false,
-        proxyUrl: appSettings.systemProxyUrl ?? "",
-      },
-    );
-  }, [
-    appSettings.systemProxyEnabled,
-    appSettings.systemProxyUrl,
-    systemProxyEnabledDraft,
-    systemProxyUrlDraft,
-    t,
-    updateSystemProxySettings,
-  ]);
-
-  const handleToggleSystemProxy = useCallback((checked: boolean) => {
-    if (systemProxySaving) {
-      return;
-    }
-    const rollbackDraft = {
-      enabled: appSettings.systemProxyEnabled ?? false,
-      proxyUrl: appSettings.systemProxyUrl ?? "",
-    };
-    const nextProxyUrl = checked
-      ? systemProxyUrlDraft
-      : (systemProxyUrlDraft.trim() || rollbackDraft.proxyUrl);
-
-    setSystemProxyEnabledDraft(checked);
-    setSystemProxyError(null);
-    setSystemProxyNotice(null);
-
-    void updateSystemProxySettings(
-      checked,
-      nextProxyUrl,
-      checked
-        ? t("settings.behaviorProxyEnabledSuccess")
-        : t("settings.behaviorProxyDisabledSuccess"),
-      rollbackDraft,
-    );
-  }, [
-    appSettings.systemProxyEnabled,
-    appSettings.systemProxyUrl,
-    systemProxySaving,
-    systemProxyUrlDraft,
-    t,
-    updateSystemProxySettings,
-  ]);
-
-  const systemProxyDirty =
-    (appSettings.systemProxyEnabled ?? false) !== systemProxyEnabledDraft ||
-    (appSettings.systemProxyUrl ?? "") !== systemProxyUrlDraft;
 
   useEffect(() => {
     setClaudePathDraft(appSettings.claudeBin ?? "");
@@ -1869,469 +1722,37 @@ export function SettingsView({
                     {t("settings.basicEmailTab")}
                   </button>
                 </div>
-                {basicSubTab === "behavior" && (
-                  <div className="settings-basic-behavior settings-basic-surface">
-                    <div className="settings-basic-group-card">
-                      <div className="settings-subsection-title">{t("settings.sendShortcutSubtitle")}</div>
-                      <div className="settings-subsection-subtitle">
-                        {t("settings.sendShortcutSubDescription")}
-                      </div>
-                      <div className="settings-shortcut-cards">
-                        <button
-                          type="button"
-                          className={`settings-shortcut-card ${appSettings.composerSendShortcut === "enter" ? "active" : ""}`}
-                          onClick={() =>
-                            void onUpdateAppSettings({
-                              ...appSettings,
-                              composerSendShortcut: "enter",
-                            })
-                          }
-                        >
-                          {appSettings.composerSendShortcut === "enter" ? (
-                            <div className="settings-shortcut-card-check" aria-hidden>
-                              <Check size={12} />
-                            </div>
-                          ) : null}
-                          <div className="settings-shortcut-card-title">{t("settings.sendShortcutEnterTitle")}</div>
-                          <div className="settings-shortcut-card-desc">{t("settings.sendShortcutEnterDesc")}</div>
-                        </button>
-                        <button
-                          type="button"
-                          className={`settings-shortcut-card ${appSettings.composerSendShortcut === "cmdEnter" ? "active" : ""}`}
-                          onClick={() =>
-                            void onUpdateAppSettings({
-                              ...appSettings,
-                              composerSendShortcut: "cmdEnter",
-                            })
-                          }
-                        >
-                          {appSettings.composerSendShortcut === "cmdEnter" ? (
-                            <div className="settings-shortcut-card-check" aria-hidden>
-                              <Check size={12} />
-                            </div>
-                          ) : null}
-                          <div className="settings-shortcut-card-title">{t("settings.sendShortcutCmdEnterTitle")}</div>
-                          <div className="settings-shortcut-card-desc">{t("settings.sendShortcutCmdEnterDesc")}</div>
-                        </button>
-                      </div>
-                    </div>
-                    <Card className="settings-basic-group-card settings-basic-shadcn-card settings-basic-streaming-card">
-                      <CardHeader className="settings-card-switch-header">
-                        <div className="settings-card-switch-meta">
-                          <CardTitle className="settings-toggle-title">
-                            {t("settings.behaviorStreaming")}
-                          </CardTitle>
-                          <CardDescription className="settings-toggle-subtitle">
-                            {t("settings.behaviorStreamingDesc")}
-                          </CardDescription>
-                        </div>
-                        <CardAction className="settings-card-switch-action">
-                          <Switch
-                            checked={appSettings.streamingEnabled ?? true}
-                            onCheckedChange={(checked) =>
-                              void onUpdateAppSettings({
-                                ...appSettings,
-                                streamingEnabled: checked,
-                              })
-                            }
-                          />
-                        </CardAction>
-                      </CardHeader>
-                    </Card>
-                    <Card
-                      className={`settings-basic-group-card settings-basic-shadcn-card settings-basic-performance-card${
-                        appSettings.performanceCompatibilityModeEnabled ? " is-enabled" : ""
-                      }`}
-                    >
-                      <CardHeader className="settings-card-switch-header">
-                        <div className="settings-card-switch-meta">
-                          <CardTitle className="settings-toggle-title">
-                            {t("settings.performanceCompatibilityTitle")}
-                          </CardTitle>
-                          <CardDescription className="settings-toggle-subtitle">
-                            {t("settings.performanceCompatibilityDesc")}
-                          </CardDescription>
-                        </div>
-                        <CardAction className="settings-card-switch-action">
-                          <Switch
-                            checked={appSettings.performanceCompatibilityModeEnabled}
-                            onCheckedChange={(checked) =>
-                              void onUpdateAppSettings({
-                                ...appSettings,
-                                performanceCompatibilityModeEnabled: checked,
-                              })
-                            }
-                            aria-label={t("settings.performanceCompatibilityEnabled")}
-                          />
-                        </CardAction>
-                      </CardHeader>
-                      <CardContent className="settings-basic-sounds-card-content">
-                        <div className="settings-help settings-sound-hint settings-sound-hint-shadcn">
-                          <Badge variant="outline" className="settings-sound-status-badge">
-                            <Info size={12} aria-hidden />
-                            <span>
-                              {appSettings.performanceCompatibilityModeEnabled
-                                ? t("settings.performanceCompatibilityStatusEnabled")
-                                : t("settings.performanceCompatibilityStatusDisabled")}
-                            </span>
-                          </Badge>
-                          <span className="settings-sound-hint-copy">
-                            {t("settings.performanceCompatibilityHint")}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="settings-basic-group-card settings-basic-shadcn-card settings-basic-diagnostics-card">
-                      <CardHeader className="settings-card-switch-header">
-                        <div className="settings-card-switch-meta">
-                          <CardTitle className="settings-toggle-title">
-                            {t("settings.diagnosticsBundleTitle")}
-                          </CardTitle>
-                          <CardDescription className="settings-toggle-subtitle">
-                            {t("settings.diagnosticsBundleDesc")}
-                          </CardDescription>
-                        </div>
-                        <CardAction className="settings-card-switch-action">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="settings-button-compact"
-                            onClick={() => void handleExportDiagnosticsBundle()}
-                            disabled={diagnosticsBundleExportState.status === "exporting"}
-                            aria-label={t("settings.diagnosticsBundleExport")}
-                          >
-                            <Download size={14} aria-hidden />
-                            {diagnosticsBundleExportState.status === "exporting"
-                              ? t("settings.diagnosticsBundleExporting")
-                              : t("settings.diagnosticsBundleExport")}
-                          </Button>
-                        </CardAction>
-                      </CardHeader>
-                      <CardContent className="settings-basic-sounds-card-content">
-                        <div className="settings-help settings-sound-hint settings-sound-hint-shadcn">
-                          <Badge variant="outline" className="settings-sound-status-badge">
-                            <Info size={12} aria-hidden />
-                            <span>{t("settings.diagnosticsBundleLocalOnly")}</span>
-                          </Badge>
-                          <span className="settings-sound-hint-copy">
-                            {t("settings.diagnosticsBundleHint")}
-                          </span>
-                        </div>
-                        {diagnosticsBundleExportState.message ? (
-                          <div
-                            className={
-                              diagnosticsBundleExportState.status === "failed"
-                                ? "settings-inline-error"
-                                : "settings-inline-success"
-                            }
-                            role={diagnosticsBundleExportState.status === "failed" ? "alert" : "status"}
-                          >
-                            {diagnosticsBundleExportState.message}
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                    <Card className="settings-basic-group-card settings-basic-shadcn-card settings-basic-terminal-card">
-                      <CardHeader className="settings-basic-sounds-card-header settings-proxy-card-header">
-                        <div className="settings-card-switch-meta">
-                          <CardTitle className="settings-subsection-title">
-                            <span className="settings-proxy-card-title">
-                              <TerminalSquare size={16} aria-hidden />
-                              {t("settings.terminalShellPathTitle")}
-                            </span>
-                          </CardTitle>
-                          <CardDescription className="settings-subsection-subtitle">
-                            {t("settings.terminalShellPathDesc")}
-                          </CardDescription>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="settings-basic-sounds-card-content settings-proxy-card-content">
-                        <div className="settings-proxy-input-row">
-                          <Label
-                            className="settings-visually-hidden"
-                            htmlFor="terminal-shell-path"
-                          >
-                            {t("settings.terminalShellPathLabel")}
-                          </Label>
-                          <div className="settings-proxy-input-shell">
-                            <Input
-                              id="terminal-shell-path"
-                              className="settings-proxy-input"
-                              value={terminalShellPathDraft}
-                              onChange={(event) => setTerminalShellPathDraft(event.target.value)}
-                              placeholder={t("settings.terminalShellPathPlaceholder")}
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="settings-proxy-save-btn"
-                            onClick={() => void handleSaveTerminalShellPath()}
-                            disabled={!terminalShellPathDirty}
-                            aria-label={t("settings.terminalShellPathSave")}
-                          >
-                            <Save size={14} aria-hidden />
-                            {t("settings.terminalShellPathSave")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="settings-button-compact"
-                            onClick={() => void handleClearTerminalShellPath()}
-                            disabled={!terminalShellPathDraft && appSettings.terminalShellPath == null}
-                            aria-label={t("settings.terminalShellPathClear")}
-                          >
-                            {t("settings.clear")}
-                          </Button>
-                        </div>
-                        <div className="settings-help settings-sound-hint settings-sound-hint-shadcn settings-proxy-hint">
-                          <span className="settings-sound-hint-copy">
-                            {t("settings.terminalShellPathHint")}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card
-                      className={`settings-basic-group-card settings-basic-shadcn-card settings-basic-proxy-card${
-                        systemProxyEnabledDraft ? " is-enabled" : ""
-                      }`}
-                    >
-                      <CardHeader className="settings-basic-sounds-card-header settings-proxy-card-header">
-                        <div className="settings-card-switch-meta">
-                          <CardTitle className="settings-subsection-title">
-                            <span className="settings-proxy-card-title">
-                              <Wifi size={16} aria-hidden />
-                              {t("settings.behaviorProxyTitle")}
-                              {systemProxyEnabledDraft && (
-                                <ProxyStatusBadge
-                                  proxyUrl={systemProxyUrlDraft}
-                                  label={t("messages.proxyBadge")}
-                                  variant="compact"
-                                  className="settings-proxy-header-badge"
-                                />
-                              )}
-                            </span>
-                          </CardTitle>
-                          <CardDescription className="settings-subsection-subtitle">
-                            {t("settings.behaviorProxyDesc")}
-                          </CardDescription>
-                        </div>
-                        <CardAction className="settings-proxy-card-action">
-                          <Switch
-                            checked={systemProxyEnabledDraft}
-                            onCheckedChange={handleToggleSystemProxy}
-                            aria-label={t("settings.behaviorProxyEnabled")}
-                          />
-                        </CardAction>
-                      </CardHeader>
-                      <CardContent className="settings-basic-sounds-card-content settings-proxy-card-content">
-                        <div className="settings-proxy-input-row">
-                          <Label
-                            className="settings-visually-hidden"
-                            htmlFor="system-proxy-url"
-                          >
-                            {t("settings.behaviorProxyAddress")}
-                          </Label>
-                          <div className="settings-proxy-input-shell">
-                            <Input
-                              id="system-proxy-url"
-                              className="settings-proxy-input"
-                              value={systemProxyUrlDraft}
-                              onChange={(event) => {
-                                setSystemProxyUrlDraft(event.target.value);
-                                setSystemProxyError(null);
-                                setSystemProxyNotice(null);
-                              }}
-                              placeholder={t("settings.behaviorProxyAddressPlaceholder")}
-                              spellCheck={false}
-                              autoCapitalize="off"
-                              autoCorrect="off"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="settings-proxy-save-btn"
-                            onClick={() => void handleSaveSystemProxy()}
-                            disabled={systemProxySaving || !systemProxyDirty}
-                          >
-                            <Save size={14} aria-hidden />
-                            {t("settings.behaviorProxySave")}
-                          </Button>
-                        </div>
-                        <div className="settings-help settings-sound-hint settings-sound-hint-shadcn settings-proxy-hint">
-                          <span className="settings-sound-hint-copy">
-                            {t("settings.behaviorProxyHint")}
-                          </span>
-                        </div>
-                        {systemProxyNotice ? (
-                          <div
-                            className={
-                              systemProxyNotice.kind === "error"
-                                ? "settings-inline-error"
-                                : "settings-inline-success"
-                            }
-                            role={systemProxyNotice.kind === "error" ? "alert" : "status"}
-                          >
-                            {systemProxyNotice.message}
-                          </div>
-                        ) : null}
-                        {systemProxyError ? (
-                          <div className="settings-toggle-subtitle" role="alert">
-                            {systemProxyError}
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                    <Card
-                      className={`settings-basic-group-card settings-basic-shadcn-card settings-basic-sounds-card${
-                        appSettings.notificationSoundsEnabled ? " is-enabled" : ""
-                      }`}
-                    >
-                      <CardHeader className="settings-basic-sounds-card-header">
-                        <CardTitle className="settings-subsection-title">
-                          {t("settings.soundsSubtitle")}
-                        </CardTitle>
-                        <CardDescription className="settings-subsection-subtitle">
-                          {t("settings.soundsSubDescription")}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="settings-basic-sounds-card-content">
-                        <div className="settings-sound-toggle-row">
-                          <div>
-                            <div className="settings-toggle-title">{t("settings.notificationSounds")}</div>
-                            <div className="settings-toggle-subtitle">
-                              {t("settings.notificationSoundsDesc")}
-                            </div>
-                          </div>
-                          <Switch
-                            checked={appSettings.notificationSoundsEnabled}
-                            onCheckedChange={(checked) =>
-                              void onUpdateAppSettings({
-                                ...appSettings,
-                                notificationSoundsEnabled: checked,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="settings-help settings-sound-hint settings-sound-hint-shadcn">
-                          <Badge variant="outline" className="settings-sound-status-badge">
-                            <Info size={12} aria-hidden />
-                            <span>
-                              {appSettings.notificationSoundsEnabled
-                                ? t("settings.notificationSoundsEnabled")
-                                : t("settings.notificationSoundsDisabled")}
-                            </span>
-                          </Badge>
-                          <span className="settings-sound-hint-copy">
-                            {t("settings.notificationSoundsHint")}
-                          </span>
-                        </div>
-                        {appSettings.notificationSoundsEnabled ? (
-                          <div className="settings-sound-config settings-sound-config-shadcn">
-                            <div className="settings-sound-control-item">
-                              <Label className="settings-field-label" htmlFor="notification-sound-select-native">
-                                {t("settings.soundSelectLabel")}
-                              </Label>
-                              <div className="settings-sound-select-row settings-sound-select-row-shadcn">
-                                <select
-                                  id="notification-sound-select-native"
-                                  className="settings-sound-native-select-sr"
-                                  value={selectedNotificationSound}
-                                  onChange={(event) => handleNotificationSoundOptionChange(event.target.value)}
-                                >
-                                  {soundOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                                <Select
-                                  value={selectedNotificationSound}
-                                  onValueChange={handleNotificationSoundOptionChange}
-                                >
-                                  <SelectTrigger
-                                    id="notification-sound-select"
-                                    className="settings-sound-select-trigger"
-                                    aria-label={t("settings.soundSelectLabel")}
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {soundOptions.map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="settings-sound-test-btn"
-                                  onClick={() =>
-                                    onTestNotificationSound(
-                                      selectedNotificationSound,
-                                      notificationSoundPathDraft,
-                                    )
-                                  }
-                                >
-                                  {t("settings.test")}
-                                </Button>
-                              </div>
-                            </div>
-                            {selectedNotificationSound === "custom" ? (
-                              <div className="settings-sound-control-item settings-sound-control-item-custom">
-                                <Label className="settings-field-label" htmlFor="notification-sound-custom-path">
-                                  {t("settings.soundCustomFileLabel")}
-                                </Label>
-                                <div className="settings-sound-custom-path-row settings-sound-custom-path-row-shadcn">
-                                  <Input
-                                    id="notification-sound-custom-path"
-                                    type="text"
-                                    className="settings-sound-custom-input"
-                                    value={notificationSoundPathDraft}
-                                    placeholder={t("settings.soundCustomPlaceholder")}
-                                    onChange={(event) => setNotificationSoundPathDraft(event.target.value)}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="settings-button-compact"
-                                    onClick={() => {
-                                      void handleBrowseNotificationSoundPath();
-                                    }}
-                                    aria-label={t("settings.browse")}
-                                  >
-                                    <FolderOpen size={14} aria-hidden />
-                                    {t("settings.browse")}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="settings-button-compact"
-                                    onClick={handleSaveNotificationSoundPath}
-                                  >
-                                    {t("common.save")}
-                                  </Button>
-                                </div>
-                                <div className="settings-help settings-sound-custom-hint">
-                                  {t("settings.soundCustomHint")}
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                <BasicBehaviorSection
+                  active={basicSubTab === "behavior"}
+                  t={t}
+                  appSettings={appSettings}
+                  onUpdateAppSettings={onUpdateAppSettings}
+                  handleComposerSendShortcutChange={handleComposerSendShortcutChange}
+                  handleExportDiagnosticsBundle={handleExportDiagnosticsBundle}
+                  diagnosticsBundleExportState={diagnosticsBundleExportState}
+                  terminalShellPathDraft={terminalShellPathDraft}
+                  setTerminalShellPathDraft={setTerminalShellPathDraft}
+                  terminalShellPathDirty={terminalShellPathDirty}
+                  handleSaveTerminalShellPath={handleSaveTerminalShellPath}
+                  handleClearTerminalShellPath={handleClearTerminalShellPath}
+                  systemProxyEnabledDraft={systemProxyEnabledDraft}
+                  systemProxyUrlDraft={systemProxyUrlDraft}
+                  handleToggleSystemProxy={handleToggleSystemProxy}
+                  handleSystemProxyUrlChange={handleSystemProxyUrlChange}
+                  handleSaveSystemProxy={handleSaveSystemProxy}
+                  systemProxySaving={systemProxySaving}
+                  systemProxyDirty={systemProxyDirty}
+                  systemProxyNotice={systemProxyNotice}
+                  systemProxyError={systemProxyError}
+                  selectedNotificationSound={selectedNotificationSound}
+                  soundOptions={soundOptions}
+                  handleNotificationSoundOptionChange={handleNotificationSoundOptionChange}
+                  onTestNotificationSound={onTestNotificationSound}
+                  notificationSoundPathDraft={notificationSoundPathDraft}
+                  setNotificationSoundPathDraft={setNotificationSoundPathDraft}
+                  handleBrowseNotificationSoundPath={handleBrowseNotificationSoundPath}
+                  handleSaveNotificationSoundPath={handleSaveNotificationSoundPath}
+                />
                 {basicSubTab === "appearance" && (
                   <BasicAppearanceSection
                     appSettings={appSettings}
@@ -2539,6 +1960,8 @@ export function SettingsView({
                   <SkillsSection
                     activeWorkspace={selectedSettingsWorkspace}
                     embedded
+                    appSettings={appSettings}
+                    onUpdateAppSettings={onUpdateAppSettings}
                   />
                 )}
               </section>
@@ -2597,6 +2020,14 @@ export function SettingsView({
                   />
                 )}
               </section>
+            )}
+            {activeSection === "skills" && (
+              <SkillsSection
+                activeWorkspace={selectedSettingsWorkspace}
+                embedded
+                appSettings={appSettings}
+                onUpdateAppSettings={onUpdateAppSettings}
+              />
             )}
             {activeSection === "other" && (
               <OtherSection

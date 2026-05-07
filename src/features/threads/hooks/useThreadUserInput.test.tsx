@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../../i18n";
 import type { RequestUserInputRequest, RequestUserInputResponse } from "../../../types";
 import { respondToUserInputRequest } from "../../../services/tauri";
 import { useThreadUserInput } from "./useThreadUserInput";
@@ -31,6 +32,14 @@ const request: RequestUserInputRequest = {
 };
 
 describe("useThreadUserInput", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage("zh");
+  });
+
   it("adds a visible user history message and removes request after successful submit", async () => {
     const dispatch = vi.fn();
     vi.mocked(respondToUserInputRequest).mockResolvedValue(undefined as never);
@@ -101,7 +110,7 @@ describe("useThreadUserInput", () => {
         note: "我是31岁",
       },
     ]);
-    expect(upsertAction.item.output).toContain("[用户输入已提交]");
+    expect(upsertAction.item.output).toContain("[User input submitted]");
     expect(dispatch).toHaveBeenNthCalledWith(3, {
       type: "removeUserInputRequest",
       requestId: "req-1",

@@ -57,6 +57,7 @@ import {
   engineInterrupt,
   exportRewindFiles,
   getComputerUseBridgeStatus,
+  getSkillsList,
   runComputerUseActivationProbe,
   runComputerUseCodexBroker,
   runComputerUseHostContractDiagnostics,
@@ -65,6 +66,12 @@ import {
   listProjectRelatedCodexSessions,
   listExternalSpecTree,
   listWorkspaceSessions,
+  listWorkspaceSessionFolders,
+  createWorkspaceSessionFolder,
+  renameWorkspaceSessionFolder,
+  moveWorkspaceSessionFolder,
+  deleteWorkspaceSessionFolder,
+  assignWorkspaceSessionFolder,
   archiveWorkspaceSessions,
   unarchiveWorkspaceSessions,
   deleteWorkspaceSessions,
@@ -198,6 +205,18 @@ describe("tauri invoke wrappers", () => {
     });
 
     expect(invokeMock).toHaveBeenCalledWith("export_diagnostics_bundle");
+  });
+
+  it("passes custom skill roots to the skills_list command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce([]);
+
+    await getSkillsList("ws-1", ["/opt/skills"]);
+
+    expect(invokeMock).toHaveBeenCalledWith("skills_list", {
+      workspaceId: "ws-1",
+      customSkillRoots: ["/opt/skills"],
+    });
   });
 
   it("invokes codex_doctor with the provided CLI inputs", async () => {
@@ -588,6 +607,50 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenNthCalledWith(3, "delete_workspace_sessions", {
       workspaceId: "ws-2",
       sessionIds: ["opencode:1"],
+    });
+  });
+
+  it("maps workspace session folder commands", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({});
+
+    await listWorkspaceSessionFolders("ws-2");
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "list_workspace_session_folders", {
+      workspaceId: "ws-2",
+    });
+
+    await createWorkspaceSessionFolder("ws-2", "Bugs", "parent-1");
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "create_workspace_session_folder", {
+      workspaceId: "ws-2",
+      name: "Bugs",
+      parentId: "parent-1",
+    });
+
+    await renameWorkspaceSessionFolder("ws-2", "folder-1", "Fixes");
+    expect(invokeMock).toHaveBeenNthCalledWith(3, "rename_workspace_session_folder", {
+      workspaceId: "ws-2",
+      folderId: "folder-1",
+      name: "Fixes",
+    });
+
+    await moveWorkspaceSessionFolder("ws-2", "folder-1", null);
+    expect(invokeMock).toHaveBeenNthCalledWith(4, "move_workspace_session_folder", {
+      workspaceId: "ws-2",
+      folderId: "folder-1",
+      parentId: null,
+    });
+
+    await deleteWorkspaceSessionFolder("ws-2", "folder-1");
+    expect(invokeMock).toHaveBeenNthCalledWith(5, "delete_workspace_session_folder", {
+      workspaceId: "ws-2",
+      folderId: "folder-1",
+    });
+
+    await assignWorkspaceSessionFolder("ws-2", "claude:1", "folder-1");
+    expect(invokeMock).toHaveBeenNthCalledWith(6, "assign_workspace_session_folder", {
+      workspaceId: "ws-2",
+      sessionId: "claude:1",
+      folderId: "folder-1",
     });
   });
 

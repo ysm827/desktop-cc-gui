@@ -1,4 +1,5 @@
 import type { ConversationItem } from "../types";
+import i18n from "../i18n";
 import { findEquivalentReasoningObservationIndex } from "../features/threads/assembly/conversationNormalization";
 import { normalizeAgentIcon } from "./agentIcons";
 import {
@@ -635,7 +636,7 @@ function normalizeAskUserQuestionHistoryItems(items: ConversationItem[]) {
               id: `request-user-input-submitted-${matchedToolId}`,
               kind: "tool",
               toolType: "requestUserInputSubmitted",
-              title: "请求输入",
+              title: i18n.t("approval.inputRequested"),
               detail: buildRequestUserInputSubmittedDetail(templates, parsedAnswer),
               status: "completed",
               output: parsedAnswer.rawSelectionText,
@@ -793,6 +794,61 @@ function isApplyPatchCommand(command: string): boolean {
 
 function hasApplyPatchSuccessSignal(output: string): boolean {
   return /success\.\s*updated the following files:/i.test(output);
+}
+
+function extractApplyPatchDiffByPath(command: string) {
+  const patchMatch = command.match(/\*\*\* Begin Patch[\s\S]*?\*\*\* End Patch/);
+  const patchText = patchMatch?.[0]?.trim();
+  if (!patchText) {
+    return new Map<string, string>();
+  }
+  const diffByPath = new Map<string, string>();
+  const lines = patchText.split(/\r?\n/);
+  let currentPath = "";
+  let currentDiffLines: string[] = [];
+  const flush = () => {
+    if (!currentPath) {
+      currentDiffLines = [];
+      return;
+    }
+    const diff = currentDiffLines.join("\n").trim();
+    if (diff) {
+      diffByPath.set(currentPath, diff);
+    }
+    currentPath = "";
+    currentDiffLines = [];
+  };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (
+      trimmed.startsWith("*** Update File: ") ||
+      trimmed.startsWith("*** Add File: ") ||
+      trimmed.startsWith("*** Delete File: ")
+    ) {
+      flush();
+      currentPath = trimmed.replace(/^\*\*\* (?:Update|Add|Delete) File:\s+/, "").trim();
+      currentDiffLines = [line];
+      continue;
+    }
+    if (trimmed.startsWith("*** Move to: ")) {
+      const movedPath = trimmed.slice("*** Move to: ".length).trim();
+      if (movedPath) {
+        currentPath = movedPath;
+      }
+      currentDiffLines.push(line);
+      continue;
+    }
+    if (trimmed === "*** End Patch") {
+      currentDiffLines.push(line);
+      flush();
+      break;
+    }
+    if (currentPath) {
+      currentDiffLines.push(line);
+    }
+  }
+  flush();
+  return diffByPath;
 }
 
 export function normalizeItem(item: ConversationItem): ConversationItem {
@@ -1337,6 +1393,14 @@ export function buildConversationItem(
     if (shouldTreatAsApplyPatchFileChange) {
       const normalizedChanges = inferFileChangesFromCommandExecutionArtifacts(command, output);
       if (normalizedChanges.length > 0) {
+        const patchDiffByPath = extractApplyPatchDiffByPath(command);
+        const enrichedChanges = normalizedChanges.map((change) => ({
+          ...change,
+          diff:
+            change.diff ||
+            patchDiffByPath.get(change.path.trim()) ||
+            change.diff,
+        }));
         const formattedChanges = normalizedChanges
           .map((change) => {
             const prefix =
@@ -1360,7 +1424,7 @@ export function buildConversationItem(
           detail: formattedChanges.join(", ") || "Pending changes",
           status,
           output,
-          changes: normalizedChanges,
+          changes: enrichedChanges,
         };
       }
     }

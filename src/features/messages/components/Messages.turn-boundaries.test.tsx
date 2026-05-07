@@ -68,6 +68,7 @@ describe("Messages turn boundaries", () => {
 
     const reasoningBoundaryNode = container.querySelector(".messages-reasoning-boundary");
     expect(reasoningBoundaryNode).toBeTruthy();
+    expect(reasoningBoundaryNode?.textContent ?? "").toContain("Thinking Process");
   });
 
   it("does not show reasoning boundary when only hidden command cards exist before final message", () => {
@@ -111,6 +112,9 @@ describe("Messages turn boundaries", () => {
 
     expect(container.querySelector(".messages-reasoning-boundary")).toBeNull();
     expect(container.querySelector(".messages-final-boundary")).toBeTruthy();
+    expect(container.querySelector(".messages-final-boundary")?.textContent ?? "").toContain(
+      "Final Message",
+    );
     expect(container.textContent ?? "").not.toContain("Command: rg --files");
   });
 
@@ -276,5 +280,120 @@ describe("Messages turn boundaries", () => {
     const finalMeta = container.querySelector(".messages-turn-boundary-meta");
     expect(finalMeta?.textContent ?? "").toContain("04-01 10:20:30");
     expect(finalMeta?.textContent ?? "").not.toContain("总耗时");
+  });
+
+  it("renders final boundary without reasoning boundary when no process items exist", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "user-1",
+        kind: "message",
+        role: "user",
+        text: "Q1",
+      },
+      {
+        id: "assistant-final-1",
+        kind: "message",
+        role: "assistant",
+        text: "A1",
+        isFinal: true,
+      },
+      {
+        id: "user-2",
+        kind: "message",
+        role: "user",
+        text: "Q2",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const finalMessageNode = container.querySelector(
+      "[data-message-anchor-id='assistant-final-1']",
+    );
+    const reasoningBoundaryNode = container.querySelector(".messages-reasoning-boundary");
+    const boundaryNode = container.querySelector(".messages-final-boundary");
+    const boundaryMetaNode = container.querySelector(
+      ".messages-final-boundary .messages-turn-boundary-meta",
+    );
+    expect(finalMessageNode).toBeTruthy();
+    expect(reasoningBoundaryNode).toBeNull();
+    expect(boundaryNode).toBeTruthy();
+    expect(boundaryMetaNode).toBeNull();
+    if (finalMessageNode && boundaryNode) {
+      expect(
+        finalMessageNode.compareDocumentPosition(boundaryNode) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("shows reasoning boundary when visible process items exist before final message", () => {
+    const completedAt = new Date(2026, 3, 10, 14, 41, 42).getTime();
+    const items: ConversationItem[] = [
+      {
+        id: "user-process-1",
+        kind: "message",
+        role: "user",
+        text: "Q1",
+      },
+      {
+        id: "reasoning-process-1",
+        kind: "reasoning",
+        summary: "先分析",
+        content: "检查变更范围",
+      },
+      {
+        id: "assistant-process-final-1",
+        kind: "message",
+        role: "assistant",
+        text: "A1",
+        isFinal: true,
+        finalCompletedAt: completedAt,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const finalMessageNode = container.querySelector(
+      "[data-message-anchor-id='assistant-process-final-1']",
+    );
+    const reasoningBoundaryNode = container.querySelector(".messages-reasoning-boundary");
+    const reasoningBoundaryMetaNode = container.querySelector(
+      ".messages-reasoning-boundary .messages-turn-boundary-meta",
+    );
+    const finalBoundaryMetaNode = container.querySelector(
+      ".messages-final-boundary .messages-turn-boundary-meta",
+    );
+    expect(finalMessageNode).toBeTruthy();
+    expect(reasoningBoundaryNode).toBeTruthy();
+    expect(reasoningBoundaryNode?.textContent ?? "").toContain("Thinking Process");
+    expect(reasoningBoundaryMetaNode?.textContent ?? "").toContain("04-10 14:41:42");
+    expect(reasoningBoundaryMetaNode?.getAttribute("aria-hidden")).toBe("true");
+    expect(reasoningBoundaryMetaNode?.textContent).toBe(finalBoundaryMetaNode?.textContent);
+    if (finalMessageNode && reasoningBoundaryNode) {
+      expect(
+        reasoningBoundaryNode.compareDocumentPosition(finalMessageNode) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 });

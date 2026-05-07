@@ -107,11 +107,30 @@ function normalizeWebServicePort(value: number | null | undefined): number {
   return normalized;
 }
 
+function normalizeCustomSkillDirectories(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const directories: string[] = [];
+  for (const item of value) {
+    const normalized = String(item ?? "").trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    directories.push(normalized);
+  }
+  return directories;
+}
+
 const defaultSettings: AppSettings = {
   claudeBin: null,
   codexBin: null,
   codexArgs: null,
   terminalShellPath: null,
+  geminiEnabled: true,
+  opencodeEnabled: false,
   backendMode: "local",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
@@ -160,6 +179,7 @@ const defaultSettings: AppSettings = {
   lightThemePresetId: "vscode-light-modern",
   darkThemePresetId: "vscode-dark-modern",
   customThemePresetId: "vscode-dark-modern",
+  customSkillDirectories: [],
   canvasWidthMode: "narrow",
   layoutMode: "default",
   userMsgColor: "",
@@ -265,6 +285,8 @@ function normalizeAppSettings(
     terminalShellPath: settings.terminalShellPath?.trim()
       ? settings.terminalShellPath.trim()
       : null,
+    geminiEnabled: settings.geminiEnabled !== false,
+    opencodeEnabled: settings.opencodeEnabled === true,
     webServicePort: normalizeWebServicePort(settings.webServicePort),
     systemProxyUrl: settings.systemProxyUrl?.trim()
       ? settings.systemProxyUrl.trim()
@@ -276,6 +298,9 @@ function normalizeAppSettings(
     lightThemePresetId: sanitizeLightThemePresetId(settings.lightThemePresetId),
     darkThemePresetId: sanitizeDarkThemePresetId(settings.darkThemePresetId),
     customThemePresetId: sanitizeThemePresetId(settings.customThemePresetId),
+    customSkillDirectories: normalizeCustomSkillDirectories(
+      settings.customSkillDirectories,
+    ),
     canvasWidthMode: allowedCanvasWidthModes.has(settings.canvasWidthMode)
       ? settings.canvasWidthMode
       : "narrow",

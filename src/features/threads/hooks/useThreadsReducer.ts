@@ -1,13 +1,4 @@
-import type {
-  AccountSnapshot,
-  ApprovalRequest,
-  ConversationItem,
-  RateLimitSnapshot,
-  RequestUserInputRequest,
-  ThreadSummary,
-  ThreadTokenUsage,
-  TurnPlan,
-} from "../../../types";
+import type { ConversationItem, ThreadSummary } from "../../../types";
 import type { SidebarSnapshot } from "../utils/sidebarSnapshot";
 import {
   normalizeItem,
@@ -28,7 +19,6 @@ import {
 } from "./threadReducerItemLookup";
 import {
   isGeminiReasoningThread,
-  isLocalCliReasoningThread,
   shouldAcceptReasoningDelta,
 } from "./threadReducerReasoningGuards";
 import {
@@ -45,7 +35,6 @@ import {
   findEquivalentCodexAssistantMessageIndex,
   shouldDeduplicateCodexAssistantMessages,
 } from "./useThreadsReducerAssistantDedup";
-import type { NormalizedThreadEvent } from "../contracts/conversationCurtainContracts";
 import { isOptimisticUserMessageId } from "../utils/queuedHandoffBubble";
 import {
   isProcessingGeneratedImageItem,
@@ -78,407 +67,33 @@ import {
   maybeRenameThreadFromAgent,
   shouldPreferExistingThreadName,
 } from "./threadReducerThreadNaming";
+import {
+  buildCodexCompactionMessage,
+  canUseLiveAssistantDeltaFastPath,
+  collectThreadScopedCodexCompactionMessages,
+  filterThreadScopedCodexCompactionMessages,
+  findAssistantMessageIndexById,
+  findAssistantMessageIndexByPrefix,
+  isAssistantMessageItem,
+  isThreadScopedCodexCompactionMessage,
+  isThreadTokenUsageEqual,
+  isToolConversationItem,
+  isUserMessageItem,
+  resolveLiveAssistantMessageId,
+  resolveLiveReasoningItemId,
+  withThreadStatusDefaults,
+} from "./threadReducerCoreHelpers";
 import type {
-  CodexAcceptedTurnFact,
-  CodexAcceptedTurnRecord,
-} from "../utils/codexConversationLiveness";
+  CodexCompactionLifecycleState,
+  ThreadAction,
+  ThreadState,
+} from "./threadReducerTypes";
+export type { ThreadAction, ThreadState } from "./threadReducerTypes";
 
 const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
 const PENDING_THREAD_LAST_AGENT_ANCHOR_TTL_MS = 5 * 60 * 1000;
-const CODEX_COMPACTION_MESSAGE_ID_PREFIX = "context-compacted-codex-compact-";
-type CodexCompactionSource = "auto" | "manual";
-type CodexCompactionLifecycleState = "idle" | "compacting" | "completed";
-
-type MessageItem = Extract<ConversationItem, { kind: "message" }>;
-type UserMessageItem = MessageItem & { role: "user" };
-type AssistantMessageItem = MessageItem & { role: "assistant" };
-type ToolConversationItem = Extract<ConversationItem, { kind: "tool" }>;
 type GeneratedImageItem = Extract<ConversationItem, { kind: "generatedImage" }>;
-
-function getThreadScopedCodexCompactionMessagePrefix(threadId: string) {
-  return `${CODEX_COMPACTION_MESSAGE_ID_PREFIX}${threadId}`;
-}
-
-function isThreadScopedCodexCompactionMessage(
-  item: ConversationItem | undefined,
-  threadId: string,
-): item is AssistantMessageItem {
-  if (
-    item?.kind !== "message" ||
-    item.role !== "assistant" ||
-    item.engineSource !== "codex"
-  ) {
-    return false;
-  }
-  const prefix = getThreadScopedCodexCompactionMessagePrefix(threadId);
-  return item.id === prefix || item.id.startsWith(`${prefix}-`);
-}
-
-function buildCodexCompactionMessage(
-  threadId: string,
-  text: string,
-  id = `${getThreadScopedCodexCompactionMessagePrefix(threadId)}-${Date.now()}`,
-): ConversationItem {
-  return {
-    id,
-    kind: "message",
-    role: "assistant",
-    text,
-    engineSource: "codex",
-  };
-}
-
-function collectThreadScopedCodexCompactionMessages(
-  list: ConversationItem[],
-  threadId: string,
-) {
-  let latestMatch: AssistantMessageItem | null = null;
-  let matchCount = 0;
-  for (const item of list) {
-    if (!isThreadScopedCodexCompactionMessage(item, threadId)) {
-      continue;
-    }
-    latestMatch = item;
-    matchCount += 1;
-  }
-  return {
-    latestMatch,
-    matchCount,
-  };
-}
-
-function filterThreadScopedCodexCompactionMessages(
-  list: ConversationItem[],
-  threadId: string,
-) {
-  return list.filter(
-    (item) => !isThreadScopedCodexCompactionMessage(item, threadId),
-  );
-}
-
-function isUserMessageItem(item: ConversationItem | undefined): item is UserMessageItem {
-  return item?.kind === "message" && item.role === "user";
-}
-
-function isAssistantMessageItem(item: ConversationItem | undefined): item is AssistantMessageItem {
-  return item?.kind === "message" && item.role === "assistant";
-}
-
-function canUseLiveAssistantDeltaFastPath({
-  threadId,
-  list,
-  index,
-  shouldCanonicalizeLegacyId,
-  keepFinalMetadata,
-}: {
-  threadId: string;
-  list: ConversationItem[];
-  index: number;
-  shouldCanonicalizeLegacyId: boolean;
-  keepFinalMetadata: boolean;
-}) {
-  return (
-    INCREMENTAL_DERIVATION_ENABLED
-    && threadId.startsWith("claude:")
-    && index === list.length - 1
-    && !shouldCanonicalizeLegacyId
-    && !keepFinalMetadata
-  );
-}
-
-function isToolConversationItem(item: ConversationItem | undefined): item is ToolConversationItem {
-  return item?.kind === "tool";
-}
-
-type ThreadActivityStatus = {
-  isProcessing: boolean;
-  hasUnread: boolean;
-  isReviewing: boolean;
-  isContextCompacting?: boolean;
-  processingStartedAt: number | null;
-  lastDurationMs: number | null;
-  heartbeatPulse?: number;
-  continuationPulse?: number;
-  terminalPulse?: number;
-  codexCompactionSource?: CodexCompactionSource | null;
-  codexCompactionLifecycleState?: CodexCompactionLifecycleState;
-  codexCompactionCompletedAt?: number | null;
-  lastTokenUsageUpdatedAt?: number | null;
-};
-
-function withThreadStatusDefaults(
-  status?: ThreadActivityStatus,
-): ThreadActivityStatus {
-  return {
-    isProcessing: status?.isProcessing ?? false,
-    hasUnread: status?.hasUnread ?? false,
-    isReviewing: status?.isReviewing ?? false,
-    isContextCompacting: status?.isContextCompacting ?? false,
-    processingStartedAt: status?.processingStartedAt ?? null,
-    lastDurationMs: status?.lastDurationMs ?? null,
-    heartbeatPulse: status?.heartbeatPulse ?? 0,
-    continuationPulse: status?.continuationPulse ?? 0,
-    terminalPulse: status?.terminalPulse ?? 0,
-    codexCompactionSource: status?.codexCompactionSource ?? null,
-    codexCompactionLifecycleState:
-      status?.codexCompactionLifecycleState ?? "idle",
-    codexCompactionCompletedAt: status?.codexCompactionCompletedAt ?? null,
-    lastTokenUsageUpdatedAt: status?.lastTokenUsageUpdatedAt ?? null,
-  };
-}
-
-function isTokenUsageBreakdownEqual(
-  left: ThreadTokenUsage["total"] | ThreadTokenUsage["last"] | undefined,
-  right: ThreadTokenUsage["total"] | ThreadTokenUsage["last"] | undefined,
-): boolean {
-  return (
-    (left?.totalTokens ?? 0) === (right?.totalTokens ?? 0) &&
-    (left?.inputTokens ?? 0) === (right?.inputTokens ?? 0) &&
-    (left?.cachedInputTokens ?? 0) === (right?.cachedInputTokens ?? 0) &&
-    (left?.outputTokens ?? 0) === (right?.outputTokens ?? 0) &&
-    (left?.reasoningOutputTokens ?? 0) === (right?.reasoningOutputTokens ?? 0)
-  );
-}
-
-function isThreadTokenUsageEqual(
-  left: ThreadTokenUsage | null | undefined,
-  right: ThreadTokenUsage | null | undefined,
-): boolean {
-  if (left == null || right == null) {
-    return left == null && right == null;
-  }
-  return (
-    isTokenUsageBreakdownEqual(left.total, right.total) &&
-    isTokenUsageBreakdownEqual(left.last, right.last) &&
-    left.modelContextWindow === right.modelContextWindow
-  );
-}
-
-export type ThreadState = {
-  activeThreadIdByWorkspace: Record<string, string | null>;
-  itemsByThread: Record<string, ConversationItem[]>;
-  historyRestoredAtMsByThread: Record<string, number | null>;
-  threadsByWorkspace: Record<string, ThreadSummary[]>;
-  hiddenThreadIdsByWorkspace: Record<string, Record<string, true>>;
-  threadParentById: Record<string, string>;
-  threadStatusById: Record<string, ThreadActivityStatus>;
-  threadListLoadingByWorkspace: Record<string, boolean>;
-  threadListPagingByWorkspace: Record<string, boolean>;
-  threadListCursorByWorkspace: Record<string, string | null>;
-  activeTurnIdByThread: Record<string, string | null>;
-  codexAcceptedTurnByThread: Record<string, CodexAcceptedTurnRecord>;
-  approvals: ApprovalRequest[];
-  userInputRequests: RequestUserInputRequest[];
-  tokenUsageByThread: Record<string, ThreadTokenUsage>;
-  rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
-  accountByWorkspace: Record<string, AccountSnapshot | null>;
-  planByThread: Record<string, TurnPlan | null>;
-  lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
-  // 流式消息分段：当 tool item 开始时增加，确保文本和工具交替显示
-  agentSegmentByThread: Record<string, number>;
-};
-
-export type ThreadAction =
-  | { type: "setActiveThreadId"; workspaceId: string; threadId: string | null }
-  | {
-      type: "ensureThread";
-      workspaceId: string;
-      threadId: string;
-      engine?: "codex" | "claude" | "gemini" | "opencode";
-    }
-  | { type: "hideThread"; workspaceId: string; threadId: string }
-  | { type: "removeThread"; workspaceId: string; threadId: string }
-  | { type: "setThreadParent"; threadId: string; parentId: string }
-  | {
-      type: "markProcessing";
-      threadId: string;
-      isProcessing: boolean;
-      timestamp: number;
-    }
-  | {
-      type: "markContextCompacting";
-      threadId: string;
-      isCompacting: boolean;
-      timestamp?: number;
-      source?: CodexCompactionSource | null;
-      completionStatus?: "completed" | "idle";
-    }
-  | {
-      type: "settleCodexCompactionMessage";
-      threadId: string;
-      text: string;
-      fallbackMessageId?: string | null;
-      appendIfAlreadyCompleted?: boolean;
-    }
-  | {
-      type: "appendCodexCompactionMessage";
-      threadId: string;
-      text: string;
-    }
-  | {
-      type: "discardLatestCodexCompactionMessage";
-      threadId: string;
-      text: string;
-    }
-  | {
-      type: "setThreadHistoryRestoredAt";
-      threadId: string;
-      timestamp: number | null;
-    }
-  | { type: "markHeartbeat"; threadId: string; pulse: number }
-  | { type: "markContinuationEvidence"; threadId: string }
-  | { type: "markTerminalSettlement"; threadId: string }
-  | {
-      type: "finalizePendingToolStatuses";
-      threadId: string;
-      status: "completed" | "failed";
-    }
-  | { type: "markReviewing"; threadId: string; isReviewing: boolean }
-  | { type: "markUnread"; threadId: string; hasUnread: boolean }
-  | { type: "addAssistantMessage"; threadId: string; text: string }
-  | { type: "setThreadName"; workspaceId: string; threadId: string; name: string }
-  | {
-      type: "setThreadEngine";
-      workspaceId: string;
-      threadId: string;
-      engine: "codex" | "claude" | "gemini" | "opencode";
-    }
-  | {
-      type: "setThreadTimestamp";
-      workspaceId: string;
-      threadId: string;
-      timestamp: number;
-    }
-  | {
-      type: "appendAgentDelta";
-      workspaceId: string;
-      threadId: string;
-      itemId: string;
-      delta: string;
-      hasCustomName: boolean;
-    }
-  | {
-      type: "completeAgentMessage";
-      workspaceId: string;
-      threadId: string;
-      itemId: string;
-      text: string;
-      hasCustomName: boolean;
-      timestamp?: number;
-    }
-  | {
-      type: "upsertItem";
-      workspaceId: string;
-      threadId: string;
-      item: ConversationItem;
-      hasCustomName?: boolean;
-    }
-  | {
-      type: "applyNormalizedRealtimeEvent";
-      workspaceId: string;
-      threadId: string;
-      event: NormalizedThreadEvent;
-      hasCustomName: boolean;
-    }
-  | { type: "clearProcessingGeneratedImages"; threadId: string }
-  | { type: "evictThreadItems"; threadIds: string[] }
-  | { type: "setThreadItems"; threadId: string; items: ConversationItem[] }
-  | {
-      type: "appendReasoningSummary";
-      threadId: string;
-      itemId: string;
-      delta: string;
-    }
-  | {
-      type: "appendReasoningSummaryBoundary";
-      threadId: string;
-      itemId: string;
-    }
-  | {
-      type: "appendContextCompacted";
-      threadId: string;
-      turnId: string;
-    }
-  | { type: "appendReasoningContent"; threadId: string; itemId: string; delta: string }
-  | { type: "dropReasoningItems"; threadId: string }
-  | { type: "appendToolOutput"; threadId: string; itemId: string; delta: string }
-  | { type: "setThreads"; workspaceId: string; threads: ThreadSummary[] }
-  | {
-      type: "setThreadListLoading";
-      workspaceId: string;
-      isLoading: boolean;
-    }
-  | {
-      type: "setThreadListPaging";
-      workspaceId: string;
-      isLoading: boolean;
-    }
-  | {
-      type: "setThreadListCursor";
-      workspaceId: string;
-      cursor: string | null;
-    }
-  | { type: "addApproval"; approval: ApprovalRequest }
-  | {
-      type: "removeApproval";
-      requestId: number | string;
-      workspaceId: string;
-      approval?: ApprovalRequest;
-    }
-  | { type: "addUserInputRequest"; request: RequestUserInputRequest }
-  | {
-      type: "removeUserInputRequest";
-      requestId: number | string;
-      workspaceId: string;
-    }
-  | {
-      type: "clearUserInputRequestsForThread";
-      workspaceId: string;
-      threadId: string;
-    }
-  | { type: "setThreadTokenUsage"; threadId: string; tokenUsage: ThreadTokenUsage }
-  | {
-      type: "setRateLimits";
-      workspaceId: string;
-      rateLimits: RateLimitSnapshot | null;
-    }
-  | {
-      type: "setAccountInfo";
-      workspaceId: string;
-      account: AccountSnapshot | null;
-    }
-  | { type: "setActiveTurnId"; threadId: string; turnId: string | null }
-  | {
-      type: "markCodexAcceptedTurn";
-      threadId: string;
-      fact: CodexAcceptedTurnFact;
-      source: string;
-      timestamp: number;
-    }
-  | { type: "setThreadPlan"; threadId: string; plan: TurnPlan | null }
-  | {
-      type: "settleThreadPlanInProgress";
-      threadId: string;
-      targetStatus: "pending" | "completed";
-    }
-  | { type: "clearThreadPlan"; threadId: string }
-  | { type: "incrementAgentSegment"; threadId: string }
-  | { type: "resetAgentSegment"; threadId: string }
-  | { type: "markLatestAssistantMessageFinal"; threadId: string }
-  | {
-      type: "setLastAgentMessage";
-      threadId: string;
-      text: string;
-      timestamp: number;
-    }
-  | {
-      type: "renameThreadId";
-      workspaceId: string;
-      oldThreadId: string;
-      newThreadId: string;
-    };
-
 const emptyItems: Record<string, ConversationItem[]> = {};
 
 export const initialState: ThreadState = {
@@ -512,85 +127,6 @@ export function createInitialThreadState(snapshot?: SidebarSnapshot | null): Thr
     ...initialState,
     threadsByWorkspace: snapshot.threadsByWorkspace,
   };
-}
-
-
-function findAssistantMessageIndexById(
-  list: ConversationItem[],
-  candidateId: string,
-) {
-  if (!candidateId) {
-    return -1;
-  }
-  for (let index = list.length - 1; index >= 0; index -= 1) {
-    const item = list[index];
-    if (!item) {
-      continue;
-    }
-    if (
-      isAssistantMessageItem(item) &&
-      item.id === candidateId
-    ) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-function findAssistantMessageIndexByPrefix(
-  list: ConversationItem[],
-  idPrefix: string,
-) {
-  if (!idPrefix) {
-    return -1;
-  }
-  const segmentPrefix = `${idPrefix}-seg-`;
-  for (let index = list.length - 1; index >= 0; index -= 1) {
-    const item = list[index];
-    if (!item) {
-      continue;
-    }
-    if (
-      isAssistantMessageItem(item) &&
-      item.id.startsWith(segmentPrefix)
-    ) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-function resolveLiveAssistantMessageId(
-  state: ThreadState,
-  threadId: string,
-  itemId: string,
-) {
-  const segment = state.agentSegmentByThread[threadId] ?? 0;
-  const normalizedItemId = itemId.trim();
-  // Prefer backend item id for local CLI threads to avoid cross-turn overwrite races.
-  // Realtime events may arrive after activeTurnId has advanced to the next turn.
-  if (normalizedItemId.length > 0) {
-    return segment > 0 ? `${normalizedItemId}-seg-${segment}` : normalizedItemId;
-  }
-  const activeTurnId = state.activeTurnIdByThread[threadId] ?? null;
-  if (isLocalCliReasoningThread(threadId) && activeTurnId) {
-    return segment > 0
-      ? `assistant-live:${activeTurnId}:seg-${segment}`
-      : `assistant-live:${activeTurnId}`;
-  }
-  return segment > 0 ? `${itemId}-seg-${segment}` : itemId;
-}
-
-function resolveLiveReasoningItemId(
-  state: ThreadState,
-  threadId: string,
-  itemId: string,
-) {
-  if (!isLocalCliReasoningThread(threadId)) {
-    return itemId;
-  }
-  const segment = state.agentSegmentByThread[threadId] ?? 0;
-  return segment > 0 ? `${itemId}-seg-${segment}` : itemId;
 }
 
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {

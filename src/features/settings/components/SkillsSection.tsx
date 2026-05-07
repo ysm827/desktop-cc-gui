@@ -34,7 +34,7 @@ import {
   readExternalAbsoluteFile,
   writeExternalAbsoluteFile,
 } from "../../../services/tauri";
-import type { SkillOption, WorkspaceInfo } from "../../../types";
+import type { AppSettings, SkillOption, WorkspaceInfo } from "../../../types";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { FileMarkdownPreview } from "../../files/components/FileMarkdownPreview";
 import {
@@ -50,9 +50,11 @@ import {
 type SkillsSectionProps = {
   activeWorkspace: WorkspaceInfo | null;
   embedded?: boolean;
+  appSettings: AppSettings;
+  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
 
-type GlobalEngine = "claude" | "code" | "gemini" | "agents";
+type GlobalEngine = "claude" | "code" | "gemini" | "agents" | "custom";
 type SelectedNodeKind = "dir" | "file" | null;
 
 type EngineConfig = {
@@ -79,7 +81,7 @@ const imageExtensions = new Set([
   "png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "bmp", "heic", "heif", "tif", "tiff", "ico",
 ]);
 
-const ENGINE_ORDER: GlobalEngine[] = ["claude", "code", "gemini", "agents"];
+const ENGINE_ORDER: GlobalEngine[] = ["claude", "code", "gemini", "agents", "custom"];
 const ENGINE_CONFIGS: Record<GlobalEngine, EngineConfig> = {
   claude: {
     sourcePrefixes: ["global_claude", "global_claude_plugin"],
@@ -101,6 +103,11 @@ const ENGINE_CONFIGS: Record<GlobalEngine, EngineConfig> = {
     pathMarkers: ["/.agents/skills"],
     globalDir: ".agents/skills",
   },
+  custom: {
+    sourcePrefixes: ["custom"],
+    pathMarkers: [],
+    globalDir: "custom",
+  },
 };
 
 function normalizeText(value: unknown) {
@@ -115,6 +122,20 @@ function normalizeFsPath(path: unknown) {
   return String(path ?? "").trim().replace(/\\/g, "/");
 }
 
+function normalizeCustomSkillDirectories(value: readonly string[] | undefined) {
+  const seen = new Set<string>();
+  const directories: string[] = [];
+  for (const item of value ?? []) {
+    const normalized = String(item ?? "").trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    directories.push(normalized);
+  }
+  return directories;
+}
+
 function normalizeWorkspacePath(workspacePath?: string | null) {
   const normalized = normalizePathKey(workspacePath ?? "");
   if (!normalized) {
@@ -125,6 +146,9 @@ function normalizeWorkspacePath(workspacePath?: string | null) {
 
 function isGlobalSkill(skill: SkillOption, workspacePath?: string | null) {
   const source = normalizeManagedInstructionSource(skill.source);
+  if (source === "custom") {
+    return true;
+  }
   if (isGlobalManagedInstructionSource(source)) {
     return true;
   }
@@ -144,9 +168,26 @@ function isGlobalSkill(skill: SkillOption, workspacePath?: string | null) {
   );
 }
 
-function matchesEngine(skill: SkillOption, engine: GlobalEngine) {
+function matchesEngine(
+  skill: SkillOption,
+  engine: GlobalEngine,
+  customSkillDirectories: readonly string[] = [],
+) {
   const config = ENGINE_CONFIGS[engine];
   const source = normalizeManagedInstructionSource(skill.source);
+  if (engine === "custom") {
+    if (source === "custom") {
+      return true;
+    }
+    const path = normalizePathKey(skill.path);
+    return customSkillDirectories.some((directory) => {
+      const root = normalizePathKey(directory).replace(/\/+$/, "");
+      return root ? path === root || path.startsWith(`${root}/`) : false;
+    });
+  }
+  if (source === "custom") {
+    return false;
+  }
   if (config.sourcePrefixes.some((prefix) => source.startsWith(prefix))) {
     return true;
   }
@@ -233,13 +274,28 @@ function removeRecordKey<T>(record: Record<string, T>, keyToDelete: string) {
 export function SkillsSection({
   activeWorkspace,
   embedded = false,
+  appSettings,
+  onUpdateAppSettings,
 }: SkillsSectionProps) {
   const { t } = useTranslation();
-  const { skills, refreshSkills } = useSkills({ activeWorkspace });
+  const customSkillDirectories = useMemo(
+    () => normalizeCustomSkillDirectories(appSettings.customSkillDirectories),
+    [appSettings.customSkillDirectories],
+  );
+  const { skills, refreshSkills } = useSkills({
+    activeWorkspace,
+    customSkillDirectories,
+  });
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<GlobalEngine>("claude");
+  const [customDirsDraft, setCustomDirsDraft] = useState(
+    customSkillDirectories.join("\n"),
+  );
+  const [customDirsSaving, setCustomDirsSaving] = useState(false);
+  const [customDirsMessage, setCustomDirsMessage] = useState<string | null>(null);
+  const [customDirsError, setCustomDirsError] = useState<string | null>(null);
   const [selectedNodePath, setSelectedNodePath] = useState<string | null>(null);
   const [selectedNodeKind, setSelectedNodeKind] = useState<SelectedNodeKind>(null);
   const [expandedDirectoryKeys, setExpandedDirectoryKeys] = useState<Set<string>>(new Set());
@@ -272,6 +328,10 @@ export function SkillsSection({
     loadingDirectoryKeysRef.current = loadingDirectoryKeys;
   }, [loadingDirectoryKeys]);
 
+  useEffect(() => {
+    setCustomDirsDraft(customSkillDirectories.join("\n"));
+  }, [customSkillDirectories]);
+
   const loadSkills = useCallback(async () => {
     if (!activeWorkspace?.id) {
       return;
@@ -287,6 +347,35 @@ export function SkillsSection({
     }
   }, [activeWorkspace?.id, refreshSkills]);
 
+  const saveCustomSkillDirectories = useCallback(async () => {
+    const directories = normalizeCustomSkillDirectories(
+      customDirsDraft.split(/\r?\n/),
+    );
+    setCustomDirsSaving(true);
+    setCustomDirsError(null);
+    setCustomDirsMessage(null);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        customSkillDirectories: directories,
+      });
+      setCustomDirsMessage(t("settings.skillsPanel.customDirsSaved"));
+      await refreshSkills();
+    } catch (saveError) {
+      setCustomDirsError(
+        saveError instanceof Error ? saveError.message : String(saveError),
+      );
+    } finally {
+      setCustomDirsSaving(false);
+    }
+  }, [
+    appSettings,
+    customDirsDraft,
+    onUpdateAppSettings,
+    refreshSkills,
+    t,
+  ]);
+
   useEffect(() => {
     void loadSkills();
   }, [loadSkills]);
@@ -296,8 +385,11 @@ export function SkillsSection({
     [activeWorkspace?.path, skills],
   );
   const engineSkills = useMemo(
-    () => globalSkills.filter((skill) => matchesEngine(skill, engine)),
-    [engine, globalSkills],
+    () =>
+      globalSkills.filter((skill) =>
+        matchesEngine(skill, engine, customSkillDirectories),
+      ),
+    [customSkillDirectories, engine, globalSkills],
   );
   const normalizedQuery = normalizeText(query);
   const filteredSkills = useMemo(() => {
@@ -310,15 +402,25 @@ export function SkillsSection({
     });
   }, [engineSkills, normalizedQuery]);
 
-  const engineRootPath = useMemo(() => {
+  const engineRootPaths = useMemo(() => {
+    if (engine === "custom") {
+      return customSkillDirectories;
+    }
     for (const skill of engineSkills) {
       const root = extractEngineRootFromSkillPath(skill.path, engine);
       if (root) {
-        return root;
+        return [root];
       }
     }
-    return null;
-  }, [engine, engineSkills]);
+    return [] as string[];
+  }, [customSkillDirectories, engine, engineSkills]);
+  const primaryEngineRootPath = engineRootPaths[0] ?? null;
+  const engineRootSummary = useMemo(
+    () => engineRootPaths.join(", "),
+    [engineRootPaths],
+  );
+  const usesVirtualRootEntries =
+    engine === "custom" && engineRootPaths.length > 1;
 
   const skillRootMap = useMemo(() => {
     const map = new Map<string, SkillOption>();
@@ -407,15 +509,18 @@ export function SkillsSection({
     loadingDirectoryKeysRef.current = new Set();
     setExpandedDirectoryKeys(new Set());
 
-    if (!engineRootPath) {
+    if (engineRootPaths.length === 0) {
       setSelectedNodePath(null);
       setSelectedNodeKind(null);
       return;
     }
 
-    const rootKey = normalizePathKey(engineRootPath);
-    setExpandedDirectoryKeys(new Set([rootKey]));
-    void loadDirectoryEntries(engineRootPath);
+    setExpandedDirectoryKeys(
+      new Set(engineRootPaths.map((rootPath) => normalizePathKey(rootPath))),
+    );
+    for (const rootPath of engineRootPaths) {
+      void loadDirectoryEntries(rootPath);
+    }
 
     const defaultSkillPath = normalizeFsPath(engineSkills[0]?.path ?? "");
     if (defaultSkillPath) {
@@ -423,9 +528,9 @@ export function SkillsSection({
       setSelectedNodeKind("file");
       return;
     }
-    setSelectedNodePath(engineRootPath);
+    setSelectedNodePath(primaryEngineRootPath);
     setSelectedNodeKind("dir");
-  }, [engineRootPath, engineSkills, loadDirectoryEntries]);
+  }, [engineRootPaths, engineSkills, loadDirectoryEntries, primaryEngineRootPath]);
 
   const toggleDirectory = useCallback(
     (directoryPath: string) => {
@@ -587,16 +692,38 @@ export function SkillsSection({
     }
   }, [activeWorkspace?.id, isEditingSelectedFile, selectedFileDraftContent, selectedFilePath]);
 
-  const rootDirectoryKey = useMemo(
-    () => (engineRootPath ? normalizePathKey(engineRootPath) : ""),
-    [engineRootPath],
+  const rootTreeEntries = useMemo(() => {
+    if (usesVirtualRootEntries) {
+      return sortTreeEntries(
+        engineRootPaths.map((rootPath) => ({
+          name: pathBaseName(rootPath) || rootPath,
+          path: rootPath,
+          kind: "dir" as const,
+          isSkillRoot: true,
+        })),
+      );
+    }
+    const rootDirectoryKey = primaryEngineRootPath
+      ? normalizePathKey(primaryEngineRootPath)
+      : "";
+    return rootDirectoryKey ? (directoryEntries[rootDirectoryKey] ?? []) : [];
+  }, [
+    directoryEntries,
+    engineRootPaths,
+    primaryEngineRootPath,
+    usesVirtualRootEntries,
+  ]);
+  const rootTreeLoading = Boolean(
+    !usesVirtualRootEntries
+    && primaryEngineRootPath
+    && loadingDirectoryKeys.has(normalizePathKey(primaryEngineRootPath)),
   );
-  const rootEntries = useMemo(
-    () => (rootDirectoryKey ? (directoryEntries[rootDirectoryKey] ?? []) : []),
-    [directoryEntries, rootDirectoryKey],
-  );
-  const rootDirectoryLoading = Boolean(rootDirectoryKey && loadingDirectoryKeys.has(rootDirectoryKey));
-  const rootDirectoryError = rootDirectoryKey ? directoryErrors[rootDirectoryKey] : null;
+  const rootTreeError = useMemo(() => {
+    if (usesVirtualRootEntries || !primaryEngineRootPath) {
+      return null;
+    }
+    return directoryErrors[normalizePathKey(primaryEngineRootPath)] ?? null;
+  }, [directoryErrors, primaryEngineRootPath, usesVirtualRootEntries]);
 
   const engineLabel = useCallback(
     (value: GlobalEngine) => {
@@ -609,6 +736,8 @@ export function SkillsSection({
           return t("settings.skillsPanel.engineGemini");
         case "agents":
           return t("settings.skillsPanel.engineAgents");
+        case "custom":
+          return t("settings.skillsPanel.engineCustom");
       }
     },
     [t],
@@ -865,6 +994,48 @@ export function SkillsSection({
             </div>
           </div>
 
+          <div className="settings-skills-custom-dirs">
+            <div className="settings-skills-custom-dirs-copy">
+              <div className="settings-skills-custom-dirs-title">
+                {t("settings.skillsPanel.customDirsTitle")}
+              </div>
+              <div className="settings-inline-muted">
+                {t("settings.skillsPanel.customDirsDescription")}
+              </div>
+            </div>
+            <Textarea
+              value={customDirsDraft}
+              onChange={(event) => {
+                setCustomDirsDraft(event.target.value);
+                setCustomDirsMessage(null);
+                setCustomDirsError(null);
+              }}
+              placeholder={t("settings.skillsPanel.customDirsPlaceholder")}
+              className="settings-skills-custom-dirs-input"
+              spellCheck={false}
+            />
+            <div className="settings-skills-custom-dirs-actions">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void saveCustomSkillDirectories()}
+                disabled={customDirsSaving}
+              >
+                <Save size={14} />
+                {customDirsSaving
+                  ? t("settings.saving")
+                  : t("settings.skillsPanel.customDirsSave")}
+              </Button>
+              {customDirsMessage ? (
+                <span className="settings-inline-success">{customDirsMessage}</span>
+              ) : null}
+              {customDirsError ? (
+                <span className="settings-inline-error">{customDirsError}</span>
+              ) : null}
+            </div>
+          </div>
+
           <div className="settings-skills-summary-strip">
             <div className="settings-skills-summary-chip">
               <HardDrive size={14} />
@@ -874,7 +1045,7 @@ export function SkillsSection({
               <FolderTree size={14} />
               <span>
                 {t("settings.skillsPanel.activeGlobalDir", {
-                  path: engineRootPath || ENGINE_CONFIGS[engine].globalDir,
+                  path: engineRootSummary || ENGINE_CONFIGS[engine].globalDir,
                 })}
               </span>
             </div>
@@ -893,7 +1064,7 @@ export function SkillsSection({
 
           {loading && <div className="settings-inline-muted">{t("settings.loading")}</div>}
 
-          {!loading && !engineRootPath && (
+          {!loading && engineRootPaths.length === 0 && (
             <div className="settings-inline-muted">{t("settings.skillsPanel.engineRootUnavailable")}</div>
           )}
 
@@ -901,7 +1072,7 @@ export function SkillsSection({
             <div className="settings-inline-muted">{t("settings.skillsPanel.empty")}</div>
           )}
 
-          {!loading && engineRootPath && (
+          {!loading && primaryEngineRootPath && (
             <div
               ref={browserContainerRef}
               className={cn(
@@ -913,18 +1084,20 @@ export function SkillsSection({
             >
               <aside className="settings-skills-tree-pane" aria-hidden={treePaneCollapsed}>
                 <div className="settings-skills-pane-title">{t("settings.skillsPanel.treeTitle")}</div>
-                <div className="settings-skills-tree-root">{engineRootPath}</div>
+                <div className="settings-skills-tree-root">
+                  {engineRootSummary || primaryEngineRootPath}
+                </div>
                 <div className="settings-skills-tree-scroll">
-                  {rootDirectoryLoading ? (
+                  {rootTreeLoading ? (
                     <div className="settings-skills-tree-state">{t("settings.skillsPanel.treeLoading")}</div>
-                  ) : rootDirectoryError ? (
+                  ) : rootTreeError ? (
                     <div className="settings-inline-error">
-                      {t("settings.skillsPanel.treeLoadFailed", { message: rootDirectoryError })}
+                      {t("settings.skillsPanel.treeLoadFailed", { message: rootTreeError })}
                     </div>
-                  ) : rootEntries.length === 0 ? (
+                  ) : rootTreeEntries.length === 0 ? (
                     <div className="settings-skills-tree-state">{t("settings.skillsPanel.treeFolderEmpty")}</div>
                   ) : (
-                    renderTreeNodes(rootEntries)
+                    renderTreeNodes(rootTreeEntries)
                   )}
                 </div>
               </aside>

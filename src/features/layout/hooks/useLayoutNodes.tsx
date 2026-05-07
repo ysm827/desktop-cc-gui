@@ -204,6 +204,7 @@ type LayoutNodesOptions = {
   threadListCursorByWorkspace: Record<string, string | null>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
+  activeTurnId?: string | null;
   systemProxyEnabled?: boolean;
   systemProxyUrl?: string | null;
   activeItems: ConversationItem[];
@@ -262,6 +263,7 @@ type LayoutNodesOptions = {
   onConnectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   onAddAgent: (workspace: WorkspaceInfo, engine?: EngineType) => Promise<void>;
   engineOptions?: EngineDisplayInfo[];
+  enabledEngines?: Partial<Record<EngineType, boolean>>;
   onRefreshEngineOptions?: () =>
     | Promise<import("../../engine/hooks/useEngineController").EngineRefreshResult | void>
     | import("../../engine/hooks/useEngineController").EngineRefreshResult
@@ -437,6 +439,8 @@ type LayoutNodesOptions = {
   onSelectCommit: (entry: GitLogEntry) => void;
   gitLogError: string | null;
   gitLogLoading: boolean;
+  refreshGitDiffs: () => void;
+  queueGitStatusRefresh: () => void;
   gitIssues: GitHubIssue[];
   gitIssuesTotal: number;
   gitIssuesLoading: boolean;
@@ -620,6 +624,7 @@ type LayoutNodesOptions = {
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   skills: SkillOption[];
+  customSkillDirectories?: string[];
   prompts: CustomPromptOption[];
   commands?: CustomCommandOption[];
   files: string[];
@@ -786,7 +791,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const bottomActivityVisibleTabs = {
     todo: clientUiVisibility.isControlVisible("bottomActivity.tasks"),
     subagent: clientUiVisibility.isControlVisible("bottomActivity.agents"),
-    files: clientUiVisibility.isControlVisible("bottomActivity.edits"),
+    checkpoint: clientUiVisibility.isControlVisible("bottomActivity.checkpoint"),
     latestUserMessage: clientUiVisibility.isControlVisible(
       "bottomActivity.latestConversation",
     ),
@@ -840,7 +845,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         workspaceId: options.activeWorkspace?.id ?? "",
         threadId: options.activeThreadId ?? "",
         engine: conversationEngine,
-        activeTurnId: null,
+        activeTurnId: options.activeTurnId ?? null,
         isThinking: activeThreadStatus?.isProcessing ?? false,
         heartbeatPulse: heartbeatPulseRef.current,
         historyRestoredAtMs: activeHistoryRestoredAtMs,
@@ -852,6 +857,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       options.userInputRequests,
       options.activeWorkspace?.id,
       options.activeThreadId,
+      options.activeTurnId,
       conversationEngine,
       activeThreadStatus?.isProcessing,
       activeHistoryRestoredAtMs,
@@ -892,6 +898,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     threadParentById: options.threadParentById,
     threadStatusById: options.threadStatusById,
   });
+  const isEditorFileMaximized = options.isEditorFileMaximized;
+  const onToggleEditorFileMaximized = options.onToggleEditorFileMaximized;
   const handleOpenDiffFromActivity = useCallback(
     (
       path: string,
@@ -899,8 +907,11 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       highlightOptions?: OpenFileOptions,
     ) => {
       onOpenFile(path, location, highlightOptions);
+      if (!isEditorFileMaximized) {
+        onToggleEditorFileMaximized();
+      }
     },
-    [onOpenFile],
+    [isEditorFileMaximized, onOpenFile, onToggleEditorFileMaximized],
   );
   const groupedWorkspacesForHeader = useMemo(() => {
     const worktreesByParent = new Map<string, WorkspaceInfo[]>();
@@ -1292,6 +1303,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onConnectWorkspace={options.onConnectWorkspace}
       onAddAgent={options.onAddAgent}
       engineOptions={options.engineOptions}
+      enabledEngines={options.enabledEngines}
       onRefreshEngineOptions={options.onRefreshEngineOptions}
       onAddSharedAgent={options.onAddSharedAgent}
       onAddWorktreeAgent={options.onAddWorktreeAgent}
@@ -1463,9 +1475,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     todoTotal > 0 ||
     subagentTotal > 0 ||
     fileChanges.length > 0 ||
+    commandTotal > 0 ||
     options.isPlanMode ||
-    Boolean(options.plan) ||
-    (isStatusPanelCodexEngine && commandTotal > 0);
+    Boolean(options.plan);
   const showBottomStatusPanel =
     showBottomActivityPanel &&
     isStatusPanelEngine &&
@@ -1588,6 +1600,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         accessMode={options.accessMode}
         onSelectAccessMode={options.onSelectAccessMode}
         skills={options.skills}
+        customSkillDirectories={options.customSkillDirectories}
         prompts={options.prompts}
         commands={composerCommands}
         files={options.files}
@@ -1879,11 +1892,13 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     gitDiffPanelNode = (
       <WorkspaceSessionActivityPanel
         workspaceId={options.activeWorkspace?.id ?? null}
+        workspacePath={options.activeWorkspace?.path ?? null}
         viewModel={workspaceActivity}
         onOpenDiffPath={handleOpenDiffFromActivity}
         onSelectThread={options.onSelectThread}
         liveEditPreviewEnabled={options.liveEditPreviewEnabled}
         onToggleLiveEditPreview={options.onToggleLiveEditPreview}
+        onRefreshGitStatus={options.queueGitStatusRefresh}
       />
     );
   } else if (options.filePanelMode === "radar") {
@@ -1981,6 +1996,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         pushError={options.pushError}
         syncError={options.syncError}
         commitsAhead={options.commitsAhead}
+        onRefreshGitStatus={options.queueGitStatusRefresh}
+        onRefreshGitDiffs={options.refreshGitDiffs}
       />
     );
   }
@@ -2050,6 +2067,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
 
   const planPanelNode = showBottomStatusPanel ? (
     <StatusPanel
+      workspaceId={options.activeWorkspace?.id ?? null}
+      workspacePath={options.activeWorkspace?.path ?? null}
       items={options.activeItems}
       isProcessing={options.isProcessing}
       expanded
@@ -2057,14 +2076,33 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       isPlanMode={options.isPlanMode}
       isCodexEngine={isStatusPanelCodexEngine}
       activeThreadId={options.activeThreadId}
+      activeTurnId={options.activeTurnId ?? null}
+      workspaceGitFiles={options.gitStatus.files}
+      workspaceGitStagedFiles={options.gitStatus.stagedFiles}
+      workspaceGitUnstagedFiles={options.gitStatus.unstagedFiles}
+      workspaceGitTotals={{
+        additions: options.gitStatus.totalAdditions,
+        deletions: options.gitStatus.totalDeletions,
+      }}
+      workspaceGitDiffs={options.gitDiffs}
       itemsByThread={options.threadItemsByThread}
       threadParentById={options.threadParentById}
       threadStatusById={options.threadStatusById}
       onOpenDiffPath={handleOpenDiffPath}
+      onOpenFilePath={handleOpenDiffFromActivity}
       onSelectSubagent={options.onSelectSubagent}
       onJumpToConversationMessage={dispatchMessageJumpEvent}
       variant="dock"
       visibleDockTabs={bottomActivityVisibleTabs}
+      onRefreshGitStatus={options.queueGitStatusRefresh}
+      commitMessage={options.commitMessage}
+      commitMessageLoading={options.commitMessageLoading}
+      commitMessageError={options.commitMessageError}
+      onCommitMessageChange={options.onCommitMessageChange}
+      onGenerateCommitMessage={options.onGenerateCommitMessage}
+      onCommit={options.onCommit}
+      commitLoading={options.commitLoading}
+      commitError={options.commitError}
     />
   ) : null;
 

@@ -6,6 +6,15 @@ import type { GitLogEntry } from "../../../types";
 const mockMenuPopup = vi.fn<
   (items: Array<{ text: string; action?: () => Promise<void> | void }>) => Promise<void>
 >();
+const mockEditableDiffReviewSurface = vi.fn((props: Record<string, unknown>) => (
+  <div data-testid="git-diff-viewer">
+    {typeof props.onRequestClose === "function" ? (
+      <button type="button" onClick={() => (props.onRequestClose as () => void)()}>
+        Mock close preview
+      </button>
+    ) : null}
+  </div>
+));
 
 // Mock react-i18next
 vi.mock("react-i18next", () => ({
@@ -87,8 +96,9 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("./GitDiffViewer", () => ({
-  GitDiffViewer: () => <div data-testid="git-diff-viewer" />,
+vi.mock("./WorkspaceEditableDiffReviewSurface", () => ({
+  WorkspaceEditableDiffReviewSurface: (props: Record<string, unknown>) =>
+    mockEditableDiffReviewSurface(props),
 }));
 
 import { GitDiffPanel } from "./GitDiffPanel";
@@ -147,6 +157,7 @@ const baseProps = {
 afterEach(() => {
   cleanup();
   mockMenuPopup.mockReset();
+  mockEditableDiffReviewSurface.mockClear();
 });
 
 describe("GitDiffPanel", () => {
@@ -852,6 +863,39 @@ describe("GitDiffPanel", () => {
     const restoreButton = screen.getByRole("button", { name: "Restore" });
     fireEvent.click(restoreButton);
     expect(modal?.classList.contains("is-maximized")).toBe(false);
+  });
+
+  it("routes preview modal close through GitDiffViewer external header controls", async () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView="flat"
+        unstagedFiles={[
+          { path: "file.txt", status: "M", additions: 1, deletions: 0 },
+        ]}
+        diffEntries={[
+          {
+            path: "file.txt",
+            status: "M",
+            diff: "diff --git a/file.txt b/file.txt\n@@ -1 +1 @@\n-old\n+new\n",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByLabelText("file.txt"));
+
+    await waitFor(() => {
+      const latestProps = mockEditableDiffReviewSurface.mock.lastCall?.[0];
+      expect(typeof latestProps?.onRequestClose).toBe("function");
+      expect(latestProps?.headerControlsTarget).toBeInstanceOf(HTMLDivElement);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mock close preview" }));
+
+    await waitFor(() => {
+      expect(document.querySelector(".git-history-diff-modal")).toBeNull();
+    });
   });
 
   it("keeps root summary visible and in first content row for non-git workspace path", () => {

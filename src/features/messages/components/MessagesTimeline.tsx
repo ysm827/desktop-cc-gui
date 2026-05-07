@@ -125,6 +125,7 @@ type MessagesTimelineProps = {
   suppressedUserNoteCardContextMessageIds: Set<string>;
   threadId: string | null;
   toggleExpanded: (id: string) => void;
+  claudeHistoryTranscriptFallbackActive: boolean;
   hasVisibleUserInputRequest: boolean;
   userInputNode: ReactNode;
   visibleCollapsedHistoryItemCount: number;
@@ -204,6 +205,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   suppressedUserNoteCardContextMessageIds,
   threadId,
   toggleExpanded,
+  claudeHistoryTranscriptFallbackActive,
   hasVisibleUserInputRequest,
   userInputNode,
   visibleCollapsedHistoryItemCount,
@@ -263,7 +265,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               <span className="messages-turn-boundary-label">
                 <span className="messages-turn-boundary-label-content">
                   <Bell className="messages-turn-boundary-icon" size={13} aria-hidden />
-                  <span>推理过程</span>
+                  <span>{t("messages.reasoningProcessBoundary")}</span>
                 </span>
               </span>
               {finalMetaText && (
@@ -321,7 +323,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               <span className="messages-turn-boundary-label">
                 <span className="messages-turn-boundary-label-content">
                   <Flag className="messages-turn-boundary-icon" size={13} aria-hidden />
-                  <span>最终消息</span>
+                  <span>{t("messages.finalMessageBoundary")}</span>
                 </span>
               </span>
               {finalMetaText && (
@@ -440,7 +442,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       );
     }
     if (entry.kind === "bashGroup") {
-      if (activeEngine === "codex" || activeEngine === "claude") {
+      if (
+        activeEngine === "codex" ||
+        (activeEngine === "claude" && !claudeHistoryTranscriptFallbackActive)
+      ) {
         return null;
       }
       const firstItem = entry.items[0];

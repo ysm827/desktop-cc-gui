@@ -722,6 +722,14 @@ fn default_email_sender_settings() -> EmailSenderSettings {
     EmailSenderSettings::default()
 }
 
+fn default_engine_enabled() -> bool {
+    true
+}
+
+fn default_opencode_enabled() -> bool {
+    false
+}
+
 fn default_email_sender_smtp_port() -> u16 {
     465
 }
@@ -736,6 +744,10 @@ pub(crate) struct AppSettings {
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "terminalShellPath")]
     pub(crate) terminal_shell_path: Option<String>,
+    #[serde(default = "default_engine_enabled", rename = "geminiEnabled")]
+    pub(crate) gemini_enabled: bool,
+    #[serde(default = "default_opencode_enabled", rename = "opencodeEnabled")]
+    pub(crate) opencode_enabled: bool,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -854,6 +866,11 @@ pub(crate) struct AppSettings {
         rename = "customThemePresetId"
     )]
     pub(crate) custom_theme_preset_id: String,
+    #[serde(
+        default = "default_custom_skill_directories",
+        rename = "customSkillDirectories"
+    )]
+    pub(crate) custom_skill_directories: Vec<String>,
     #[serde(default = "default_user_msg_color", rename = "userMsgColor")]
     pub(crate) user_msg_color: String,
     #[serde(
@@ -1106,6 +1123,10 @@ fn default_dark_theme_preset_id() -> String {
 
 fn default_custom_theme_preset_id() -> String {
     "vscode-dark-modern".to_string()
+}
+
+fn default_custom_skill_directories() -> Vec<String> {
+    Vec::new()
 }
 
 fn default_user_msg_color() -> String {
@@ -1455,6 +1476,11 @@ impl AppSettings {
             .codex_warm_ttl_seconds
             .max(default_codex_warm_ttl_seconds());
     }
+
+    pub(crate) fn sanitize_engine_gates(&mut self) {
+        self.gemini_enabled = self.gemini_enabled != false;
+        self.opencode_enabled = self.opencode_enabled != false;
+    }
 }
 
 impl Default for AppSettings {
@@ -1464,6 +1490,8 @@ impl Default for AppSettings {
             claude_bin: None,
             codex_args: None,
             terminal_shell_path: None,
+            gemini_enabled: default_engine_enabled(),
+            opencode_enabled: default_opencode_enabled(),
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -1497,6 +1525,7 @@ impl Default for AppSettings {
             light_theme_preset_id: default_light_theme_preset_id(),
             dark_theme_preset_id: default_dark_theme_preset_id(),
             custom_theme_preset_id: default_custom_theme_preset_id(),
+            custom_skill_directories: default_custom_skill_directories(),
             user_msg_color: default_user_msg_color(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_anchors: default_show_message_anchors(),
@@ -1627,7 +1656,9 @@ mod tests {
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
         assert_eq!(settings.web_service_port, 3080);
+        assert!(settings.custom_skill_directories.is_empty());
         assert!(!settings.system_proxy_enabled);
+        assert!(!settings.opencode_enabled);
         assert!(settings.system_proxy_url.is_none());
         assert_eq!(settings.default_access_mode, "full-access");
         assert_eq!(
@@ -1798,6 +1829,13 @@ mod tests {
 
             assert_eq!(settings.codex_auto_compaction_threshold_percent, threshold);
         }
+    }
+
+    #[test]
+    fn app_settings_defaults_enable_gemini_and_disable_opencode() {
+        let settings = AppSettings::default();
+        assert!(settings.gemini_enabled);
+        assert!(!settings.opencode_enabled);
     }
 
     #[test]

@@ -42,6 +42,7 @@ CLAUDE.md
 .trellis/*.tmp
 .trellis/*.new
 .trellis/.backup-*/
+.omx/
 
 .specstory/
 .superpowers/

@@ -42,14 +42,24 @@ export type {
   WorkspaceSessionProjectionSummary,
   WorkspaceSessionBatchMutationResult,
   WorkspaceSessionBatchMutationResponse,
+  WorkspaceSessionFolder,
+  WorkspaceSessionFolderTree,
+  WorkspaceSessionFolderMutation,
+  WorkspaceSessionAssignmentResponse,
 } from "./tauri/sessionManagement";
 export {
+  assignWorkspaceSessionFolder,
   archiveWorkspaceSessions,
+  createWorkspaceSessionFolder,
+  deleteWorkspaceSessionFolder,
   deleteWorkspaceSessions,
   getWorkspaceSessionProjectionSummary,
   listGlobalCodexSessions,
   listProjectRelatedCodexSessions,
+  listWorkspaceSessionFolders,
   listWorkspaceSessions,
+  moveWorkspaceSessionFolder,
+  renameWorkspaceSessionFolder,
   unarchiveWorkspaceSessions,
 } from "./tauri/sessionManagement";
 export type { CodexRuntimeReloadResult } from "./tauri/settings";
@@ -762,8 +772,14 @@ export async function cancelCodexLogin(workspaceId: string) {
   return invoke<{ canceled: boolean }>("codex_login_cancel", { workspaceId });
 }
 
-export async function getSkillsList(workspaceId: string) {
-  return invoke<unknown>("skills_list", { workspaceId });
+export async function getSkillsList(
+  workspaceId: string,
+  customSkillRoots?: string[],
+) {
+  return invoke<unknown>("skills_list", {
+    workspaceId,
+    customSkillRoots: customSkillRoots ?? [],
+  });
 }
 
 export async function getClaudeCommandsList(workspaceId?: string | null) {

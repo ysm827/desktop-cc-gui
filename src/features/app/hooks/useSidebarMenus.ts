@@ -56,6 +56,7 @@ export type WorkspaceMenuState = {
 type SidebarMenuHandlers = {
   onAddAgent: (workspace: WorkspaceInfo, engine?: EngineType) => void;
   engineOptions?: EngineDisplayInfo[];
+  enabledEngines?: Partial<Record<EngineType, boolean>>;
   onRefreshEngineOptions?: () =>
     | Promise<EngineRefreshResult | void>
     | EngineRefreshResult
@@ -69,12 +70,22 @@ type SidebarMenuHandlers = {
   isThreadAutoNaming: (workspaceId: string, threadId: string) => boolean;
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onAutoNameThread: (workspaceId: string, threadId: string) => void;
+  onMoveThreadToFolder?: (
+    workspaceId: string,
+    threadId: string,
+    folderId: string | null,
+  ) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
   onRenameWorkspaceAlias: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
   onAddCloneAgent: (workspace: WorkspaceInfo) => void;
+};
+
+export type ThreadMoveFolderTarget = {
+  folderId: string | null;
+  label: string;
 };
 
 function resolveEngineDisplayName(engineType: EngineType): string {
@@ -94,6 +105,7 @@ function resolveEngineDisplayName(engineType: EngineType): string {
 export function useSidebarMenus({
   onAddAgent,
   engineOptions = [],
+  enabledEngines,
   onRefreshEngineOptions,
   onAddSharedAgent,
   onDeleteThread,
@@ -104,6 +116,7 @@ export function useSidebarMenus({
   isThreadAutoNaming,
   onRenameThread,
   onAutoNameThread,
+  onMoveThreadToFolder,
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
@@ -151,6 +164,9 @@ export function useSidebarMenus({
   }, []);
 
   useEffect(() => {
+    if (Object.keys(workspaceEngineOverrides).length === 0) {
+      return;
+    }
     setWorkspaceEngineOverrides((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -172,7 +188,7 @@ export function useSidebarMenus({
 
       return changed ? next : prev;
     });
-  }, [engineOptions, isMatchingEngineInfo]);
+  }, [engineOptions, isMatchingEngineInfo, workspaceEngineOverrides]);
 
   const onWorkspaceMenuAction = useCallback(
     (action: WorkspaceMenuAction) => {
@@ -421,11 +437,24 @@ export function useSidebarMenus({
     ],
   );
 
+  const isEngineSessionEntryVisible = useCallback(
+    (engineType: EngineType) => {
+      switch (engineType) {
+        case "gemini":
+        case "opencode":
+          return enabledEngines?.[engineType] !== false;
+        case "claude":
+        case "codex":
+        default:
+          return true;
+      }
+    },
+    [enabledEngines],
+  );
+
   const buildSessionMenuGroup = useCallback(
-    (workspace: WorkspaceInfo): WorkspaceMenuGroup => ({
-      id: "new-session",
-      label: t("sidebar.sessionActionsGroup"),
-      actions: [
+    (workspace: WorkspaceInfo): WorkspaceMenuGroup => {
+      const actions = [
         {
           id: "new-session-shared",
           label: t("sidebar.newSharedSession"),
@@ -461,9 +490,31 @@ export function useSidebarMenus({
           ...resolveEngineActionMeta(workspace, "gemini"),
           onSelect: () => onAddAgent(workspace, "gemini"),
         },
-      ],
-    }),
-    [t, onAddAgent, onAddSharedAgent, resolveEngineActionMeta],
+      ] satisfies WorkspaceMenuAction[];
+
+      const visibleActions = actions.filter((action) => {
+        if (action.id === "new-session-opencode") {
+          return isEngineSessionEntryVisible("opencode");
+        }
+        if (action.id === "new-session-gemini") {
+          return isEngineSessionEntryVisible("gemini");
+        }
+        return true;
+      });
+
+      return {
+        id: "new-session",
+        label: t("sidebar.sessionActionsGroup"),
+        actions: visibleActions,
+      };
+    },
+    [
+      t,
+      onAddAgent,
+      onAddSharedAgent,
+      resolveEngineActionMeta,
+      isEngineSessionEntryVisible,
+    ],
   );
 
   useEffect(() => {
@@ -534,6 +585,8 @@ export function useSidebarMenus({
       threadId: string,
       canPin: boolean,
       sizeBytes?: number,
+      moveFolderTargets: ThreadMoveFolderTarget[] = [],
+      currentFolderId: string | null = null,
     ) => {
       event.preventDefault();
       event.stopPropagation();
@@ -592,6 +645,24 @@ export function useSidebarMenus({
         );
       }
       items.push(copyItem);
+      if (onMoveThreadToFolder && moveFolderTargets.length > 0) {
+        items.push(
+          await MenuItem.new({
+            text: t("threads.moveToFolder"),
+            enabled: false,
+          }),
+        );
+        for (const target of moveFolderTargets) {
+          const isCurrentTarget = (target.folderId ?? null) === (currentFolderId ?? null);
+          items.push(
+            await MenuItem.new({
+              text: target.label,
+              enabled: !isCurrentTarget,
+              action: () => onMoveThreadToFolder(workspaceId, threadId, target.folderId),
+            }),
+          );
+        }
+      }
       const sizeLabel = formatByteSize(sizeBytes);
       if (sizeLabel) {
         items.push(
@@ -618,6 +689,7 @@ export function useSidebarMenus({
       onDeleteThread,
       onPinThread,
       onAutoNameThread,
+      onMoveThreadToFolder,
       onRenameThread,
       onSyncThread,
       onUnpinThread,

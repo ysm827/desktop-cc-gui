@@ -145,7 +145,7 @@ describe("Messages rich content", () => {
     );
 
     expect(container.querySelector(".message-generated-image-card")).toBeTruthy();
-    expect(screen.getByText("制作中")).toBeTruthy();
+    expect(screen.getByText("Making")).toBeTruthy();
     expect(screen.getByText("主播写真，直播间氛围")).toBeTruthy();
   });
 
@@ -175,8 +175,8 @@ describe("Messages rich content", () => {
       />,
     );
 
-    expect(screen.getByText("已完成")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "打开生成图片 1" })).toBeTruthy();
+    expect(screen.getByText("Completed")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open generated image 1" })).toBeTruthy();
   });
 
   it("shows degraded generated image fallback when preview is unavailable", () => {
@@ -202,7 +202,7 @@ describe("Messages rich content", () => {
       />,
     );
 
-    expect(screen.getAllByText("已完成").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
     expect(
       screen.getByText("/Users/demo/.codex/generated_images/ig_missing.png"),
     ).toBeTruthy();

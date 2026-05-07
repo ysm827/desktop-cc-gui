@@ -46,6 +46,7 @@ type ThreadStatusSnapshot = {
 interface StatusPanelDataOptions {
   isCodexEngine?: boolean;
   activeThreadId?: string | null;
+  activeTurnId?: string | null;
   itemsByThread?: Record<string, ConversationItem[]>;
   threadParentById?: Record<string, string>;
   threadStatusById?: Record<string, ThreadStatusSnapshot | undefined>;
@@ -86,6 +87,7 @@ export function useStatusPanelData(
   const {
     isCodexEngine = false,
     activeThreadId,
+    activeTurnId,
     itemsByThread,
     threadParentById,
     threadStatusById,
@@ -120,15 +122,21 @@ export function useStatusPanelData(
     return lastTodos;
   }, [items]);
 
+  const scopedToolEntries = useMemo(
+    () =>
+      collectScopedToolEntries(items, {
+        activeThreadId,
+        activeTurnId,
+        itemsByThread,
+        threadParentById,
+      }),
+    [activeThreadId, activeTurnId, items, itemsByThread, threadParentById],
+  );
+
   const subagents = useMemo(() => {
-    const scopedTools = collectScopedSubagentTools(items, {
-      activeThreadId,
-      itemsByThread,
-      threadParentById,
-    });
     const result = new Map<string, SubagentAccumulator>();
 
-    scopedTools.entries.forEach(({ threadId, item }) => {
+    scopedToolEntries.entries.forEach(({ threadId, item }) => {
       const toolName = extractToolName(item.title).trim().toLowerCase();
       const taskLike = isTaskLikeSubagentTool(item, toolName);
       if (taskLike) {
@@ -141,7 +149,7 @@ export function useStatusPanelData(
               ? "completed"
               : "running";
         const threadScopedStatus =
-          scopedTools.rootThreadId && threadId !== scopedTools.rootThreadId
+          scopedToolEntries.rootThreadId && threadId !== scopedToolEntries.rootThreadId
             ? resolveThreadScopedSubagentStatus(
                 threadId,
                 threadStatusById,
@@ -151,11 +159,11 @@ export function useStatusPanelData(
         const taskDescription = extractTaskDescription(args, item);
         const taskType = extractTaskType(args, toolName);
         const subagentId =
-          scopedTools.rootThreadId && threadId !== scopedTools.rootThreadId
+          scopedToolEntries.rootThreadId && threadId !== scopedToolEntries.rootThreadId
             ? threadId
             : item.id;
         const subagentType =
-          scopedTools.rootThreadId && threadId !== scopedTools.rootThreadId
+          scopedToolEntries.rootThreadId && threadId !== scopedToolEntries.rootThreadId
             ? threadId
             : taskType;
         upsertSubagent(result, {
@@ -165,7 +173,7 @@ export function useStatusPanelData(
           status: threadScopedStatus ?? taskStatus,
           statusPriority: threadScopedStatus ? 5 : 2,
           navigationTarget:
-            scopedTools.rootThreadId && threadId !== scopedTools.rootThreadId
+            scopedToolEntries.rootThreadId && threadId !== scopedToolEntries.rootThreadId
               ? { kind: "thread", threadId }
               : buildTaskLikeNavigationTarget(item, args),
         });
@@ -235,20 +243,23 @@ export function useStatusPanelData(
         return left.type.localeCompare(right.type);
       });
   }, [
-    activeThreadId,
-    items,
     itemsByThread,
-    threadParentById,
+    scopedToolEntries,
     threadStatusById,
   ]);
 
   const fileChanges = useMemo(() => {
-    return extractFileChangeSummaries(items) as FileChangeSummary[];
-  }, [items]);
+    return extractFileChangeSummaries(
+      scopedToolEntries.entries.map(({ item }) => item),
+    ) as FileChangeSummary[];
+  }, [scopedToolEntries]);
 
   const commands = useMemo(() => {
-    return extractCommandSummaries(items, { isCodexEngine }) as CommandSummary[];
-  }, [items, isCodexEngine]);
+    return extractCommandSummaries(
+      scopedToolEntries.entries.map(({ item }) => item),
+      { isCodexEngine },
+    ) as CommandSummary[];
+  }, [isCodexEngine, scopedToolEntries]);
 
   const todoStats = useMemo(() => {
     const completed = todos.filter((t) => t.status === "completed").length;
@@ -305,20 +316,34 @@ export function useStatusPanelData(
   };
 }
 
-function collectScopedSubagentTools(
+function collectScopedToolEntries(
   items: ConversationItem[],
   options: Pick<
     StatusPanelDataOptions,
-    "activeThreadId" | "itemsByThread" | "threadParentById"
+    "activeThreadId" | "activeTurnId" | "itemsByThread" | "threadParentById"
   >,
 ) {
   const currentThreadId = options.activeThreadId ?? "current-thread";
+  const currentTurnId = options.activeTurnId?.trim() || null;
+  const filterEntriesForTurn = (
+    entries: Array<{ threadId: string; item: ToolItem }>,
+  ) => {
+    if (!currentTurnId) {
+      return entries;
+    }
+    const matchingTurnEntries = entries.filter(
+      ({ item }) => (item.turnId?.trim() || null) === currentTurnId,
+    );
+    return matchingTurnEntries.length > 0 ? matchingTurnEntries : entries;
+  };
   if (!options.activeThreadId || !options.itemsByThread) {
     return {
       rootThreadId: null,
-      entries: items
-        .filter((item): item is ToolItem => item.kind === "tool")
-        .map((item) => ({ threadId: currentThreadId, item })),
+      entries: filterEntriesForTurn(
+        items
+          .filter((item): item is ToolItem => item.kind === "tool")
+          .map((item) => ({ threadId: currentThreadId, item })),
+      ),
     };
   }
 
@@ -351,10 +376,12 @@ function collectScopedSubagentTools(
 
   return {
     rootThreadId,
-    entries: relevantThreadIds.flatMap((threadId) =>
-      (options.itemsByThread?.[threadId] ?? [])
-        .filter((item): item is ToolItem => item.kind === "tool")
-        .map((item) => ({ threadId, item })),
+    entries: filterEntriesForTurn(
+      relevantThreadIds.flatMap((threadId) =>
+        (options.itemsByThread?.[threadId] ?? [])
+          .filter((item): item is ToolItem => item.kind === "tool")
+          .map((item) => ({ threadId, item })),
+      ),
     ),
   };
 }

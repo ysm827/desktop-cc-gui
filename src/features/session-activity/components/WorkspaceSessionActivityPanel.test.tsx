@@ -1,8 +1,31 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach as afterEachTest, describe, expect, it, vi } from "vitest";
 import type { WorkspaceSessionActivityViewModel } from "../types";
 import { WorkspaceSessionActivityPanel } from "./WorkspaceSessionActivityPanel";
+
+const { getGitFileFullDiffMock } = vi.hoisted(() => ({
+  getGitFileFullDiffMock: vi.fn<(workspaceId: string, path: string) => Promise<string>>(),
+}));
+
+vi.mock("../../../services/tauri", () => ({
+  getGitFileFullDiff: getGitFileFullDiffMock,
+}));
+
+const mockEditableDiffReviewSurface = vi.fn((props: Record<string, unknown>) => (
+  <div data-testid="activity-diff-viewer">
+    {JSON.stringify({
+      selectedPath: props.selectedPath,
+      workspaceId: props.workspaceId,
+      diffStyle: props.diffStyle,
+    })}
+  </div>
+));
+
+vi.mock("../../git/components/WorkspaceEditableDiffReviewSurface", () => ({
+  WorkspaceEditableDiffReviewSurface: (props: Record<string, unknown>) =>
+    mockEditableDiffReviewSurface(props),
+}));
 
 const SOLO_FOLLOW_COACH_DISMISSED_BY_WORKSPACE_STORAGE_KEY =
   "ccgui.sessionActivity.soloFollowCoachDismissedByWorkspace";
@@ -79,6 +102,28 @@ function createViewModel(): WorkspaceSessionActivityViewModel {
         },
         additions: 3,
         deletions: 1,
+        fileChanges: [
+          {
+            filePath: "src/App.tsx",
+            fileName: "App.tsx",
+            statusLetter: "M",
+            additions: 3,
+            deletions: 1,
+            diff: "@@ -1 +1 @@\n-old\n+new",
+            line: 9,
+            markers: { added: [9], modified: [10] },
+          },
+          {
+            filePath: "src-tauri/Cargo.toml",
+            fileName: "Cargo.toml",
+            statusLetter: "A",
+            additions: 2,
+            deletions: 0,
+            diff: "@@ -0,0 +1,2 @@\n+[dependencies]\n+tauri = \"2\"",
+            line: 1,
+            markers: { added: [1, 2], modified: [] },
+          },
+        ],
       },
       {
         eventId: "task:task-1",
@@ -148,6 +193,8 @@ describe("WorkspaceSessionActivityPanel", () => {
   afterEachTest(() => {
     cleanup();
     window.localStorage.removeItem(SOLO_FOLLOW_COACH_DISMISSED_BY_WORKSPACE_STORAGE_KEY);
+    getGitFileFullDiffMock.mockReset();
+    mockEditableDiffReviewSurface.mockReset();
   });
 
   it("routes file cards to the correct jump target", () => {
@@ -171,7 +218,35 @@ describe("WorkspaceSessionActivityPanel", () => {
     );
   });
 
-  it("shows file status badge for file change rows", () => {
+  it("shows the complete file list for file-change events and maximizes after opening a row", () => {
+    const onOpenDiffPath = vi.fn();
+    const onEnsureEditorFileMaximized = vi.fn();
+
+    render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={createViewModel()}
+        onOpenDiffPath={onOpenDiffPath}
+        onEnsureEditorFileMaximized={onEnsureEditorFileMaximized}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("App.tsx")).toBeTruthy();
+    expect(screen.getByText("Cargo.toml")).toBeTruthy();
+    expect(screen.queryByText("src-tauri/Cargo.toml")).toBeNull();
+
+    fireEvent.click(screen.getByText("Cargo.toml"));
+
+    expect(onOpenDiffPath).toHaveBeenCalledWith(
+      "src-tauri/Cargo.toml",
+      { line: 1, column: 1 },
+      { highlightMarkers: { added: [1, 2], modified: [] } },
+    );
+    expect(onEnsureEditorFileMaximized).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens diff preview modal from the dedicated file action button", () => {
     render(
       <WorkspaceSessionActivityPanel
         workspaceId="workspace-1"
@@ -181,7 +256,136 @@ describe("WorkspaceSessionActivityPanel", () => {
       />,
     );
 
-    const badge = screen.getByText("M");
+    fireEvent.click(screen.getAllByRole("button", { name: "git.previewModalAction" })[0]!);
+
+    expect(screen.getByRole("dialog", { name: "src/App.tsx" })).toBeTruthy();
+  });
+
+  it("falls back to the diff preview modal for deleted files instead of forcing file open", () => {
+    const deletedViewModel = createViewModel();
+    deletedViewModel.timeline[0] = {
+      ...deletedViewModel.timeline[0]!,
+      summary: "File change · src/Removed.tsx",
+      filePath: "src/Removed.tsx",
+      fileChangeStatusLetter: "D",
+      jumpTarget: {
+        type: "file",
+        path: "src/Removed.tsx",
+      },
+      fileChanges: [
+        {
+          filePath: "src/Removed.tsx",
+          fileName: "Removed.tsx",
+          statusLetter: "D",
+          additions: 0,
+          deletions: 3,
+          diff: "@@ -1,3 +0,0 @@\n-old\n-older\n-oldest",
+          markers: { added: [], modified: [] },
+        },
+      ],
+    };
+
+    const onOpenDiffPath = vi.fn();
+    const onEnsureEditorFileMaximized = vi.fn();
+
+    render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={deletedViewModel}
+        onOpenDiffPath={onOpenDiffPath}
+        onEnsureEditorFileMaximized={onEnsureEditorFileMaximized}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Removed.tsx"));
+
+    expect(onOpenDiffPath).not.toHaveBeenCalled();
+    expect(onEnsureEditorFileMaximized).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "src/Removed.tsx" })).toBeTruthy();
+  });
+
+  it("passes the workspace-backed preview target into the editable review surface", async () => {
+    render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={createViewModel()}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "git.previewModalAction" })[0]!);
+
+    await waitFor(() => {
+      expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
+        workspaceId: "workspace-1",
+        selectedPath: "src/App.tsx",
+      });
+    });
+  });
+
+  it("normalizes absolute preview paths before passing them to the editable review surface", async () => {
+    const viewModel = createViewModel();
+    viewModel.timeline[0] = {
+      ...viewModel.timeline[0]!,
+      summary: "File change · /repo/src/App.tsx",
+      jumpTarget: {
+        type: "file",
+        path: "/repo/src/App.tsx",
+        line: 9,
+        markers: { added: [9], modified: [10] },
+      },
+      fileChanges: [
+        {
+          filePath: "/repo/src/App.tsx",
+          fileName: "App.tsx",
+          statusLetter: "M",
+          additions: 3,
+          deletions: 1,
+          diff: "@@ -1 +1 @@\n-old\n+new",
+          line: 9,
+          markers: { added: [9], modified: [10] },
+        },
+      ],
+    };
+
+    render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-absolute"
+        workspacePath="/repo"
+        viewModel={viewModel}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "git.previewModalAction" }));
+
+    await waitFor(() => {
+      expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
+        workspaceId: "workspace-absolute",
+        workspacePath: "/repo",
+        selectedPath: "src/App.tsx",
+      });
+    });
+  });
+
+  it("shows file status badge for file change rows", () => {
+    const { container } = render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={createViewModel()}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    const badge = container.querySelector(".session-activity-file-row .session-activity-file-kind-badge");
+    expect(badge).toBeTruthy();
+    if (!badge) {
+      throw new Error("Expected file status badge to exist");
+    }
     expect(badge.className).toContain("session-activity-file-kind-badge");
     expect(badge.className).toContain("is-m");
   });

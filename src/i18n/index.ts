@@ -16,7 +16,12 @@ export const saveLanguage = (lang: string): void => {
   writeClientStoreValue("app", "language", lang);
 };
 
-i18n.use(initReactI18next).init({
+const i18nInstance =
+  initReactI18next && typeof initReactI18next === "object"
+    ? i18n.use(initReactI18next)
+    : i18n;
+
+i18nInstance.init({
   resources: {
     en: { translation: en },
     zh: { translation: zh },

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
+import i18n from "../../../i18n";
 import type { RequestUserInputRequest, RequestUserInputResponse } from "../../../types";
 import { respondToUserInputRequest } from "../../../services/tauri";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -85,18 +86,23 @@ function buildSubmittedPayload(
 }
 
 function buildSubmittedFallbackOutput(payload: SubmittedUserInputPayload) {
-  const lines: string[] = ["[用户输入已提交]"];
+  const isChineseLocale = (i18n.resolvedLanguage ?? i18n.language).startsWith("zh");
+  const listSeparator = isChineseLocale ? "；" : "; ";
+  const labelSeparator = isChineseLocale ? "：" : ": ";
+  const lines: string[] = [i18n.t("approval.userInputSubmittedBanner")];
   for (const question of payload.questions) {
     const questionText =
       question.question.trim() || question.header.trim() || question.id;
-    const selected = question.selectedOptions.join("；");
-    const note = question.note ? `备注：${question.note}` : "";
-    const value = [selected, note].filter(Boolean).join("；");
+    const selected = question.selectedOptions.join(listSeparator);
+    const note = question.note
+      ? `${i18n.t("approval.noteLabel")}${labelSeparator}${question.note}`
+      : "";
+    const value = [selected, note].filter(Boolean).join(listSeparator);
     lines.push(questionText);
-    lines.push(value || "（未填写）");
+    lines.push(value || i18n.t("approval.noAnswerProvided"));
   }
   if (lines.length === 1) {
-    lines.push("（未提供可展示的答案）");
+    lines.push(i18n.t("approval.noDisplayableAnswer"));
   }
   return lines.join("\n");
 }
@@ -114,7 +120,7 @@ function buildSubmittedTitle(payload: SubmittedUserInputPayload) {
       return note;
     }
   }
-  return "请求输入";
+  return i18n.t("approval.inputRequested");
 }
 
 function getErrorMessage(error: unknown) {

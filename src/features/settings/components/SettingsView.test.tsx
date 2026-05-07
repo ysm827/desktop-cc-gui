@@ -31,6 +31,8 @@ import { writeClientStoreValue } from "../../../services/clientStorage";
 import { pushErrorToast } from "../../../services/toasts";
 import { SettingsView } from "./SettingsView";
 
+const skillsSectionMock = vi.fn();
+
 vi.mock("@tauri-apps/api/app", () => ({
   getVersion: vi.fn(() => new Promise<string>(() => {})),
 }));
@@ -63,11 +65,18 @@ vi.mock("./McpSection", () => ({
 }));
 
 vi.mock("./SkillsSection", () => ({
-  SkillsSection: ({ embedded }: { embedded?: boolean }) => (
-    <div data-testid={embedded ? "embedded-skills-section" : "skills-section"}>
-      Mock Skills Section
-    </div>
-  ),
+  SkillsSection: (props: {
+    embedded?: boolean;
+    appSettings?: AppSettings;
+    onUpdateAppSettings?: unknown;
+  }) => {
+    skillsSectionMock(props);
+    return (
+      <div data-testid={props.embedded ? "embedded-skills-section" : "skills-section"}>
+        Mock Skills Section
+      </div>
+    );
+  },
 }));
 
 vi.mock("../../../services/tauri", async () => {
@@ -109,6 +118,7 @@ const createDeferred = <T,>() => {
 };
 
 beforeEach(() => {
+  skillsSectionMock.mockClear();
   queryLocalFontsMock.mockReset();
   queryLocalFontsMock.mockImplementation(
     () => new Promise<Array<{ family: string }>>(() => {}),
@@ -174,6 +184,8 @@ const baseSettings: AppSettings = {
   codexBin: null,
   codexArgs: null,
   terminalShellPath: null,
+  geminiEnabled: true,
+  opencodeEnabled: true,
   backendMode: "local",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
@@ -222,6 +234,7 @@ const baseSettings: AppSettings = {
   lightThemePresetId: "vscode-light-modern",
   darkThemePresetId: "vscode-dark-modern",
   customThemePresetId: "vscode-dark-modern",
+  customSkillDirectories: [],
   canvasWidthMode: "narrow",
   layoutMode: "default",
   userMsgColor: "",
@@ -916,6 +929,66 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ backendMode: "local" }),
+      );
+    });
+  });
+
+  it("persists Gemini and OpenCode disable toggles inside CLI validation tabs", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunClaudeDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        activeWorkspace={null}
+        activeEngine="codex"
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="runtime-environment"
+        initialHighlightTarget="cli-validation"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Gemini CLI" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Gemini CLI" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ geminiEnabled: false }),
+      );
+    });
+
+    onUpdateAppSettings.mockClear();
+
+    fireEvent.click(screen.getByRole("tab", { name: "OpenCode CLI" }));
+    fireEvent.click(screen.getByRole("switch", { name: "OpenCode CLI" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ opencodeEnabled: false }),
       );
     });
   });
@@ -1964,6 +2037,15 @@ describe("SettingsView Shortcuts", () => {
     fireEvent.click(screen.getByRole("button", { name: "Skills" }));
     await flushSettingsViewEffects();
     expect(screen.getByTestId("embedded-skills-section")).toBeTruthy();
+    expect(skillsSectionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        embedded: true,
+        appSettings: expect.objectContaining({
+          customSkillDirectories: [],
+        }),
+        onUpdateAppSettings: expect.any(Function),
+      }),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Runtime Environment" }));
     await flushSettingsViewEffects();
