@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, TurnPlan } from "../../../types";
 import { StatusPanel } from "./StatusPanel";
 
-const mockGitDiffViewer = vi.fn((props: Record<string, unknown>) => (
+const mockEditableDiffReviewSurface = vi.fn((props: Record<string, unknown>) => (
   <div data-testid="checkpoint-diff-viewer">
     {JSON.stringify({
       selectedPath: props.selectedPath,
@@ -14,8 +14,9 @@ const mockGitDiffViewer = vi.fn((props: Record<string, unknown>) => (
   </div>
 ));
 
-vi.mock("../../git/components/GitDiffViewer", () => ({
-  GitDiffViewer: (props: Record<string, unknown>) => mockGitDiffViewer(props),
+vi.mock("../../git/components/WorkspaceEditableDiffReviewSurface", () => ({
+  WorkspaceEditableDiffReviewSurface: (props: Record<string, unknown>) =>
+    mockEditableDiffReviewSurface(props),
 }));
 
 const editToolItem: Extract<ConversationItem, { kind: "tool" }> = {
@@ -175,7 +176,7 @@ const latestUserMessageItems: ConversationItem[] = [
 describe("StatusPanel", () => {
   afterEach(() => {
     cleanup();
-    mockGitDiffViewer.mockClear();
+    mockEditableDiffReviewSurface.mockClear();
   });
 
   it("opens editor when clicking file in edits popover and closes popover", () => {
@@ -196,6 +197,85 @@ describe("StatusPanel", () => {
     expect(onOpenFilePath).toHaveBeenCalledWith("README.md");
     expect(onOpenDiffPath).not.toHaveBeenCalled();
     expect(screen.queryByText("docs/EXECUTION_PLAN.md")).toBeNull();
+  });
+
+  it("prefers current workspace git file changes over historical tool file changes", () => {
+    render(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        workspaceGitFiles={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
+        ]}
+        workspaceGitTotals={{ additions: 3, deletions: 1 }}
+        workspaceGitDiffs={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", diff: "@@ -1 +1 @@\n-old\n+new" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(screen.queryByText("README.md")).toBeNull();
+    expect(screen.queryByText("docs/EXECUTION_PLAN.md")).toBeNull();
+    expect(screen.getByText("WorkspaceOnly.tsx")).toBeTruthy();
+  });
+
+  it("clears historical file changes after workspace git changes are committed", () => {
+    const { rerender } = render(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        workspaceGitFiles={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
+        ]}
+        workspaceGitTotals={{ additions: 3, deletions: 1 }}
+        workspaceGitDiffs={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", diff: "@@ -1 +1 @@\n-old\n+new" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+    expect(screen.getByText("WorkspaceOnly.tsx")).toBeTruthy();
+
+    rerender(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        workspaceGitFiles={[]}
+        workspaceGitTotals={{ additions: 0, deletions: 0 }}
+        workspaceGitDiffs={[]}
+      />,
+    );
+
+    expect(screen.queryByText("WorkspaceOnly.tsx")).toBeNull();
+    expect(screen.queryByText("README.md")).toBeNull();
+    expect(screen.getByText("statusPanel.emptyFileChanges")).toBeTruthy();
+  });
+
+  it("keeps checkpoint diff modal available when workspace git files include diff bodies", async () => {
+    render(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        workspaceId="ws-git"
+        workspaceGitFiles={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
+        ]}
+        workspaceGitTotals={{ additions: 3, deletions: 1 }}
+        workspaceGitDiffs={[
+          { path: "src/WorkspaceOnly.tsx", status: "M", diff: "@@ -1 +1 @@\n-old\n+new" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
+
+    await waitFor(() => {
+      expect(screen.getByText("statusPanel.checkpoint.fileDetailsTitle")).toBeTruthy();
+    });
   });
 
   it("filters checkpoint evidence to the active turn while processing", () => {
@@ -272,6 +352,69 @@ describe("StatusPanel", () => {
     expect(screen.getByText("statusPanel.checkpoint.summary.runningValidation")).toBeTruthy();
   });
 
+  it("renders blocked notices in a dismissible strip below the hero row", () => {
+    render(
+      <StatusPanel
+        items={[
+          {
+            id: "tool-blocked-command",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: 'sed -n "1,220p" missing-file.ts',
+            status: "error",
+          },
+        ]}
+        isProcessing={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(screen.getByText("statusPanel.checkpoint.headline.blocked")).toBeTruthy();
+    const notice = screen.getByRole("status");
+    expect(notice.textContent).toContain("statusPanel.checkpoint.summary.blockedCommand");
+
+    fireEvent.click(screen.getByLabelText("common.close"));
+
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("shows a wait-oriented hint for needs review once validations are no longer the primary follow-up", () => {
+    render(
+      <StatusPanel
+        items={[
+          {
+            id: "tool-needs-review-files",
+            kind: "tool",
+            toolType: "fileChange",
+            title: "File changes",
+            detail: "{}",
+            status: "completed",
+            turnId: "turn-1",
+            changes: [
+              { path: "src/App.tsx", kind: "modified", diff: "@@ -1 +1 @@\n-old\n+new" },
+            ],
+          },
+          {
+            id: "tool-needs-review-command",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "echo changed files",
+            status: "completed",
+            turnId: "turn-1",
+          },
+        ]}
+        isProcessing={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(screen.getByText("statusPanel.checkpoint.actions.hint.needs_review")).toBeTruthy();
+  });
+
   it("opens the original diff panel when clicking file row diff action", () => {
     const onOpenDiffPath = vi.fn();
     render(
@@ -299,7 +442,7 @@ describe("StatusPanel", () => {
     fireEvent.click(screen.getByLabelText("git.previewModalAction"));
 
     expect(onOpenDiffPath).toHaveBeenCalledWith("src/One.tsx");
-    expect(mockGitDiffViewer).not.toHaveBeenCalled();
+    expect(mockEditableDiffReviewSurface).not.toHaveBeenCalled();
   });
 
   it("uses the first file with a real diff for the review diff action", () => {
@@ -327,7 +470,7 @@ describe("StatusPanel", () => {
     fireEvent.click(screen.getByText("Result"));
     fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
 
-    expect(mockGitDiffViewer.mock.lastCall?.[0]).toMatchObject({
+    expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
       workspaceId: "ws-review",
       selectedPath: "src/ActualDiff.tsx",
     });
@@ -433,7 +576,7 @@ describe("StatusPanel", () => {
     expect(screen.getByText("JwtUtil.java")).toBeTruthy();
   });
 
-  it("suggests validation commands from the detected project stack", () => {
+  it("keeps stack detection available without surfacing validation commands in needs-review mode", () => {
     render(
       <StatusPanel
         items={[
@@ -460,10 +603,11 @@ describe("StatusPanel", () => {
 
     fireEvent.click(screen.getByText("Result"));
 
-    expect(screen.getByText("mvn test")).toBeTruthy();
-    expect(screen.getByText("mvn package")).toBeTruthy();
+    expect(screen.queryByText("mvn test")).toBeNull();
+    expect(screen.queryByText("mvn package")).toBeNull();
     expect(screen.queryByText("npm run lint")).toBeNull();
     expect(screen.queryByText("npm run typecheck")).toBeNull();
+    expect(screen.getByText("statusPanel.checkpoint.actions.hint.needs_review")).toBeTruthy();
   });
 
   it("gives visible feedback when opening risks from checkpoint actions", () => {
@@ -508,15 +652,15 @@ describe("StatusPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId("checkpoint-diff-viewer")).toBeTruthy();
     });
-    expect(mockGitDiffViewer.mock.lastCall?.[0]).toMatchObject({
-      workspaceId: "ws-1",
-      selectedPath: "src/One.tsx",
-    });
+      expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
+        workspaceId: "ws-1",
+        selectedPath: "src/One.tsx",
+      });
 
     const sidebarButtons = document.querySelectorAll(".checkpoint-diff-sidebar-item");
     fireEvent.click(sidebarButtons[1] as HTMLButtonElement);
     await waitFor(() => {
-      expect(mockGitDiffViewer.mock.lastCall?.[0]).toMatchObject({
+      expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
         selectedPath: "src/Two.tsx",
       });
     });
@@ -552,7 +696,7 @@ describe("StatusPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
 
     await waitFor(() => {
-      expect(mockGitDiffViewer.mock.lastCall?.[0]).toMatchObject({
+      expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
         workspaceId: "ws-absolute",
         selectedPath: "src/SecurityConfig.java",
       });
@@ -716,11 +860,11 @@ describe("StatusPanel", () => {
       ),
     ).toBeNull();
     expect(screen.getByText("statusPanel.checkpoint.summary.needsValidation")).toBeTruthy();
-    expect(screen.getByText("statusPanel.checkpoint.evidence.runMissingGeneric")).toBeTruthy();
     expect(screen.queryByText("npm run lint")).toBeNull();
     expect(screen.queryByText("npm run typecheck")).toBeNull();
     expect(screen.queryByText("npm run test")).toBeNull();
-    expect(screen.getByText("statusPanel.checkpoint.actions.hint.runMissingValidation")).toBeTruthy();
+    expect(screen.queryByText("statusPanel.checkpoint.evidence.runMissingGeneric")).toBeNull();
+    expect(screen.getByText("statusPanel.checkpoint.actions.hint.needs_review")).toBeTruthy();
   });
 
   it("closes opened popover by Escape key", () => {

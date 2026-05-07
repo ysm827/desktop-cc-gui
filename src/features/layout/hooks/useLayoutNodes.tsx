@@ -439,6 +439,8 @@ type LayoutNodesOptions = {
   onSelectCommit: (entry: GitLogEntry) => void;
   gitLogError: string | null;
   gitLogLoading: boolean;
+  refreshGitDiffs: () => void;
+  queueGitStatusRefresh: () => void;
   gitIssues: GitHubIssue[];
   gitIssuesTotal: number;
   gitIssuesLoading: boolean;
@@ -1896,6 +1898,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onSelectThread={options.onSelectThread}
         liveEditPreviewEnabled={options.liveEditPreviewEnabled}
         onToggleLiveEditPreview={options.onToggleLiveEditPreview}
+        onRefreshGitStatus={options.queueGitStatusRefresh}
       />
     );
   } else if (options.filePanelMode === "radar") {
@@ -1993,6 +1996,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         pushError={options.pushError}
         syncError={options.syncError}
         commitsAhead={options.commitsAhead}
+        onRefreshGitStatus={options.queueGitStatusRefresh}
+        onRefreshGitDiffs={options.refreshGitDiffs}
       />
     );
   }
@@ -2072,6 +2077,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       isCodexEngine={isStatusPanelCodexEngine}
       activeThreadId={options.activeThreadId}
       activeTurnId={options.activeTurnId ?? null}
+      workspaceGitFiles={options.gitStatus.files}
+      workspaceGitTotals={{
+        additions: options.gitStatus.totalAdditions,
+        deletions: options.gitStatus.totalDeletions,
+      }}
+      workspaceGitDiffs={options.gitDiffs}
       itemsByThread={options.threadItemsByThread}
       threadParentById={options.threadParentById}
       threadStatusById={options.threadStatusById}
@@ -2081,6 +2092,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onJumpToConversationMessage={dispatchMessageJumpEvent}
       variant="dock"
       visibleDockTabs={bottomActivityVisibleTabs}
+      onRefreshGitStatus={options.queueGitStatusRefresh}
     />
   ) : null;
 

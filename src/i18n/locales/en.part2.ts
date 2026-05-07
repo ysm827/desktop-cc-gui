@@ -1878,7 +1878,7 @@ const enPart2 = {
           runMissingValidation: "Run the missing validation before deciding whether to continue.",
           running: "Wait for the current execution evidence to settle.",
           blocked: "Inspect the failing evidence first; if recovery is still in progress, wait for the run to settle before deciding to stop it.",
-          needs_review: "Review the diff and risks before continuing.",
+          needs_review: "This result may still recover. Wait for execution to keep settling before taking action.",
           ready: "The evidence is settled; do the final pre-commit check.",
         },
       },

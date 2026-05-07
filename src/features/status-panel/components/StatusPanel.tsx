@@ -15,9 +15,9 @@ import ListChecks from "lucide-react/dist/esm/icons/list-checks";
 import ListTodo from "lucide-react/dist/esm/icons/list-todo";
 import MessageSquareQuote from "lucide-react/dist/esm/icons/message-square-quote";
 import type { LucideIcon } from "lucide-react";
-import type { ConversationItem, TurnPlan } from "../../../types";
+import type { ConversationItem, GitFileStatus, TurnPlan } from "../../../types";
 import { useStatusPanelData } from "../hooks/useStatusPanelData";
-import type { SubagentInfo, TabType } from "../types";
+import type { FileChangeSummary, SubagentInfo, TabType } from "../types";
 import {
   buildCheckpointViewModel,
   resolveCheckpointGeneratedSummary,
@@ -41,6 +41,16 @@ interface StatusPanelProps {
   isCodexEngine?: boolean;
   activeThreadId?: string | null;
   activeTurnId?: string | null;
+  workspaceGitFiles?: GitFileStatus[];
+  workspaceGitTotals?: {
+    additions: number;
+    deletions: number;
+  } | null;
+  workspaceGitDiffs?: Array<{
+    path: string;
+    status: string;
+    diff: string;
+  }>;
   itemsByThread?: Record<string, ConversationItem[]>;
   threadParentById?: Record<string, string>;
   threadStatusById?: Record<string, { isProcessing?: boolean } | undefined>;
@@ -50,6 +60,7 @@ interface StatusPanelProps {
   onJumpToConversationMessage?: (messageId: string) => void;
   variant?: "popover" | "dock";
   visibleDockTabs?: Partial<Record<TabType, boolean>>;
+  onRefreshGitStatus?: (() => void) | null;
 }
 
 type StatusPanelTabDefinition = {
@@ -128,6 +139,9 @@ export const StatusPanel = memo(function StatusPanel({
   isCodexEngine = false,
   activeThreadId = null,
   activeTurnId = null,
+  workspaceGitFiles,
+  workspaceGitTotals = null,
+  workspaceGitDiffs = [],
   itemsByThread,
   threadParentById,
   threadStatusById,
@@ -137,6 +151,7 @@ export const StatusPanel = memo(function StatusPanel({
   onJumpToConversationMessage,
   variant = "popover",
   visibleDockTabs,
+  onRefreshGitStatus = null,
 }: StatusPanelProps) {
   const { t } = useTranslation();
   const deferredItems = useDeferredValue(items);
@@ -220,6 +235,37 @@ export const StatusPanel = memo(function StatusPanel({
       todos,
     ],
   );
+  const workspaceFileChanges = useMemo<FileChangeSummary[]>(
+    () => {
+      const diffByPath = new Map(
+        (workspaceGitDiffs ?? []).map((entry) => [entry.path, entry.diff]),
+      );
+      return (workspaceGitFiles ?? []).map((entry) => ({
+        filePath: entry.path,
+        fileName: entry.path.split(/[\\/]/).pop() ?? entry.path,
+        status:
+          entry.status === "A" || entry.status === "D" || entry.status === "R"
+            ? entry.status
+            : "M",
+        additions: entry.additions,
+        deletions: entry.deletions,
+        diff: diffByPath.get(entry.path),
+      }));
+    },
+    [workspaceGitDiffs, workspaceGitFiles],
+  );
+  const displayedFileChanges =
+    workspaceGitFiles !== undefined ? workspaceFileChanges : fileChanges;
+  const displayedTotalAdditions =
+    workspaceGitFiles !== undefined
+      ? workspaceGitTotals?.additions ??
+        workspaceFileChanges.reduce((sum, entry) => sum + entry.additions, 0)
+      : totalAdditions;
+  const displayedTotalDeletions =
+    workspaceGitFiles !== undefined
+      ? workspaceGitTotals?.deletions ??
+        workspaceFileChanges.reduce((sum, entry) => sum + entry.deletions, 0)
+      : totalDeletions;
   const shouldShowTodoTab = isCodexEngine
     ? hasTabData(codexTaskCompleted, codexTaskTotal)
     : hasTabData(todoCompleted, todoTotal);
@@ -443,13 +489,14 @@ export const StatusPanel = memo(function StatusPanel({
         <CheckpointPanel
           checkpoint={checkpoint}
           compact={variant !== "dock"}
-          fileChanges={fileChanges}
-          totalAdditions={totalAdditions}
-          totalDeletions={totalDeletions}
+          fileChanges={displayedFileChanges}
+          totalAdditions={displayedTotalAdditions}
+          totalDeletions={displayedTotalDeletions}
           onOpenDiffPath={onOpenDiffPath}
           onOpenFilePath={onOpenFilePath}
           workspaceId={workspaceId}
           workspacePath={workspacePath}
+          onRefreshGitStatus={onRefreshGitStatus}
           onAfterSelect={() => {
             if (variant !== "dock") {
               setOpenTab(null);

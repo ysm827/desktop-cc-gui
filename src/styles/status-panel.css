@@ -970,6 +970,11 @@
   );
 }
 
+.sp-checkpoint-section--notice {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 .sp-checkpoint-hero-row {
   display: flex;
   align-items: center;
@@ -1038,6 +1043,49 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.sp-checkpoint-notice-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #ff8b72 28%, var(--border-subtle));
+  background: color-mix(in srgb, #ff8b72 10%, var(--surface-item));
+}
+
+.sp-checkpoint-notice-copy {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  font-size: var(--sp-checkpoint-copy-size);
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+
+.sp-checkpoint-notice-dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-card) 88%, transparent);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sp-checkpoint-notice-dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
 .sp-checkpoint-badge {
@@ -1211,7 +1259,7 @@
 .sp-checkpoint-risk-item {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 6px;
   font-size: var(--sp-checkpoint-copy-size);
   color: var(--text-strong);
@@ -1306,9 +1354,24 @@
 }
 
 .sp-checkpoint-action-hint {
+  display: block;
+  width: 100%;
   font-size: var(--sp-checkpoint-copy-size);
   line-height: 1.25;
   color: var(--text-muted);
+  text-align: left;
+}
+
+.sp-checkpoint-section--summary-line .sp-checkpoint-inline-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.sp-checkpoint-section--summary-line .sp-checkpoint-inline-heading > :not(:first-child)::before {
+  content: none;
+  margin-right: 0;
 }
 
 .sp-checkpoint-action {
@@ -1487,6 +1550,208 @@
   color: var(--text-muted);
 }
 
+.editable-diff-review-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.editable-diff-review-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
+}
+
+.editable-diff-review-toolbar-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editable-diff-review-toolbar-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.editable-diff-review-toolbar-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.editable-diff-review-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editable-diff-review-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+.editable-diff-review-action:not(:disabled) {
+  cursor: pointer;
+}
+
+.editable-diff-review-action:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.editable-diff-review-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.editable-diff-review-readonly-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.editable-diff-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+.editable-diff-review-surface:not(.has-sidebar) .editable-diff-review-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.editable-diff-review-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editable-diff-review-main > .diff-viewer-frame,
+.editable-diff-review-main > .fvp {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.editable-diff-review-sidebar {
+  border-left: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-item) 90%, transparent);
+  padding: 12px 10px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editable-diff-review-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.editable-diff-review-sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.editable-diff-review-sidebar-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.editable-diff-review-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.editable-diff-review-sidebar-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-strong);
+  text-align: left;
+}
+
+.editable-diff-review-sidebar-item:hover {
+  background: var(--surface-hover);
+  cursor: pointer;
+}
+
+.editable-diff-review-sidebar-item.is-active {
+  border-color: color-mix(in srgb, var(--accent-primary, #2563eb) 45%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+}
+
+.editable-diff-review-sidebar-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.editable-diff-review-sidebar-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.editable-diff-review-sidebar-stats {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.editable-diff-review-sidebar-stats .is-add {
+  color: #89d185;
+}
+
+.editable-diff-review-sidebar-stats .is-del {
+  color: #d19a66;
+}
+
 @media (max-width: 1100px) {
   .checkpoint-diff-modal-shell {
     grid-template-columns: 1fr;
@@ -1499,6 +1764,19 @@
   }
 
   .checkpoint-diff-sidebar-list {
+    max-height: 220px;
+  }
+
+  .editable-diff-review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .editable-diff-review-sidebar {
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .editable-diff-review-sidebar-list {
     max-height: 220px;
   }
 }

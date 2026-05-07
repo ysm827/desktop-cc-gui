@@ -14,7 +14,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import type { CSSProperties, ReactNode } from "react";
 import FileIcon from "../../../components/FileIcon";
 import { resolveWorkspaceRelativePath } from "../../../utils/workspacePaths";
-import { GitDiffViewer } from "../../git/components/GitDiffViewer";
+import { WorkspaceEditableDiffReviewSurface } from "../../git/components/WorkspaceEditableDiffReviewSurface";
 import { Markdown } from "../../messages/components/Markdown";
 import {
   inferCommandOutputRenderMeta,
@@ -42,6 +42,7 @@ type WorkspaceSessionActivityPanelProps = {
   onSelectThread: (workspaceId: string, threadId: string) => void;
   liveEditPreviewEnabled?: boolean;
   onToggleLiveEditPreview?: () => void | Promise<void>;
+  onRefreshGitStatus?: (() => void) | null;
 };
 
 type ActivityTab = "all" | "command" | "fileChange" | "task" | "explore" | "reasoning";
@@ -511,6 +512,7 @@ export function WorkspaceSessionActivityPanel({
   onSelectThread,
   liveEditPreviewEnabled = false,
   onToggleLiveEditPreview,
+  onRefreshGitStatus = null,
 }: WorkspaceSessionActivityPanelProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActivityTab>("all");
@@ -1877,22 +1879,21 @@ export function WorkspaceSessionActivityPanel({
                   </div>
                 </div>
                 <div className="git-history-diff-modal-viewer">
-                  <GitDiffViewer
+                  <WorkspaceEditableDiffReviewSurface
                     workspaceId={workspaceId}
-                    diffs={[
+                    workspacePath={workspacePath}
+                    files={[
                       {
-                        path: selectedDiffPreviewGitPath ?? selectedDiffPreviewEntry.filePath,
+                        filePath: selectedDiffPreviewGitPath ?? selectedDiffPreviewEntry.filePath,
                         status: selectedDiffPreviewEntry.statusLetter,
+                        additions: selectedDiffPreviewEntry.additions,
+                        deletions: selectedDiffPreviewEntry.deletions,
                         diff: selectedDiffPreviewEntry.diff ?? "",
                       },
                     ]}
                     selectedPath={selectedDiffPreviewGitPath ?? selectedDiffPreviewEntry.filePath}
-                    isLoading={false}
-                    error={null}
-                    listView="flat"
                     stickyHeaderMode="controls-only"
                     embeddedAnchorVariant="modal-pager"
-                    showContentModeControls
                     fullDiffSourceKey={[
                       selectedDiffPreviewGitPath ?? selectedDiffPreviewEntry.filePath,
                       selectedDiffPreviewEntry.statusLetter,
@@ -1902,6 +1903,9 @@ export function WorkspaceSessionActivityPanel({
                     ].join(":")}
                     diffStyle={diffPreviewStyle}
                     onDiffStyleChange={setDiffPreviewStyle}
+                    focusSelectedFileOnly
+                    allowEditing
+                    onRequestGitStatusRefresh={onRefreshGitStatus}
                   />
                 </div>
               </div>

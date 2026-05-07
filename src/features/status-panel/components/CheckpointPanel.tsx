@@ -1,12 +1,13 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
+import X from "lucide-react/dist/esm/icons/x";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import TriangleAlert from "lucide-react/dist/esm/icons/triangle-alert";
 import type { TFunction } from "i18next";
-import { GitDiffViewer } from "../../git/components/GitDiffViewer";
+import { WorkspaceEditableDiffReviewSurface } from "../../git/components/WorkspaceEditableDiffReviewSurface";
 import { FileIcon } from "../../messages/components/toolBlocks/FileIcon";
 import { resolveWorkspaceRelativePath } from "../../../utils/workspacePaths";
 import type {
@@ -30,6 +31,7 @@ interface CheckpointPanelProps {
   onAfterSelect?: () => void;
   workspaceId?: string | null;
   workspacePath?: string | null;
+  onRefreshGitStatus?: (() => void) | null;
 }
 
 const VERDICT_ICON = {
@@ -50,17 +52,18 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   onAfterSelect,
   workspaceId = null,
   workspacePath = null,
+  onRefreshGitStatus = null,
 }: CheckpointPanelProps) {
   const { t } = useTranslation();
   const [isDiffModalMaximized, setIsDiffModalMaximized] = useState(false);
   const [diffHeaderControlsTarget, setDiffHeaderControlsTarget] = useState<HTMLElement | null>(null);
   const [diffStyle, setDiffStyle] = useState<"split" | "unified">("split");
   const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
+  const [isNoticeDismissed, setIsNoticeDismissed] = useState(false);
   const VerdictIcon = VERDICT_ICON[checkpoint.verdict];
   const displayFiles = fileChanges;
   const primaryDiffPath =
     fileChanges.find((entry) => entry.diff?.trim())?.filePath ?? fileChanges[0]?.filePath ?? null;
-  const hasFileDetails = displayFiles.length > 0;
   const validationProfile = useMemo(
     () =>
       resolveCheckpointValidationProfile({
@@ -139,6 +142,19 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   const visibleNextActions = checkpoint.nextActions.filter(
     (action) => action.type !== "review_diff",
   );
+  const blockedNotice: CheckpointMessageToken | null =
+    checkpoint.verdict === "blocked" ? checkpoint.summary : null;
+  const inlineSummary: CheckpointMessageToken | null =
+    checkpoint.verdict !== "blocked" ? checkpoint.summary : null;
+  const shouldShowInlineSummary = Boolean(inlineSummary);
+  const shouldShowBlockedNotice = Boolean(blockedNotice) && !isNoticeDismissed;
+  const shouldSuppressValidationGuideForNeedsReview =
+    checkpoint.verdict === "needs_review";
+
+  useEffect(() => {
+    setIsNoticeDismissed(false);
+  }, [blockedNotice, checkpoint.verdict]);
+
   const handleReviewDiff = () => {
     if (!primaryDiffPath) {
       return;
@@ -167,8 +183,8 @@ export const CheckpointPanel = memo(function CheckpointPanel({
               </span>
               <span className="sp-checkpoint-headline">{renderToken(t, checkpoint.headline)}</span>
             </div>
-            {checkpoint.summary ? (
-              <span className="sp-checkpoint-summary">{renderToken(t, checkpoint.summary)}</span>
+            {shouldShowInlineSummary && inlineSummary ? (
+              <span className="sp-checkpoint-summary">{renderToken(t, inlineSummary)}</span>
             ) : null}
           </div>
           <span className={`sp-checkpoint-badge sp-checkpoint-badge-${checkpoint.verdict}`}>
@@ -176,6 +192,23 @@ export const CheckpointPanel = memo(function CheckpointPanel({
           </span>
         </div>
       </section>
+
+      {shouldShowBlockedNotice && blockedNotice ? (
+        <section className="sp-checkpoint-section sp-checkpoint-section--notice">
+          <div className="sp-checkpoint-notice-strip" role="status" aria-live="polite">
+            <div className="sp-checkpoint-notice-copy">{renderToken(t, blockedNotice)}</div>
+            <button
+              type="button"
+              className="sp-checkpoint-notice-dismiss"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+              onClick={() => setIsNoticeDismissed(true)}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="sp-checkpoint-section">
         <div className="sp-checkpoint-evidence-compact">
@@ -215,7 +248,8 @@ export const CheckpointPanel = memo(function CheckpointPanel({
             </div>
           ) : null}
         </div>
-        {missingValidationCommands.length > 0 || hasMissingValidationWithoutCommand ? (
+        {(missingValidationCommands.length > 0 || hasMissingValidationWithoutCommand) &&
+        !shouldSuppressValidationGuideForNeedsReview ? (
           <div className="sp-checkpoint-validation-guide">
             <span className="sp-checkpoint-validation-guide-label">
               {t(
@@ -257,19 +291,17 @@ export const CheckpointPanel = memo(function CheckpointPanel({
           <div className="sp-empty">{t("statusPanel.checkpoint.keyChangesEmpty")}</div>
         ) : null}
 
-        {hasFileDetails ? (
-          <div className="sp-checkpoint-file-detail">
-            <FileChangesList
-              fileChanges={displayFiles}
-              totalAdditions={totalAdditions}
-              totalDeletions={totalDeletions}
-              onOpenFilePath={onOpenFilePath}
-              onOpenDiffPath={onOpenDiffPath}
-              onOpenTotalDiff={primaryDiffPath ? handleReviewDiff : undefined}
-              onAfterSelect={onAfterSelect}
-            />
-          </div>
-        ) : null}
+        <div className="sp-checkpoint-file-detail">
+          <FileChangesList
+            fileChanges={displayFiles}
+            totalAdditions={totalAdditions}
+            totalDeletions={totalDeletions}
+            onOpenFilePath={onOpenFilePath}
+            onOpenDiffPath={onOpenDiffPath}
+            onOpenTotalDiff={primaryDiffPath ? handleReviewDiff : undefined}
+            onAfterSelect={onAfterSelect}
+          />
+        </div>
       </section>
 
       <section className="sp-checkpoint-section sp-checkpoint-section--summary-line">
@@ -366,21 +398,21 @@ export const CheckpointPanel = memo(function CheckpointPanel({
                 <div className="checkpoint-diff-modal-shell">
                   <div className="checkpoint-diff-viewer">
                     {activeDiffEntry ? (
-                      <GitDiffViewer
+                      <WorkspaceEditableDiffReviewSurface
                         workspaceId={workspaceId}
-                        diffs={[
+                        workspacePath={workspacePath}
+                        files={[
                           {
-                            ...activeDiffEntry,
-                            path: activeDiffGitPath,
+                            filePath: activeDiffGitPath,
+                            status: activeDiffFile.status,
+                            additions: activeDiffFile.additions,
+                            deletions: activeDiffFile.deletions,
+                            diff: activeDiffEntry.diff,
                           },
                         ]}
                         selectedPath={activeDiffGitPath}
-                        isLoading={false}
-                        error={null}
-                        listView="flat"
                         stickyHeaderMode="controls-only"
                         embeddedAnchorVariant="modal-pager"
-                        showContentModeControls
                         headerControlsTarget={diffHeaderControlsTarget}
                         fullDiffSourceKey={[
                           activeDiffGitPath,
@@ -395,6 +427,9 @@ export const CheckpointPanel = memo(function CheckpointPanel({
                           setSelectedDiffPath(null);
                           setIsDiffModalMaximized(false);
                         }}
+                        focusSelectedFileOnly
+                        allowEditing
+                        onRequestGitStatusRefresh={onRefreshGitStatus}
                       />
                     ) : (
                       <div className="checkpoint-diff-fallback">
@@ -480,6 +515,9 @@ function resolveNextActionHintKey(
   verdict: CheckpointViewModel["verdict"],
   hasMissingValidationCommands: boolean,
 ) {
+  if (verdict === "needs_review") {
+    return "statusPanel.checkpoint.actions.hint.needs_review";
+  }
   if (hasMissingValidationCommands) {
     return "statusPanel.checkpoint.actions.hint.runMissingValidation";
   }
