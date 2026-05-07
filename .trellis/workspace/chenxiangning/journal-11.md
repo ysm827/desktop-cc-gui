@@ -950,3 +950,45 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 368: 收口 checkpoint 提交确认交互
+
+**Date**: 2026-05-08
+**Task**: 收口 checkpoint 提交确认交互
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| OpenSpec | `refine-checkpoint-result-panel` |
+| 代码提交 | `436302fb feat(status-panel): 收口 checkpoint 提交确认交互` |
+| 主要改动 | 收口 checkpoint result panel：compact 展开接入 dock checkpoint、清理无效 action type，并在 `CheckpointCommitDialog` 提交文件 header 增加单个批量切换 checkbox。 |
+| 提交弹窗 | 复用 `useGitCommitSelection`，支持 partial indeterminate、全选可选文件、全选后清空可选文件；locked hybrid staged/unstaged 文件保持现有保护规则。 |
+| 文档同步 | 更新 `openspec/changes/refine-checkpoint-result-panel` proposal/design/tasks/spec，记录 Git working tree canonical facts、review diff、commit dialog、batch checkbox 等契约。 |
+| 验证 | `npx vitest run src/features/status-panel/components/StatusPanel.test.tsx src/features/status-panel/utils/checkpoint.test.ts` 通过 82 tests；`openspec validate refine-checkpoint-result-panel --strict --no-interactive` 通过；相关文件 `npx eslint ...` 通过。 |
+| 注意 | 全量 `npm run typecheck` 当前被未关联工作区脏改动 `src/features/app/components/Sidebar.tsx` 的 unused symbol 挡住，非本次 commit 引入。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `436302fb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
