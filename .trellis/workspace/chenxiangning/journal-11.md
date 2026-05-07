@@ -379,3 +379,52 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 354: 收口 diff 编辑弹窗并修复 apply_patch 解析
+
+**Date**: 2026-05-07
+**Task**: 收口 diff 编辑弹窗并修复 apply_patch 解析
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Description |
+|------|-------------|
+| Diff Edit UX | 修正 diff 编辑弹层返回链路，去掉单行头返回按钮触发的无效未保存确认弹窗 |
+| Thread Item Parsing | 修复 `apply_patch` 成功后 `commandExecution -> fileChange` 转换，过滤临时 `.diff/.patch` artifact 路径 |
+| Patch Recovery | 从 `*** Begin Patch ... *** End Patch` 文本中回填目标文件 diff，保证 `path / kind / diff` 一致 |
+| CI Verification | 本地复验 `threadItems` 目标失败用例、`npm run typecheck`，并完成整套本地可覆盖 CI 复查 |
+
+**Updated Files**:
+- `src/features/git/components/WorkspaceEditableDiffReviewSurface.tsx`
+- `src/utils/threadItems.ts`
+- `src/utils/threadItemsFileChanges.ts`
+
+**Verification**:
+- `npx vitest run src/utils/threadItems.test.ts -t "converts successful apply_patch commandExecution to fileChange"`
+- `npm run typecheck`
+- 本地 workflow 级 CI 复查：lint / runtime-contracts / large-file gate / memory-kind-contract / cargo test / npm run test / heavy-test-noise / tauri debug build
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11dbf736` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

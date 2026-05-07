@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-11.md`
-- **Total Sessions**: 353
+- **Total Sessions**: 354
 - **Last Active**: 2026-05-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-11.md` | ~381 | Active |
+| `journal-11.md` | ~430 | Active |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
@@ -39,6 +39,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 354 | 2026-05-07 | 收口 diff 编辑弹窗并修复 apply_patch 解析 | `11dbf736` | `feature/v.0.4.14-2` |
 | 353 | 2026-05-07 | 支持 diff 审查区直接编辑 | `a946bca2` | `feature/v.0.4.14-2` |
 | 352 | 2026-05-07 | 收紧 Claude 历史 transcript 空白保护边界 | `08552524` | `feature/v.0.4.14-2` |
 | 351 | 2026-05-07 | 收紧结果面板文件推断与阻断提示 | `94cc8b50` | `feature/v.0.4.14-2` |
