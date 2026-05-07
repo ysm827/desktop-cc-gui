@@ -904,3 +904,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 367: 归档 OpenSpec 完成变更并补齐会话文件夹提案
+
+**Date**: 2026-05-08
+**Task**: 归档 OpenSpec 完成变更并补齐会话文件夹提案
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+归档 7 个已完成 OpenSpec change，同步主 specs，并为 manage-project-session-folders 补齐 v0.4.14 hardening 后续提案。
+
+### Main Changes
+
+## 本次工作
+
+- 归档已完成的 OpenSpec change：add-editable-workspace-diff-review-surface、fix-claude-history-transcript-blanking、fix-linux-webkitgtk-ime-env、replace-edits-with-checkpoint、streamline-governance-doc-stack、control-cli-engine-startup-gates、normalize-conversation-file-change-surfaces。
+- 同步归档变更对应的主 specs，新增或更新 transcript visibility、file change surface parity、editable diff review、instruction layering governance、runtime artifact hygiene、session activity file affordance、checkpoint module 等规范。
+- 更新 manage-project-session-folders 的 proposal/design/delta specs/tasks，补入 v0.4.14 hardening 后续项：source owner validation、workspace-scoped atomic metadata mutation、bounded backend pagination、folder collapsed state persistence、large folder move picker usability。
+
+## 验证
+
+- `openspec validate --all --strict --no-interactive` 通过，结果为 239 passed, 0 failed。
+
+## 后续建议
+
+- 后续实现优先处理 manage-project-session-folders tasks 7.1 与 7.2，即 folder assignment source owner 校验和 workspace-scoped atomic metadata mutation helper。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48dbce4f81d7f43994a868609b69ce08fb39d9a7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
