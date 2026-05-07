@@ -65,34 +65,29 @@
 - **AND** folders MUST 以稳定规则排序
 - **AND** sessions MUST 保持既有 session projection ordering
 
-### Requirement: Sessions SHALL Move Between Folders Only Within The Same Project
+### Requirement: Sessions SHALL Move Between Folders By Menu Only Within The Same Project
 
-系统 MUST 允许 session 在同一 project 的 root 与 folders 之间移动，但 MUST 禁止跨 project 移动或拖拽。
+系统 MUST 允许 session 通过菜单或等价显式控件在同一 project 的 root 与 folders 之间移动，但 MUST 禁止跨 project 移动。
 
 #### Scenario: move session into folder in same project
-- **WHEN** 用户把当前 project 的 session 拖入同一 project 的 folder
+- **WHEN** 用户通过菜单把当前 project 的 session 移入同一 project 的 folder
 - **THEN** 系统 MUST 更新该 session 的 folder assignment
 - **AND** session MUST 出现在目标 folder 下
 
 #### Scenario: move session back to project root
-- **WHEN** 用户把 folder 内 session 拖回 project root
+- **WHEN** 用户通过菜单把 folder 内 session 移回 project root
 - **THEN** 系统 MUST 清除或更新该 session 的 folder assignment 为 root
 - **AND** session MUST 继续属于原 project
 
-#### Scenario: reject cross-project drag
-- **WHEN** 用户把 session 拖到另一个 project 或另一个 project 的 folder
+#### Scenario: reject cross-project move
+- **WHEN** 用户尝试通过菜单、命令或其它入口把 session 移到另一个 project 或另一个 project 的 folder
 - **THEN** 系统 MUST 拒绝移动
 - **AND** MUST 保留 session 原 folder assignment
-- **AND** MUST 向用户说明不允许跨项目移动 session
+- **AND** MUST 向调用方或用户说明不允许跨项目移动 session
 
-#### Scenario: invalid cross-project target shows disabled drop feedback before drop
-- **WHEN** 用户拖拽 session 悬停到另一个 project 或另一个 project 的 folder
-- **THEN** UI MUST 在 drop 前显示不可投放反馈
-- **AND** MUST NOT 将该 target 渲染为合法高亮目标
+### Requirement: Sessions SHALL Be Movable Through Menu
 
-### Requirement: Sessions SHALL Be Movable Without Drag And Drop
-
-系统 MUST 提供非拖拽移动路径，使用户可以通过菜单或等价控件把 session 移动到同 project folder/root。
+系统 MUST 提供菜单或等价显式控件，使用户可以把 session 移动到同 project folder/root。
 
 #### Scenario: move session through menu
 - **WHEN** 用户打开某条 session 的操作菜单并选择 `Move to folder`
@@ -110,12 +105,12 @@
 - **AND** root target MUST 始终可见或可通过固定入口选择
 - **AND** 搜索结果 MUST 仍只包含当前 project 的 folder/root
 
-### Requirement: Folder Tree Drag And Drop SHALL Preserve Projection Semantics
+### Requirement: Folder Tree Assignment SHALL Preserve Projection Semantics
 
-Folder tree 的 drag and drop MUST 只改变组织层 metadata，不得扩大或缩小当前 project session projection 的 membership。
+Folder tree assignment MUST 只改变组织层 metadata，不得扩大或缩小当前 project session projection 的 membership。
 
-#### Scenario: same-project folder move does not alter strict membership
-- **WHEN** 用户在同一 project 内拖拽 session 到 folder
+#### Scenario: same-project menu move does not alter strict membership
+- **WHEN** 用户在同一 project 内通过菜单移动 session 到 folder
 - **THEN** strict project session membership MUST 保持不变
 - **AND** 变化范围 MUST 仅限 folder assignment 和 UI 位置
 

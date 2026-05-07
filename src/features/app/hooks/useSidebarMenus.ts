@@ -75,6 +75,12 @@ type SidebarMenuHandlers = {
     threadId: string,
     folderId: string | null,
   ) => void;
+  onOpenThreadFolderPicker?: (
+    workspaceId: string,
+    threadId: string,
+    targets: ThreadMoveFolderTarget[],
+    currentFolderId: string | null,
+  ) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -87,6 +93,8 @@ export type ThreadMoveFolderTarget = {
   folderId: string | null;
   label: string;
 };
+
+const INLINE_MOVE_FOLDER_TARGET_LIMIT = 12;
 
 function resolveEngineDisplayName(engineType: EngineType): string {
   switch (engineType) {
@@ -117,6 +125,7 @@ export function useSidebarMenus({
   onRenameThread,
   onAutoNameThread,
   onMoveThreadToFolder,
+  onOpenThreadFolderPicker,
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
@@ -652,15 +661,30 @@ export function useSidebarMenus({
             enabled: false,
           }),
         );
-        for (const target of moveFolderTargets) {
-          const isCurrentTarget = (target.folderId ?? null) === (currentFolderId ?? null);
+        if (moveFolderTargets.length > INLINE_MOVE_FOLDER_TARGET_LIMIT && onOpenThreadFolderPicker) {
           items.push(
             await MenuItem.new({
-              text: target.label,
-              enabled: !isCurrentTarget,
-              action: () => onMoveThreadToFolder(workspaceId, threadId, target.folderId),
+              text: t("threads.searchFolderTargets"),
+              action: () =>
+                onOpenThreadFolderPicker(
+                  workspaceId,
+                  threadId,
+                  moveFolderTargets,
+                  currentFolderId,
+                ),
             }),
           );
+        } else {
+          for (const target of moveFolderTargets) {
+            const isCurrentTarget = (target.folderId ?? null) === (currentFolderId ?? null);
+            items.push(
+              await MenuItem.new({
+                text: target.label,
+                enabled: !isCurrentTarget,
+                action: () => onMoveThreadToFolder(workspaceId, threadId, target.folderId),
+              }),
+            );
+          }
         }
       }
       const sizeLabel = formatByteSize(sizeBytes);
@@ -690,6 +714,7 @@ export function useSidebarMenus({
       onPinThread,
       onAutoNameThread,
       onMoveThreadToFolder,
+      onOpenThreadFolderPicker,
       onRenameThread,
       onSyncThread,
       onUnpinThread,

@@ -2255,6 +2255,7 @@ const enPart2 = {
     copyId: "Copy ID",
     moveToFolder: "Move to folder",
     moveToProjectRoot: "Project root",
+    searchFolderTargets: "Search folders...",
     size: "Size",
     deleteWorktree: "Delete worktree",
     renameThread: "Rename thread",

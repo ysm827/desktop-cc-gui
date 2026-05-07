@@ -2221,6 +2221,7 @@ const zhPart2 = {
     copyId: "复制 ID",
     moveToFolder: "移动到文件夹",
     moveToProjectRoot: "项目根目录",
+    searchFolderTargets: "搜索文件夹...",
     size: "大小",
     deleteWorktree: "删除工作树",
     renameThread: "重命名对话",

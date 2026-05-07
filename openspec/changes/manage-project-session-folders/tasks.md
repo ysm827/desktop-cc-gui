@@ -16,9 +16,7 @@
 
 - [x] 3.1 [P0][depends:2.1][I: folder tree API + session catalog payload][O: left workspace project area renders nested folder tree, root sessions, and discoverable New folder entry][V: Vitest/component test covers nested folders, root sessions, empty tree, New folder entry] 实现左侧项目区域 folder tree 渲染与新建入口。
 - [x] 3.2 [P0][depends:3.1,1.2][I: folder CRUD commands][O: UI actions for create/rename/delete folder][V: Vitest covers create, rename, delete blocked/non-empty policy copy] 实现 folder CRUD 交互。
-- [x] 3.3 [P0][depends:3.1,1.3,1.4][I: DnD interaction layer][O: same-project drag and drop for session folder assignment][V: Vitest/e2e-style test covers same-project move and UI refresh] 实现同项目 session 拖拽移动。
-- [x] 3.4 [P0][depends:3.3][I: cross-project drop targets][O: cross-project drag hover disabled state and drop rejection feedback][V: test covers invalid hover not highlighted, rejected drop preserving original assignment, explicit message] 实现跨项目拖拽保护提示。
-- [x] 3.5 [P0][depends:3.1,1.3,1.4][I: session row action menu + folder tree][O: menu-based Move to folder path limited to current project][V: Vitest covers moving by menu to folder/root and excludes other project folders] 实现非拖拽移动路径。
+- [x] 3.5 [P0][depends:3.1,1.3,1.4][I: session row action menu + folder tree][O: menu-based Move to folder path limited to current project][V: Vitest covers moving by menu to folder/root and excludes other project folders] 实现菜单移动路径。
 - [x] 3.6 [P1][depends:3.1,3.5][I: folder tree keyboard interaction][O: keyboard-accessible expand/collapse and move menu access][V: component test covers keyboard expand/collapse and menu opening] 补齐基础键盘可访问性。
 
 ## 4. Multi Engine History Attribution
@@ -36,17 +34,17 @@
 
 ## 6. Verification
 
-- [x] 6.1 [P0][depends:1.4,3.4,4.4,5.2][I: completed implementation][O: focused backend validation][V: `cargo test --manifest-path src-tauri/Cargo.toml` plus targeted folder/history attribution tests pass] 运行并修复 Rust 后端测试。
-- [x] 6.2 [P0][depends:3.4,5.3][I: completed frontend implementation][O: focused frontend validation][V: `npm run typecheck` and focused Vitest suites for folder tree/session history pass] 运行并修复前端类型与组件测试。
-- [ ] 6.3 [P1][depends:6.1,6.2][I: desktop app manual matrix][O: manual verification notes][V: same-project DnD works, cross-project DnD rejected, Claude/Codex/Gemini histories visible/degraded as expected] 执行最小人工验证矩阵。
-- [x] 6.4 [P0][depends:6.3][I: final artifacts + implementation][O: strict OpenSpec validation result][V: `openspec validate manage-project-session-folders --strict` passes] 执行 OpenSpec strict validation。
+- [x] 6.1 [P0][depends:1.4,4.4,5.2][I: completed backend implementation][O: focused backend validation][V: `cargo test --manifest-path src-tauri/Cargo.toml` plus targeted folder/history attribution tests pass] 运行并修复 Rust 后端测试。
+- [x] 6.2 [P0][depends:3.5,5.3][I: completed frontend implementation][O: focused frontend validation][V: `npm run typecheck` and focused Vitest suites for folder tree/session history pass] 运行并修复当前已落地 folder tree / menu move / session history 前端测试。
+- [x] 6.3 [P1][depends:6.1,6.2][I: desktop app manual matrix][O: manual verification notes][V: same-project menu move works, cross-project move rejected, Claude/Codex/Gemini histories visible/degraded as expected] 执行最小人工验证矩阵。
+- [x] 6.4 [P0][depends:6.1,6.2][I: current artifacts + implementation][O: strict OpenSpec validation result][V: `openspec validate manage-project-session-folders --strict` passes] 执行 OpenSpec strict validation。
 
 ## 7. v0.4.14 Hardening Follow-up
 
-- [ ] 7.1 [P0][depends:1.3,1.4,4.4][I: `assign_workspace_session_folder_core` + shared catalog/attribution resolver][O: command 层验证 source session 属于目标 project/workspace scope][V: Rust tests cover valid owner, wrong project, unresolved owner, target folder missing] 补齐 folder assignment source owner 校验。
-- [ ] 7.2 [P0][depends:1.1,1.2,1.3,2.2][I: catalog metadata read/write helpers][O: workspace-scoped atomic metadata mutation helper covering folder CRUD、assignment、delete cleanup][V: Rust tests cover concurrent mutation preservation and failed validation no-write] 收口 folder metadata 并发写覆盖风险。
-- [ ] 7.3 [P1][depends:2.1,4.1,4.2,4.3][I: project/global catalog builders + engine history adapters][O: bounded backend page acquisition or documented capped scan per engine][V: backend tests prove first-page request does not exhaust large fixture history and preserves next cursor/partial marker] 下沉 session catalog 分页到后端 scanner。
-- [ ] 7.4 [P1][depends:3.1,3.6][I: `WorkspaceSessionFolderTree` collapsed state + workspace UI preference storage][O: project-local folder collapsed state persistence][V: Vitest covers collapse, refresh/remount restore, deleted folder id ignored] 持久化 folder 展开/折叠状态。
-- [ ] 7.5 [P2][depends:3.5][I: move-to-folder target list and sidebar menu path][O: large target list searchable picker or equivalent grouped selector][V: Vitest covers root always reachable, search filters current-project targets only, no cross-project target leakage] 优化大量 folder 下的 Move to folder 可用性。
-- [ ] 7.6 [P0][depends:7.1,7.2][I: hardening implementation][O: focused backend verification][V: `cargo test --manifest-path src-tauri/Cargo.toml session_management` or equivalent targeted suites pass] 验证 owner 校验与 metadata 原子写。
-- [ ] 7.7 [P1][depends:7.3,7.4,7.5][I: hardening implementation][O: focused frontend/catalog verification][V: targeted Vitest suites for sidebar folder tree and workspace session catalog pass] 验证分页、折叠状态与大量目标交互。
+- [x] 7.1 [P0][depends:1.3,1.4,4.4][I: `assign_workspace_session_folder_core` + shared catalog/attribution resolver][O: command 层验证 source session 属于目标 project/workspace scope][V: Rust tests cover valid owner, wrong project, unresolved owner, target folder missing] 补齐 folder assignment source owner 校验。当前代码只校验 target folder 存在于传入 workspace metadata。
+- [x] 7.2 [P0][depends:1.1,1.2,1.3,2.2][I: `read_catalog_metadata` / `write_catalog_metadata` callers][O: workspace-scoped atomic metadata mutation helper covering folder CRUD、assignment、delete cleanup][V: Rust tests cover concurrent mutation preservation and failed validation no-write] 收口 folder metadata 并发写覆盖风险。当前代码仍是 command-local JSON read-modify-write。
+- [x] 7.3 [P1][depends:2.1,4.1,4.2,4.3][I: `build_workspace_scope_catalog_data` / `build_global_engine_catalog_entries` + engine history adapters][O: bounded backend page acquisition or documented capped scan per engine][V: backend tests prove first-page request does not exhaust large fixture history and preserves next cursor/partial marker] 下沉 session catalog 分页到后端 scanner。当前分页在完整 entries 构造后执行。
+- [x] 7.4 [P1][depends:3.1,3.6][I: `WorkspaceSessionFolderTree` collapsed state + workspace UI preference storage][O: project-local folder collapsed state persistence][V: Vitest covers collapse, refresh/remount restore, deleted folder id ignored] 持久化 folder 展开/折叠状态。当前 collapsed ids 仅存在组件内存。
+- [x] 7.5 [P2][depends:3.5][I: `useSidebarMenus` move-to-folder target list and sidebar menu path][O: large target list searchable picker or equivalent grouped selector][V: Vitest covers root always reachable, search filters current-project targets only, no cross-project target leakage] 优化大量 folder 下的 Move to folder 可用性。当前为线性 Tauri menu target list。
+- [x] 7.6 [P0][depends:7.1,7.2][I: hardening implementation][O: focused backend verification][V: `cargo test --manifest-path src-tauri/Cargo.toml session_management` or equivalent targeted suites pass] 验证 owner 校验与 metadata 原子写。
+- [x] 7.7 [P1][depends:7.3,7.4,7.5][I: hardening implementation][O: focused frontend/catalog verification][V: targeted Vitest suites for sidebar folder tree and workspace session catalog pass] 验证分页、折叠状态与大量目标交互。

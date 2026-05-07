@@ -14,18 +14,38 @@
 
 这不是单个 UI bug。核心设计必须把“组织层”和“真实归属层”拆开：folder tree 只能组织当前 project 已归属 session，不能改变 owner；历史 scanner/attribution 决定 session 应该属于哪个 project 或是否 unresolved。
 
+### Current Implementation Snapshot
+
+当前代码已经落地以下基础：
+
+- `src-tauri/src/session_management.rs` 定义 folder metadata、catalog entry `folder_id`、folder CRUD/assignment commands、archive/delete metadata cleanup、projection summary。
+- Folder metadata 使用 file-based JSON，路径由 `catalog_metadata_path()` 派生到 `session-management/workspaces/<workspaceId>.json`。
+- `assign_workspace_session_folder_core()` 已验证 workspace 存在、session id 合法、target folder 在该 workspace metadata 中存在，并支持 root fallback。
+- `apply_folder_assignment()` 会按 owner workspace metadata 把 `folderId` 合入 catalog entry；Codex raw id 与 `codex:` prefixed id 做了兼容。
+- `WorkspaceSessionFolderTree.tsx` 已支持 nested folder 渲染、inline create/rename/delete confirm、keyboard expand/collapse、context menu。
+- `ThreadList`/`useSidebarMenus` 已支持右键菜单 `Move to folder`，目标由 `buildWorkspaceSessionFolderMoveTargets()` 从当前 project folder tree 构造。
+- 三引擎 catalog 已在 `build_workspace_scope_catalog_data()` / `build_global_engine_catalog_entries()` 汇入 Codex、Claude Code、Gemini，并暴露 partial source。
+
+当前代码尚未落地或仍有风险：
+
+- assignment command 没有复用 catalog/attribution resolver 去证明 source session 真实属于目标 project scope。
+- folder metadata 仍是每个 command 独立 read-modify-write，没有 workspace-scoped mutation helper 或 lock。
+- `build_catalog_page()` 在过滤/排序/分页前已经拿到了完整 `entries`；上游 scanner 仍可能用 `usize::MAX` 或无 cursor 扫描。
+- folder collapsed state 是 `WorkspaceSessionFolderTree` 内部 `useState(new Set())`，刷新或 remount 后丢失。
+- `Move to folder` 目标列表是线性 menu items，大 folder 数量下没有 searchable picker。
+
 ## Goals / Non-Goals
 
 **Goals:**
 
 - 为每个 project 提供独立 session folder tree。
-- 支持 folder CRUD、nested hierarchy、same-project session drag and drop。
-- 支持非拖拽移动路径：session 菜单可选择目标 folder/root。
-- 禁止跨 project session move 或 drag and drop。
+- 支持 folder CRUD、nested hierarchy。
+- 支持菜单移动路径：session 菜单可选择目标 folder/root。
+- 禁止跨 project session move。
 - Assignment command 必须从 catalog/source owner 反证 session 属于目标 project scope，不能只信任前端 workspace id。
 - Folder metadata 的写入必须避免同一 workspace 下 read-modify-write 竞争导致更新丢失。
 - 大历史 catalog 的后端扫描必须逐步具备 bounded page acquisition，首屏不应为了构造一个 page 而扫描全部历史。
-- Folder 展开状态需要 project-local 持久化；大量 folder target 需要可搜索或可扫描的非拖拽移动入口。
+- Folder 展开状态需要 project-local 持久化；大量 folder target 需要可搜索或可扫描的菜单移动入口。
 - 将 Codex、Claude Code、Gemini 历史查询收口到统一 project attribution contract，其中 Codex 与 Claude Code 是 P0，Gemini 是 best-effort。
 - 修复 Claude Code project history 漏显：有 cwd/git root/workspace catalog 证据时必须正确进入对应 project strict 或 related surface。
 - 保持 archive/delete/unarchive owner-aware routing，不因 folder 组织层改变底层 owner。
@@ -35,6 +55,7 @@
 - 不引入数据库。
 - 不重写 engine transcript 格式。
 - 不支持跨 project owner migration。
+- 不实现 session-to-folder drag and drop；当前设计以 explicit menu move 降低误操作和实现复杂度。
 - 不把 unresolved history 强行归属。
 - 不重构 chat runtime 或 session execution lifecycle。
 - 不在本轮改用数据库或引入全局索引服务；hardening 继续基于现有 file-based metadata 与 engine adapter。
@@ -61,11 +82,12 @@
 - 把 folder path 写入 session owner：会污染归属层，跨 project 风险高。
 - 仅前端 state：刷新丢失，无法支持长期治理。
 
-### Decision 2: Drag and drop 在 command 层做 project boundary validation
+### Decision 2: Session folder assignment 走 explicit menu move，command 层做 project boundary validation
 
 **Decision**
 
-- 前端 DnD 可以先做 optimistic guard，但后端 command 必须再次校验：
+- 当前已落地的移动路径是 menu-based assignment；本提案不再要求 session-to-folder drag and drop。
+- 前端菜单只能展示当前 project folder/root，但后端 command 必须再次校验：
   - source session owner project
   - target folder owner project
   - target folder existence
@@ -74,17 +96,19 @@
 
 **Why**
 
-- DnD 是 UI 易错区，不能只依赖前端判断。
+- explicit menu move 的意图更清晰，也更适合大量 session 与无障碍场景。
 - 跨 project move 当前没有 owner migration 设计，必须 hard block。
 
 **Alternatives considered**
 
-- 允许跨 project 拖拽并修改 attribution：风险过大，会引入误归属、误删和历史文件迁移问题。
+- 加 session-to-folder drag and drop：交互意义有限，且会放大 hover/drop 反馈、跨项目误放、触控板误操作与测试成本。
+- 允许跨 project 移动并修改 attribution：风险过大，会引入误归属、误删和历史文件迁移问题。
 
 ### Decision 2.2: Folder assignment command 必须 owner-aware
 
 **Decision**
 
+- 当前代码只验证 target folder 属于传入 `workspaceId`，尚未证明 source session 的真实 owner；本决策是 v0.4.14 hardening 的 P0 缺口。
 - `assign session to folder/root` 必须先解析 source session 的真实 owner workspace/project scope。
 - 目标 `workspaceId` 与 source session owner/project scope 不一致时，命令必须拒绝，错误需要能区分：
   - target folder 不存在
@@ -105,6 +129,7 @@
 
 **Decision**
 
+- 当前代码每个 command 直接 `read_catalog_metadata()` 后 `write_catalog_metadata()`，没有共享临界区；该 helper 需要作为后续 hardening 引入。
 - create/rename/move/delete folder 与 assign session folder 必须通过同一个 workspace-scoped mutation helper 写入 metadata。
 - helper 负责 read -> validate/mutate -> write 的临界区，避免同一 workspace 下并发操作互相覆盖。
 - 当前 file-based storage 可用 in-process per-workspace lock 先收口；跨进程强一致不是本轮目标，但错误日志应能定位写入失败。
@@ -119,30 +144,24 @@
 - 直接改数据库：能力更强，但对当前需求过重。
 - 保持无锁并依赖 UI 串行：无法覆盖多入口、重试和未来自动化调用。
 
-### Decision 2.1: DnD 需要 drop 前反馈，且不能作为唯一移动路径
+### Decision 2.1: Menu move 是唯一 session folder assignment 入口
 
 **Decision**
 
-- 合法 target：
-  - same-project folder
-  - same-project root
-- 非法 target：
-  - other project
-  - other project folder
-  - archived-only 或不可变更 surface
-- Hover 到非法 target 时，UI 必须在 drop 前显示 disabled cursor、禁止态或等价不可投放反馈。
-- Drop 到非法 target 后端仍必须拒绝，前端保留原 assignment。
-- Session row 菜单必须提供 `Move to folder...` 或等价操作，允许用户不用 DnD 完成同项目移动。
+- Session row 菜单必须提供 `Move to folder...` 或等价操作。
+- 合法 target 仅包含 same-project folder 与 same-project root。
+- 非法 target 包括 other project、other project folder、archived-only 或不可变更 surface。
+- 后端仍必须拒绝非法 assignment，前端在失败后保留原 assignment。
 
 **Why**
 
-- 对小白来说，“拖过去才报错”反馈太晚。
-- DnD 对触控板、键盘用户和无障碍场景不稳定，必须有菜单备用路径。
+- 对小白来说，菜单移动的显式确认更可解释，且不会引入移动目标不清晰的问题。
+- 菜单路径对触控板、键盘用户和无障碍场景更稳定。
 
 **Alternatives considered**
 
-- 只做 DnD：实现更快，但可发现性和可访问性不足。
-- 允许非法 drop 后自动回弹但不提示：用户无法理解失败原因。
+- 只做拖拽：可发现性和可访问性不足，不采用。
+- 菜单 + DnD 双入口：能力重复，增加测试面和误操作面，不采用。
 
 ### Decision 3: 三引擎 scanner 共享输出 contract，各自保留 adapter，Codex/Claude Code 优先
 
@@ -223,6 +242,7 @@ Claude Code scanner 应按证据强度输出 attribution candidates：
 
 **Decision**
 
+- 当前代码已经有 `limit` clamp、offset cursor 与前端 `Load older`，但分页发生在完整候选集构造之后；这不是最终 bounded backend acquisition。
 - 前端首屏只请求首个 page 只是第一层保护；后端 catalog builder 也必须支持 bounded acquisition。
 - Backend should prefer engine-specific cursor/limit where available, and otherwise cap scanned pages/items with partial/degraded marker.
 - Cursor semantics must remain stable across filters and source degradation.
@@ -257,12 +277,13 @@ Claude Code scanner 应按证据强度输出 attribution candidates：
 **Alternatives considered**
 
 - 删除非空 folder 时自动移动到 parent/root：更便捷，但需要额外确认和 undo 设计。
-- 立即支持手动排序：用户体验更完整，但会引入排序持久化与 DnD 冲突面。
+- 立即支持手动排序：用户体验更完整，但会引入额外排序持久化与交互复杂度。
 
 ### Decision 7: Folder 展开状态是 UI preference，不是 organization truth
 
 **Decision**
 
+- 当前 folder expand/collapse state 只存在组件内存中，已支持 keyboard toggle，但不跨刷新恢复。
 - Folder expand/collapse state 应按 project 持久化到 UI preference/local metadata。
 - 展开状态不得参与 session membership、assignment、archive/delete routing。
 - Folder 被删除或 parent 修复后，失效的 collapsed id 必须被清理或忽略。
@@ -276,13 +297,14 @@ Claude Code scanner 应按证据强度输出 attribution candidates：
 
 **Decision**
 
+- 当前实现使用 Tauri menu 的线性 target list，适合少量 folder，不适合长期项目的大量 folder。
 - 少量 folder 可继续使用当前 menu target list。
 - 当 target 数量超过阈值时，使用 searchable picker / command palette / grouped selector，至少支持按 folder path 文本过滤。
 - Root target 必须始终可达。
 
 **Why**
 
-- 长菜单在几十个 folder 后不可扫描，非拖拽路径会变成名义存在。
+- 长菜单在几十个 folder 后不可扫描，菜单移动路径会变成名义存在。
 - 小白需要菜单路径，重度用户需要快速定位目标。
 
 ## Data Model Sketch
@@ -335,8 +357,7 @@ type EngineHistoryEntry = {
    - 使用 workspace-scoped metadata mutation helper
 3. 接入 frontend folder tree：
    - project row 下渲染 folder hierarchy
-   - 支持 expand/collapse 与 same-project drag and drop
-   - cross-project drop 显式 reject
+   - 支持 expand/collapse
    - session menu 支持移动到同项目 folder/root
 4. 梳理三引擎 scanner：
    - Codex adapter 保持现有 unified history 语义
@@ -354,7 +375,6 @@ type EngineHistoryEntry = {
 
 - 若 folder tree 出现严重问题，可隐藏 folder UI，并保留 root session list；assignment metadata 不参与 owner routing，回滚风险低。
 - 若某个 engine scanner 引入误归属，可单独关闭该 engine 的 project attribution adapter，并在 global history 中保留 unresolved entries。
-- 若 DnD 出现异常，可保留 folder CRUD 与手动 move command，临时禁用拖拽入口。
 - 若 bounded scanner 在某 engine 上表现不稳定，可先对该 engine 回退到 capped scan + degraded marker，不影响其它 engine。
 - 若 collapsed-state persistence 出现异常，可忽略 UI preference 并回退到默认展开/折叠策略，不影响 assignment metadata。
 
@@ -366,11 +386,8 @@ type EngineHistoryEntry = {
 - [Risk] Claude Code transcript metadata 不稳定  
   Mitigation：按证据强度分级；无法稳定归属时返回 `unassigned`，同时保留 global visibility 与 degraded marker。
 
-- [Risk] DnD 跨项目误放造成 owner 污染  
-  Mitigation：前后端双层校验；后端 command 以 project id 和 canonical owner 做最终裁决。
-
-- [Risk] 只做 DnD 导致用户不知道如何移动 session  
-  Mitigation：session 菜单提供 `Move to folder...`；folder/root target 可搜索或分层选择。
+- [Risk] 错误入口或脚本绕过菜单导致 owner 污染
+  Mitigation：后端 command 以 project id 和 canonical owner 做最终裁决；菜单过滤只作为第一层保护。
 
 - [Risk] Folder tree 与 pagination 混用造成“只展示当前页 folder 内容”的误解  
   Mitigation：payload 区分 filtered total、visible window 与 folder counts；UI 对 partial/degraded state 明确提示。
