@@ -678,3 +678,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 361: 提高右侧底部结果面板上拽高度上限
+
+**Date**: 2026-05-07
+**Task**: 提高右侧底部结果面板上拽高度上限
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+将右侧底部结果/复核面板最大高度从 420px 提高到 630px，并补充拖拽超过上限的 hook 回归测试。恢复误改的 Git History 面板顶部留白配置。验证通过：npx vitest run src/features/layout/hooks/useResizablePanels.test.ts；npm run typecheck；npm run lint。
+
+### Main Changes
+
+## 本次工作
+- 定位真实目标为右侧底部结果/复核面板，对应 `useResizablePanels` 的 `planPanelHeight` 和 `.right-panel-bottom` 样式。
+- 将底部面板上拽高度上限从 `420px` 提高到 `630px`，满足“增加一半”的需求。
+- 恢复前一次误改的 Git History dock 顶部留白，从 `22px` 回到 `44px` / `--main-topbar-height`。
+- 新增回归测试，覆盖向上拖拽超过 `630px` 后 state、CSS var、storage 均 clamp 到 `630`。
+
+## 验证
+- `npx vitest run src/features/layout/hooks/useResizablePanels.test.ts` 通过，9 tests。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+
+## 注意
+- 工作区仍存在其它未提交改动，主要在 `src-tauri/**` 和 `src/services/**`，本次功能提交未纳入这些文件。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e9968ecb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

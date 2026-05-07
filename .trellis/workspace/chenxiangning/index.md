@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-11.md`
-- **Total Sessions**: 360
+- **Total Sessions**: 361
 - **Last Active**: 2026-05-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-11.md` | ~680 | Active |
+| `journal-11.md` | ~726 | Active |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
@@ -39,6 +39,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 361 | 2026-05-07 | 提高右侧底部结果面板上拽高度上限 | `e9968ecb` | `feature/v.0.4.14-2` |
 | 360 | 2026-05-07 | 调整 git history 面板顶部留白 | `eb42456e` | `feature/v.0.4.14-2` |
 | 359 | 2026-05-07 | 补齐批量测试命令 shell 回退 | `0241f955` | `feature/v.0.4.14-2` |
 | 358 | 2026-05-07 | 修复 checkpoint 结果边界 | `ca257534` | `feature/v.0.4.14-2` |
