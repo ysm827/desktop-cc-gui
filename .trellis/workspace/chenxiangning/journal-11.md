@@ -547,3 +547,48 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 358: 修复 checkpoint 结果边界
+
+**Date**: 2026-05-07
+**Task**: 修复 checkpoint 结果边界
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+修复 checkpoint 结果面板边界处理与提交入口。
+
+主要内容：
+- 抽出 CheckpointCommitDialog，降低 CheckpointPanel 体量并统一 staged/unstaged/fileChanges 的提交文件来源。
+- 修复 next actions 过滤逻辑，避免 review_diff 被 commit action 吞掉。
+- 收紧 generated summary 采纳条件，避免 needs_review/running 状态展示过度乐观结论。
+- 补齐 status panel 结果区、commit dialog、主题样式与 checkpoint summary 的回归测试。
+
+验证：
+- 此前已运行 vitest、typecheck、large-file gate 与 heavy-test-noise gate，均通过；heavy-test-noise 仅保留环境级 npm electron_mirror warning。
+- git commit 成功。
+- python3 ./.trellis/scripts/get_context.py --mode record 已执行。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ca257534` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
