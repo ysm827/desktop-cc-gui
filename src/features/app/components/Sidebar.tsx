@@ -58,6 +58,7 @@ import {
   getWorkspaceSidebarAlias,
   getWorkspaceSidebarLabel,
 } from "../utils/workspaceSidebarLabel";
+import { normalizeVisibleThreadRootCount } from "../constants";
 import { getExitedSessionRowVisibility } from "../utils/exitedSessionRows";
 import {
   buildWorkspaceSessionFolderMoveTargets,
@@ -684,11 +685,15 @@ export function Sidebar({
         }
         const threads = threadsByWorkspace[workspace.id] ?? [];
         const isExpanded = expandedWorkspaces.has(workspace.id);
+        const visibleThreadRootCount = normalizeVisibleThreadRootCount(
+          workspace.settings.visibleThreadRootCount,
+        );
         const { unpinnedRows, totalRoots } = getThreadRows(
           threads,
           isExpanded,
           workspace.id,
           getPinTimestamp,
+          visibleThreadRootCount,
         );
         rowsByWorkspace.set(workspace.id, { unpinnedRows, totalRoots });
       });
@@ -1207,6 +1212,9 @@ export function Sidebar({
       entry.id === activeWorkspaceId && Boolean(activeThreadId);
     const hasRunningSession = hasRunningSessionByProjectId.get(entry.id) ?? false;
     const workspaceSidebarAlias = getWorkspaceSidebarAlias(entry);
+    const visibleThreadRootCount = normalizeVisibleThreadRootCount(
+      entry.settings.visibleThreadRootCount,
+    );
     const hideExitedSessions = isExitedSessionsHidden(entry.path);
     const exitedSessionVisibility = getExitedSessionRowVisibility(unpinnedRows, {
       hideExitedSessions,
@@ -1347,6 +1355,7 @@ export function Sidebar({
             onDeleteFolder={handleDeleteSessionFolder}
             onToggleFolderCollapsed={handleToggleSessionFolderCollapsed}
             threadListProps={{
+              visibleThreadRootCount,
               hideExitedSessions,
               activeWorkspaceId,
               activeThreadId,
@@ -1378,6 +1387,7 @@ export function Sidebar({
             pinnedRows={[]}
             unpinnedRows={unpinnedRows}
             totalThreadRoots={totalThreadRoots}
+            visibleThreadRootCount={visibleThreadRootCount}
             isExpanded={isExpanded}
             nextCursor={nextCursor}
             isPaging={isPaging}

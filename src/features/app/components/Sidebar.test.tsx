@@ -2467,4 +2467,42 @@ describe("Sidebar", () => {
     expect(onLoadOlderThreads).toHaveBeenCalledWith("ws-1");
   });
 
+  it("uses the workspace-specific root visibility count for the more button", async () => {
+    const workspace = {
+      id: "ws-1",
+      name: "codemoss",
+      path: "/tmp/codemoss",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: false,
+        visibleThreadRootCount: 1,
+      },
+    };
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [
+            { id: "root-session-1", name: "Root session 1", updatedAt: 3 },
+            { id: "root-session-2", name: "Root session 2", updatedAt: 2 },
+          ],
+        }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
+      />,
+    );
+
+    expect(await screen.findByText("Root session 1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "More..." })).toBeTruthy();
+  });
+
 });

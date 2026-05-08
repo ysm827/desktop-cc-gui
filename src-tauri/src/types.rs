@@ -568,6 +568,8 @@ pub(crate) struct WorkspaceGroup {
 pub(crate) struct WorkspaceSettings {
     #[serde(default, rename = "sidebarCollapsed")]
     pub(crate) sidebar_collapsed: bool,
+    #[serde(default, rename = "visibleThreadRootCount")]
+    pub(crate) visible_thread_root_count: Option<u32>,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
     #[serde(default, rename = "groupId")]

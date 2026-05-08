@@ -1,5 +1,6 @@
 export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
+  visibleThreadRootCount?: number | null;
   sortOrder?: number | null;
   groupId?: string | null;
   projectAlias?: string | null;

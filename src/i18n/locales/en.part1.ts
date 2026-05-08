@@ -1270,6 +1270,12 @@ const enPart1 = {
     sessionManagementAttributionReasonParentScope: "Matched parent project scope",
     sessionManagementAttributionConfidenceHigh: "High confidence",
     sessionManagementAttributionConfidenceMedium: "Medium confidence",
+    sessionManagementThreadVisibilityLabel: "Sidebar default session count",
+    sessionManagementThreadVisibilityHint:
+      "Controls how many root sessions this workspace shows by default while the sidebar stays collapsed. Default {{defaultCount}}, supported range {{min}}-{{max}}; effective value {{count}}.",
+    sessionManagementThreadVisibilitySaved:
+      "Updated the sidebar default session count to {{count}}.",
+    sessionManagementThreadVisibilitySaving: "Saving...",
     sessionManagementLoadMore: "Load more",
     sessionManagementLoadingMore: "Loading more...",
     radarHistoryTitle: "Radar History Management",
