@@ -1148,3 +1148,51 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 372: 归一化 checkpoint 提交信息生成入口
+
+**Date**: 2026-05-08
+**Task**: 归一化 checkpoint 提交信息生成入口
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+完成 checkpoint 提交确认弹窗的提交信息生成入口归一化。
+
+主要改动：
+- 将弹窗右侧 AI 生成提交信息按钮从直接调用默认 Codex，改为与主提交面板一致的两级菜单流程。
+- 第一级菜单选择生成引擎：Codex、Claude、Gemini、OpenCode。
+- 第二级菜单选择生成语言：中文或英文。
+- 原生 Tauri 菜单弹出时传入当前 window，和主入口保持一致，避免弹窗入口菜单行为不稳定。
+- 保留当前弹窗内已勾选文件路径透传，确保生成上下文与提交范围一致。
+- 补充 StatusPanel 测试，覆盖选择 Claude + 中文后才触发生成，并断言不再默认触发 Codex。
+
+验证：
+- npx vitest run src/features/status-panel/components/StatusPanel.test.tsx
+- npx eslint src/features/status-panel/components/CheckpointCommitDialog.tsx src/features/status-panel/components/StatusPanel.test.tsx --ext .ts,.tsx
+- npm run typecheck
+- git diff --check
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b98abd02` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
