@@ -66,6 +66,83 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function recordContainsKey(value: unknown, targetKey: string): boolean {
+  if (Array.isArray(value)) {
+    return value.some((entry) => recordContainsKey(entry, targetKey));
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return false;
+  }
+  return Object.entries(record).some(
+    ([key, nested]) => key === targetKey || recordContainsKey(nested, targetKey),
+  );
+}
+
+function recordContainsString(value: unknown, needle: string): boolean {
+  if (typeof value === "string") {
+    return value.includes(needle);
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => recordContainsString(entry, needle));
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return false;
+  }
+  return Object.values(record).some((nested) =>
+    recordContainsString(nested, needle),
+  );
+}
+
+function isCcguiClientInfo(value: unknown) {
+  const record = asRecord(value);
+  const clientInfo = asRecord(record?.clientInfo);
+  if (!clientInfo) {
+    return false;
+  }
+  return ["name", "title"].some(
+    (key) => asString(clientInfo[key]).toLowerCase() === "ccgui",
+  );
+}
+
+function hasExperimentalApiCapability(value: unknown) {
+  const record = asRecord(value);
+  const capabilities = asRecord(record?.capabilities);
+  return capabilities?.experimentalApi === true;
+}
+
+function isCodexAppServerControlPlaneText(text: string) {
+  const trimmed = text.trim();
+  return (
+    trimmed === "app-server" ||
+    trimmed.endsWith(" app-server") ||
+    trimmed.includes("codex app-server") ||
+    trimmed.includes("developer_instructions=")
+  );
+}
+
+function isClaudeControlPlaneMessage(message: Record<string, unknown>) {
+  const method = asString(message.method);
+  if (method === "initialize") {
+    return true;
+  }
+
+  const params = message.params ?? message.payload;
+  if (isCcguiClientInfo(params) && hasExperimentalApiCapability(params)) {
+    return true;
+  }
+
+  if (
+    recordContainsKey(message, "developer_instructions") ||
+    recordContainsString(message, "developer_instructions=")
+  ) {
+    return true;
+  }
+
+  return isCodexAppServerControlPlaneText(asString(message.text ?? ""));
+}
+
 function isReasoningSnapshotDuplicate(previous: string, incoming: string) {
   return areEquivalentReasoningTexts(previous, incoming);
 }
@@ -915,6 +992,9 @@ export function parseClaudeHistoryMessages(messagesData: unknown): ConversationI
     ? (messagesData as Array<Record<string, unknown>>)
     : [];
   for (const message of messages) {
+    if (isClaudeControlPlaneMessage(message)) {
+      continue;
+    }
     const kind = asString(message.kind ?? "");
     if (kind === "message") {
       const role = asString(message.role) === "user" ? "user" : "assistant";

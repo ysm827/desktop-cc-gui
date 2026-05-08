@@ -320,6 +320,112 @@ fn is_filtered_message(text: &str) -> bool {
         )
 }
 
+fn value_contains_key_recursive(value: &Value, target_key: &str) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, nested)| {
+            key == target_key || value_contains_key_recursive(nested, target_key)
+        }),
+        Value::Array(items) => items
+            .iter()
+            .any(|nested| value_contains_key_recursive(nested, target_key)),
+        _ => false,
+    }
+}
+
+fn value_contains_string_recursive(value: &Value, needle: &str) -> bool {
+    match value {
+        Value::String(text) => text.contains(needle),
+        Value::Object(map) => map
+            .values()
+            .any(|nested| value_contains_string_recursive(nested, needle)),
+        Value::Array(items) => items
+            .iter()
+            .any(|nested| value_contains_string_recursive(nested, needle)),
+        _ => false,
+    }
+}
+
+fn is_ccgui_client_info(value: &Value) -> bool {
+    let Some(client_info) = value.get("clientInfo").and_then(Value::as_object) else {
+        return false;
+    };
+    ["name", "title"].iter().any(|key| {
+        client_info
+            .get(*key)
+            .and_then(Value::as_str)
+            .map(|text| text.eq_ignore_ascii_case("ccgui"))
+            .unwrap_or(false)
+    })
+}
+
+fn has_experimental_api_capability(value: &Value) -> bool {
+    value
+        .get("capabilities")
+        .and_then(|capabilities| capabilities.get("experimentalApi"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn is_codex_app_server_text(text: &str) -> bool {
+    let trimmed = text.trim();
+    trimmed == "app-server"
+        || trimmed.ends_with(" app-server")
+        || trimmed.contains("codex app-server")
+        || trimmed.contains("developer_instructions=")
+}
+
+fn content_contains_codex_app_server_control_plane(content: &Value) -> bool {
+    match content {
+        Value::String(text) => is_codex_app_server_text(text),
+        Value::Array(blocks) => blocks.iter().any(|block| {
+            block
+                .get("text")
+                .and_then(Value::as_str)
+                .map(is_codex_app_server_text)
+                .unwrap_or(false)
+        }),
+        _ => false,
+    }
+}
+
+fn is_claude_control_plane_entry(entry: &Value) -> bool {
+    let method = entry.get("method").and_then(Value::as_str).or_else(|| {
+        entry
+            .get("message")
+            .and_then(|message| message.get("method"))
+            .and_then(Value::as_str)
+    });
+    if method == Some("initialize") {
+        return true;
+    }
+
+    let params = entry
+        .get("params")
+        .or_else(|| entry.get("payload"))
+        .or_else(|| {
+            entry
+                .get("message")
+                .and_then(|message| message.get("params"))
+        });
+    if let Some(params) = params {
+        if is_ccgui_client_info(params) && has_experimental_api_capability(params) {
+            return true;
+        }
+    }
+
+    if value_contains_key_recursive(entry, "developer_instructions")
+        || value_contains_string_recursive(entry, "developer_instructions=")
+    {
+        return true;
+    }
+
+    entry
+        .get("message")
+        .and_then(|message| message.get("content"))
+        .map(content_contains_codex_app_server_control_plane)
+        .unwrap_or(false)
+}
+
 /// Truncate a string to max_chars, adding ellipsis if truncated
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() <= max_chars {
@@ -360,7 +466,8 @@ fn extract_claude_entry_cwd(entry: &Value) -> Option<String> {
             })
         })
         .or_else(|| {
-            entry.get("message")
+            entry
+                .get("message")
                 .and_then(|message| first_non_empty_string(message.get("cwd")))
         })
 }
@@ -394,6 +501,9 @@ async fn scan_session_file(
             Ok(v) => v,
             Err(_) => continue,
         };
+        if is_claude_control_plane_entry(&entry) {
+            continue;
+        }
 
         if transcript_cwd.is_none() {
             transcript_cwd = extract_claude_entry_cwd(&entry);
@@ -470,8 +580,10 @@ async fn scan_session_file(
     if transcript_cwd.is_none() && !allow_project_directory_fallback {
         return None;
     }
-    let attribution_reason =
-        Some(matched_scope_reason.unwrap_or_else(|| CLAUDE_ATTRIBUTION_REASON_PROJECT_DIRECTORY.to_string()));
+    let attribution_reason = Some(
+        matched_scope_reason
+            .unwrap_or_else(|| CLAUDE_ATTRIBUTION_REASON_PROJECT_DIRECTORY.to_string()),
+    );
 
     Some(ClaudeSessionSummary {
         session_id,
@@ -756,6 +868,9 @@ async fn load_claude_session_from_base_dir(
             Ok(v) => v,
             Err(_) => continue,
         };
+        if is_claude_control_plane_entry(&entry) {
+            continue;
+        }
 
         let msg = match entry.get("message") {
             Some(m) => m,
@@ -1207,10 +1322,11 @@ pub async fn delete_claude_session(workspace_path: &Path, session_id: &str) -> R
 mod tests {
     use super::{
         delete_claude_session, extract_images_from_content,
-        fork_claude_session_from_message_in_base_dir, is_encoded_workspace_prefix_match,
-        list_claude_sessions_from_base_dir, load_claude_session_from_base_dir,
-        ClaudeSessionAttributionScope, CLAUDE_ATTRIBUTION_REASON_GIT_ROOT,
-        CLAUDE_ATTRIBUTION_REASON_TRANSCRIPT_CWD, CLAUDE_ATTRIBUTION_STRICT_MATCH,
+        fork_claude_session_from_message_in_base_dir, is_claude_control_plane_entry,
+        is_encoded_workspace_prefix_match, list_claude_sessions_from_base_dir,
+        load_claude_session_from_base_dir, ClaudeSessionAttributionScope,
+        CLAUDE_ATTRIBUTION_REASON_GIT_ROOT, CLAUDE_ATTRIBUTION_REASON_TRANSCRIPT_CWD,
+        CLAUDE_ATTRIBUTION_STRICT_MATCH,
     };
     use serde_json::json;
     use uuid::Uuid;
@@ -1278,6 +1394,32 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn control_plane_predicate_detects_codex_initialize_payload() {
+        let entry = json!({
+            "method": "initialize",
+            "params": {
+                "clientInfo": { "name": "ccgui", "title": "ccgui" },
+                "capabilities": { "experimentalApi": true }
+            }
+        });
+
+        assert!(is_claude_control_plane_entry(&entry));
+    }
+
+    #[test]
+    fn control_plane_predicate_does_not_filter_normal_app_server_text() {
+        let entry = json!({
+            "uuid": "user-normal",
+            "message": {
+                "role": "user",
+                "content": "Please inspect why the app-server keyword appears in logs."
+            }
+        });
+
+        assert!(!is_claude_control_plane_entry(&entry));
+    }
+
     #[tokio::test]
     async fn list_claude_sessions_uses_transcript_cwd_when_project_dir_does_not_match_workspace() {
         let unique = Uuid::new_v4().to_string();
@@ -1325,8 +1467,8 @@ mod tests {
             &attribution_scopes,
             None,
         )
-            .await
-            .expect("list claude sessions");
+        .await
+        .expect("list claude sessions");
         let summary = sessions
             .iter()
             .find(|session| session.session_id == session_id)
@@ -1476,6 +1618,161 @@ mod tests {
             .messages
             .iter()
             .any(|message| message.kind == "message" && message.text == "Done"));
+
+        let _ = std::fs::remove_dir_all(&temp_root);
+    }
+
+    #[tokio::test]
+    async fn control_plane_only_transcript_does_not_create_visible_session() {
+        let unique = Uuid::new_v4().to_string();
+        let temp_root = std::env::temp_dir().join(format!("ccgui-claude-control-only-{}", unique));
+        let base_dir = temp_root.join("claude-projects");
+        let workspace_path = temp_root.join("workspace");
+        std::fs::create_dir_all(&workspace_path).expect("create workspace path");
+        std::fs::create_dir_all(&base_dir).expect("create base dir");
+
+        let encoded_workspace = workspace_path
+            .to_string_lossy()
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '-'
+                }
+            })
+            .collect::<String>();
+        let project_dir = base_dir.join(encoded_workspace);
+        std::fs::create_dir_all(&project_dir).expect("create project dir");
+
+        let session_id = format!("control-only-{}", unique);
+        let session_path = project_dir.join(format!("{}.jsonl", session_id));
+        let lines = vec![
+            json!({
+                "timestamp": "2026-05-09T00:00:00.000Z",
+                "method": "initialize",
+                "params": {
+                    "clientInfo": { "name": "ccgui", "title": "ccgui" },
+                    "capabilities": { "experimentalApi": true }
+                }
+            }),
+            json!({
+                "timestamp": "2026-05-09T00:00:01.000Z",
+                "message": {
+                    "role": "user",
+                    "content": "developer_instructions=\"follow workspace policy\""
+                }
+            }),
+        ];
+        let payload = lines
+            .iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<String>>()
+            .join("\n");
+        std::fs::write(&session_path, format!("{}\n", payload)).expect("write session");
+
+        let attribution_scopes = vec![ClaudeSessionAttributionScope::workspace_path(
+            workspace_path.clone(),
+        )];
+        let sessions = list_claude_sessions_from_base_dir(
+            &base_dir,
+            &workspace_path,
+            &attribution_scopes,
+            None,
+        )
+        .await
+        .expect("list claude sessions");
+
+        assert!(!sessions
+            .iter()
+            .any(|session| session.session_id == session_id));
+
+        let _ = std::fs::remove_dir_all(&temp_root);
+    }
+
+    #[tokio::test]
+    async fn mixed_transcript_filters_control_plane_and_keeps_real_messages() {
+        let unique = Uuid::new_v4().to_string();
+        let temp_root = std::env::temp_dir().join(format!("ccgui-claude-control-mixed-{}", unique));
+        let base_dir = temp_root.join("claude-projects");
+        let workspace_path = temp_root.join("workspace");
+        std::fs::create_dir_all(&workspace_path).expect("create workspace path");
+        std::fs::create_dir_all(&base_dir).expect("create base dir");
+
+        let encoded_workspace = workspace_path
+            .to_string_lossy()
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '-'
+                }
+            })
+            .collect::<String>();
+        let project_dir = base_dir.join(encoded_workspace);
+        std::fs::create_dir_all(&project_dir).expect("create project dir");
+
+        let session_id = format!("control-mixed-{}", unique);
+        let session_path = project_dir.join(format!("{}.jsonl", session_id));
+        let lines = vec![
+            json!({
+                "timestamp": "2026-05-09T00:00:00.000Z",
+                "method": "initialize",
+                "params": {
+                    "clientInfo": { "name": "ccgui", "title": "ccgui" },
+                    "capabilities": { "experimentalApi": true }
+                }
+            }),
+            json!({
+                "uuid": "real-user",
+                "timestamp": "2026-05-09T00:00:02.000Z",
+                "cwd": workspace_path.to_string_lossy(),
+                "message": { "role": "user", "content": "Fix the sidebar bug" }
+            }),
+            json!({
+                "uuid": "real-assistant",
+                "timestamp": "2026-05-09T00:00:03.000Z",
+                "message": { "role": "assistant", "content": "I will inspect it." }
+            }),
+        ];
+        let payload = lines
+            .iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<String>>()
+            .join("\n");
+        std::fs::write(&session_path, format!("{}\n", payload)).expect("write session");
+
+        let attribution_scopes = vec![ClaudeSessionAttributionScope::workspace_path(
+            workspace_path.clone(),
+        )];
+        let sessions = list_claude_sessions_from_base_dir(
+            &base_dir,
+            &workspace_path,
+            &attribution_scopes,
+            None,
+        )
+        .await
+        .expect("list claude sessions");
+        let summary = sessions
+            .iter()
+            .find(|session| session.session_id == session_id)
+            .expect("mixed session should remain visible");
+        assert_eq!(summary.first_message, "Fix the sidebar bug");
+        assert_eq!(summary.message_count, 2);
+
+        let result = load_claude_session_from_base_dir(&base_dir, &workspace_path, &session_id)
+            .await
+            .expect("load session");
+        assert_eq!(result.messages.len(), 2);
+        assert!(result
+            .messages
+            .iter()
+            .any(|message| message.id == "real-user" && message.text == "Fix the sidebar bug"));
+        assert!(!result
+            .messages
+            .iter()
+            .any(|message| message.text.contains("initialize")));
 
         let _ = std::fs::remove_dir_all(&temp_root);
     }

@@ -10,6 +10,60 @@ type AssistantMessageItem = Extract<ConversationItem, { kind: "message" }> & {
 };
 
 describe("parseClaudeHistoryMessages", () => {
+  it("filters Codex control-plane messages from Claude history", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "message",
+        id: "control-init",
+        role: "user",
+        method: "initialize",
+        params: {
+          clientInfo: { name: "ccgui", title: "ccgui" },
+          capabilities: { experimentalApi: true },
+        },
+        text: "",
+      },
+      {
+        kind: "message",
+        id: "control-instructions",
+        role: "user",
+        text: 'developer_instructions="follow workspace policy"',
+      },
+      {
+        kind: "message",
+        id: "real-user",
+        role: "user",
+        text: "Continue the real task",
+      },
+    ]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "real-user",
+      kind: "message",
+      role: "user",
+      text: "Continue the real task",
+    });
+  });
+
+  it("does not filter normal user text mentioning app-server", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "message",
+        id: "real-user-app-server",
+        role: "user",
+        text: "Please inspect why app-server appears in the logs.",
+      },
+    ]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "real-user-app-server",
+      kind: "message",
+      role: "user",
+    });
+  });
+
   it("preserves transcript-style bash output and command metadata", () => {
     const items = parseClaudeHistoryMessages([
       {
