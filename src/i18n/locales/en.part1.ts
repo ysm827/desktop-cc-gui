@@ -2032,6 +2032,7 @@ const enPart1 = {
     reasoningProcessBoundary: "Thinking Process",
     finalMessageBoundary: "Final Message",
     noThinkingContent: "No thinking content",
+    hiddenThinkingContent: "Thinking content is hidden by the current setting.",
     generating: "Generating…",
     waitingForResponse: "Waiting for response…",
     copyCode: "Copy code",

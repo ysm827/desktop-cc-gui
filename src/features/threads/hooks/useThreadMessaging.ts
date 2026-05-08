@@ -158,6 +158,7 @@ type UseThreadMessagingOptions = {
     effort: string | null;
     collaborationMode: Record<string, unknown> | null;
   };
+  claudeThinkingVisible?: boolean;
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
   activeEngine?: "claude" | "codex" | "gemini" | "opencode";
@@ -234,6 +235,7 @@ export function useThreadMessaging({
   effort,
   collaborationMode,
   resolveComposerSelection,
+  claudeThinkingVisible,
   steerEnabled,
   customPrompts,
   activeEngine = "claude",
@@ -620,6 +622,8 @@ export function useThreadMessaging({
         options?.effort !== undefined
           ? options.effort
           : (resolvedComposerSelection?.effort ?? effort);
+      const disableThinkingForClaude =
+        resolvedEngine === "claude" && claudeThinkingVisible === false;
       const resolvedCollaborationMode =
         options?.collaborationMode !== undefined
           ? options.collaborationMode
@@ -1010,6 +1014,7 @@ export function useThreadMessaging({
               text: finalText,
               model: modelForSend ?? null,
               effort: resolvedEffort ?? null,
+              disableThinking: disableThinkingForClaude,
               collaborationMode: sanitizedCollaborationMode,
               accessMode: resolvedAccessMode,
               images: finalImages,
@@ -1188,6 +1193,7 @@ export function useThreadMessaging({
             engine: resolvedEngine,
             model: modelForSend,
             effort: resolvedEffort,
+            disableThinking: disableThinkingForClaude,
             images: finalImages.length > 0 ? finalImages : null,
             accessMode: resolvedAccessMode,
             continueSession: realSessionId !== null,
@@ -1558,6 +1564,7 @@ export function useThreadMessaging({
       accessMode,
       activeEngine,
       collaborationMode,
+      claudeThinkingVisible,
       customPrompts,
       codexAcceptedTurnByThread,
       dispatch,

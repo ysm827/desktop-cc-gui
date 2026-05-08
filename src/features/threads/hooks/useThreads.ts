@@ -105,6 +105,7 @@ type UseThreadsOptions = {
     effort: string | null;
     collaborationMode: Record<string, unknown> | null;
   };
+  claudeThinkingVisible?: boolean;
   accessMode?: "default" | "read-only" | "current" | "full-access";
   steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
@@ -154,6 +155,7 @@ export function useThreads({
   effort,
   collaborationMode,
   resolveComposerSelection,
+  claudeThinkingVisible,
   accessMode,
   steerEnabled = false,
   customPrompts = [],
@@ -1610,6 +1612,7 @@ export function useThreads({
     effort,
     collaborationMode,
     resolveComposerSelection,
+    claudeThinkingVisible,
     steerEnabled,
     customPrompts,
     activeEngine,

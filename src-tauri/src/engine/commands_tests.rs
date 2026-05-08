@@ -23,6 +23,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
 
+use crate::engine::SendMessageParams;
+
 #[derive(Clone, Default)]
 struct FakeClaudeRuntimeOps {
     calls: Arc<StdMutex<Vec<String>>>,
@@ -765,4 +767,11 @@ fn remote_claude_doctor_request_normalizes_explicit_bin() {
 
     assert_eq!(method, "claude_doctor");
     assert_eq!(params, json!({ "claudeBin": "/home/demo/claude" }));
+}
+
+#[test]
+fn send_message_params_default_keeps_claude_thinking_enabled() {
+    let params = SendMessageParams::default();
+
+    assert!(!params.disable_thinking);
 }

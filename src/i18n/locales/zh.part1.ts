@@ -2029,6 +2029,7 @@ const zhPart1 = {
     reasoningProcessBoundary: "推理过程",
     finalMessageBoundary: "最终消息",
     noThinkingContent: "无思考内容",
+    hiddenThinkingContent: "思考内容已按当前设置隐藏",
     generating: "生成中…",
     waitingForResponse: "等待响应…",
     copyCode: "复制代码",

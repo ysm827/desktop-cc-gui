@@ -148,6 +148,7 @@ type ComposerProps = {
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
   reasoningSupported: boolean;
+  onResolvedAlwaysThinkingChange?: (enabled: boolean) => void;
   opencodeAgents?: OpenCodeAgentOption[];
   selectedOpenCodeAgent?: string | null;
   onSelectOpenCodeAgent?: (agentId: string | null) => void;
@@ -391,6 +392,7 @@ export const Composer = memo(function Composer({
   selectedEffort,
   onSelectEffort,
   reasoningSupported,
+  onResolvedAlwaysThinkingChange,
   opencodeAgents = [],
   selectedOpenCodeAgent = null,
   onSelectOpenCodeAgent,
@@ -1957,6 +1959,7 @@ export const Composer = memo(function Composer({
               selectedEffort={selectedEffort}
               onSelectEffort={onSelectEffort}
               reasoningSupported={reasoningSupported}
+              onResolvedAlwaysThinkingChange={onResolvedAlwaysThinkingChange}
               attachments={attachedImages}
               onAddAttachment={onPickImages}
               onAttachImages={onAttachImages}

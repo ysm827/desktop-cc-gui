@@ -611,6 +611,8 @@ type LayoutNodesOptions = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string | null) => void;
+  claudeThinkingVisible?: boolean;
+  onResolvedClaudeThinkingVisibleChange?: (enabled: boolean) => void;
   reasoningSupported: boolean;
   opencodeAgents: OpenCodeAgentOption[];
   selectedOpenCodeAgent: string | null;
@@ -1412,6 +1414,18 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     />
   );
 
+  const [localClaudeThinkingVisible, setLocalClaudeThinkingVisible] = useState<boolean | undefined>(
+    undefined,
+  );
+  const claudeThinkingVisible =
+    typeof options.claudeThinkingVisible === "boolean"
+      ? options.claudeThinkingVisible
+      : localClaudeThinkingVisible;
+  const handleResolvedAlwaysThinkingChange = useCallback((enabled: boolean) => {
+    setLocalClaudeThinkingVisible((previous) => (previous === enabled ? previous : enabled));
+    options.onResolvedClaudeThinkingVisibleChange?.(enabled);
+  }, [options.onResolvedClaudeThinkingVisibleChange]);
+
   const messagesNode = useMemo(() => (
     <Messages
       items={options.activeItems}
@@ -1435,6 +1449,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       conversationState={conversationState}
       presentationProfile={presentationProfile}
       activeEngine={conversationEngine}
+      claudeThinkingVisible={claudeThinkingVisible}
       activeCollaborationModeId={options.selectedCollaborationModeId}
       plan={options.plan}
       isPlanMode={options.isPlanMode}
@@ -1477,6 +1492,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     conversationState,
     presentationProfile,
     conversationEngine,
+    claudeThinkingVisible,
     options.selectedCollaborationModeId,
     options.plan,
     options.isPlanMode,
@@ -1641,6 +1657,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         selectedEffort={options.selectedEffort}
         onSelectEffort={options.onSelectEffort}
         reasoningSupported={options.reasoningSupported}
+        onResolvedAlwaysThinkingChange={handleResolvedAlwaysThinkingChange}
         opencodeAgents={options.opencodeAgents}
         selectedOpenCodeAgent={options.selectedOpenCodeAgent}
         onSelectOpenCodeAgent={options.onSelectOpenCodeAgent}

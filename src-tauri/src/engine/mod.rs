@@ -306,6 +306,8 @@ pub struct SendMessageParams {
     pub model: Option<String>,
     /// Reasoning effort level (for engines that support it)
     pub effort: Option<String>,
+    /// Force-disable Claude Code extended thinking for this request.
+    pub disable_thinking: bool,
     /// Access/permission mode
     pub access_mode: Option<String>,
     /// Image paths to include
@@ -330,6 +332,7 @@ impl Default for SendMessageParams {
             text: String::new(),
             model: None,
             effort: None,
+            disable_thinking: false,
             access_mode: None,
             images: None,
             continue_session: false,

@@ -142,6 +142,63 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     expect(window.localStorage.getItem('ccgui.composer.streaming-enabled')).toBe('0');
   });
 
+  it('reports resolved Claude thinking state to parent surfaces', async () => {
+    const onResolvedAlwaysThinkingChange = vi.fn();
+    renderAdapter({ onResolvedAlwaysThinkingChange });
+
+    await waitFor(() => {
+      expect(onResolvedAlwaysThinkingChange).toHaveBeenLastCalledWith(false);
+    });
+
+    const latest = mockState.latestProps as {
+      onToggleThinking?: (enabled: boolean) => void | Promise<void>;
+    };
+    await act(async () => {
+      await Promise.resolve(latest.onToggleThinking?.(true));
+    });
+
+    await waitFor(() => {
+      expect(onResolvedAlwaysThinkingChange).toHaveBeenLastCalledWith(true);
+    });
+  });
+
+  it('does not report unresolved Claude thinking as disabled before settings load', async () => {
+    let resolveProviders: (
+      value: Array<{
+        id: string;
+        name: string;
+        isActive: boolean;
+        settingsConfig: { alwaysThinkingEnabled: boolean };
+      }>,
+    ) => void = () => {};
+    mockState.getClaudeProviders.mockReturnValue(
+      new Promise((resolve) => {
+        resolveProviders = resolve;
+      }),
+    );
+    const onResolvedAlwaysThinkingChange = vi.fn();
+    renderAdapter({ onResolvedAlwaysThinkingChange });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    expect(onResolvedAlwaysThinkingChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveProviders([
+        {
+          id: 'provider-1',
+          name: 'Claude',
+          isActive: true,
+          settingsConfig: { alwaysThinkingEnabled: false },
+        },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(onResolvedAlwaysThinkingChange).toHaveBeenCalledWith(false);
+    });
+  });
+
   it('forces codex thinking and streaming to stay enabled and skips claude setting reads', async () => {
     window.localStorage.setItem('ccgui.composer.streaming-enabled', '0');
 
