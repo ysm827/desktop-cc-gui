@@ -34,6 +34,12 @@ The right footer action MUST refresh the current provider's model/config snapsho
 - **THEN** the selector SHALL display the parent-provided refreshed catalog label
 - **AND** the selector SHALL NOT treat stale localStorage mapping as a source of truth
 
+#### Scenario: hydrated Codex catalog is not merged twice
+- **WHEN** the current provider is `Codex`
+- **AND** the parent composer already passes a hydrated model catalog
+- **THEN** the selector MUST render that catalog directly
+- **AND** it MUST NOT append a second local fallback merge that duplicates existing runtime choices
+
 #### Scenario: model selector remains presentational after refresh
 - **WHEN** `ModelSelect` renders provider model options
 - **THEN** display labels SHALL come from the `models` prop and default i18n fallback

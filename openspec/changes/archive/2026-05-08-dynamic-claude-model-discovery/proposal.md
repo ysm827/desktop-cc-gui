@@ -47,8 +47,10 @@ Claude Code 的模型选择链路曾同时依赖 frontend 静态列表、backend
   - `model` 用于发送给 Claude Code CLI
   - 两者可以相同，但系统不得假定必须相同
 - Claude “刷新配置”重新读取 settings/env overrides，并合并用户自定义模型；成功时替换旧 catalog，失败时保留旧 catalog。
+- 当用户自定义模型与 settings/env 默认项指向同一个 runtime `model` 时，合并后的可选项仍须保留 `isDefault` 语义，避免默认模型在 runtime-value 去重后丢失。
 - 发送路径使用 resolved runtime model，并保留用户自定义模型原样透传能力。
 - debug / diagnostic 信息记录 model resolution 来源，例如 `custom`、`settings-override`、`unknown`。
+- 已刷新/已注水的 provider catalog 视为 parent source of truth：Claude 刷新结果不得被 stale local mapping cache 覆盖，Codex 等非 Claude provider 也不得在子组件中再次做本地二次合并而产生重复选项。
 - CI / local gate 覆盖跨层 contract：`get_engine_models` response mapping 不得丢弃 `model` / `source`，`engine_send_message` request 必须使用 resolved runtime `model`。
 
 ## 技术方案对比与取舍
@@ -77,8 +79,10 @@ Claude Code 的模型选择链路曾同时依赖 frontend 静态列表、backend
 - 当用户点击 Claude Code selector 的 `刷新配置` 且读取成功时，系统 MUST 用最新 settings/env + custom catalog 替换旧 Claude catalog。
 - 当 refresh 失败时，系统 MUST 保留刷新前 catalog 与当前 selection，并展示可诊断错误。
 - 当某个 option 的 `id` 与 `model` 不同时，发送路径 MUST 使用 `model`，而不是用 `id` 回退覆盖用户配置。
+- 当用户自定义 Claude model 与 settings/env 默认 model 指向同一个 runtime `model` 时，合并后的 selector 项 MUST 继续保留默认标记。
 - debug diagnostics MUST 能看出最终发送 model 的来源与 resolution 路径。
 - 旧版本 backend / remote payload 缺少 `source` 或 `model` 时，frontend MUST 通过 compatibility normalization 继续展示可用列表，并将未知来源显式标记为 `unknown`。
+- 当 Codex 等非 Claude provider 的 parent 已传入完整 hydrated catalog 时，presentational selector MUST 直接使用该 catalog，不得再次拼接本地 fallback 而制造重复选项。
 - CI gate MUST 至少覆盖 OpenSpec strict validation、frontend focused tests、frontend typecheck、Rust focused tests，以及 `src/services/tauri.test.ts` 的 contract mapping 断言；任一必需 gate 未通过时不得视为实现完成。
 
 ## Impact
@@ -86,6 +90,7 @@ Claude Code 的模型选择链路曾同时依赖 frontend 静态列表、backend
 - Frontend:
   - `src/features/engine/hooks/useEngineController.ts`
   - `src/features/composer/components/ChatInputBox/**`
+  - `src/features/models/constants.ts`
   - `src/features/threads/hooks/useThreadMessaging.ts`
   - `src/services/tauri.ts`
   - `src/types.ts`

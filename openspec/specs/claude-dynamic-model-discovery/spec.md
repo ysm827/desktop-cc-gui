@@ -1,4 +1,10 @@
-## ADDED Requirements
+# claude-dynamic-model-discovery Specification
+
+## Purpose
+
+Define how Claude Code model discovery, selector merge, runtime resolution, diagnostics, and compatibility normalization behave when the GUI relies only on user-controlled model sources.
+
+## Requirements
 
 ### Requirement: Claude Model Catalog MUST Use User-Controlled Sources Only
 
@@ -82,6 +88,11 @@ The system MUST merge settings/env override models and custom models using deter
 - **WHEN** a custom entry is de-duplicated with a settings override entry
 - **THEN** the merged option MUST remain attributable to the custom source in diagnostics
 - **AND** user selection of that model MUST continue to resolve to the user-configured runtime model
+
+#### Scenario: default runtime survives dedupe
+- **WHEN** a settings/env entry marked as default and a custom entry share the same runtime `model`
+- **THEN** the surviving merged option MUST remain marked as the default runtime choice
+- **AND** the selector MUST NOT lose default semantics solely because the custom entry shadowed the configured entry
 
 #### Scenario: settings override contributes runtime model
 - **WHEN** `~/.claude/settings.json` or environment variables define a Claude model override
