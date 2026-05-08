@@ -1337,3 +1337,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 376: 修复子文件夹会话归属
+
+**Date**: 2026-05-08
+**Task**: 修复子文件夹会话归属
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+修复 workspace session folder 新建会话归属、pending 会话补偿、shared session 本地归属与 heavy-test-noise rg 缺失兜底，并补充相关回归测试。
+
+### Main Changes
+
+## 完成内容
+- 修复子文件夹内新建会话时 folderId 在 app shell/menu/action/thread runtime 链路中的传递。
+- 修复 Claude/Codex pending session 在真实 session 出现后补偿移动到目标子文件夹。
+- 将 shared session 的子文件夹归属限定为前端本地 override，避免调用 native assignment 产生不可完成 retry。
+- 修复 heavy-test-noise batched test 在 CI 缺失 rg 时的 fallback 识别。
+- 调整 sidebar 子文件夹操作 icon 间距。
+- 更新 shared session 与 project session folder 相关 OpenSpec 文档记录边界。
+
+## 验证
+- git diff --check
+- npm run typecheck
+- npx vitest run src/features/app/components/Sidebar.test.tsx src/features/app/hooks/useSidebarMenus.test.tsx src/features/app/hooks/useWorkspaceActions.test.tsx src/features/threads/hooks/useThreadsReducer.test.ts src/features/threads/hooks/useThreadsReducer.threadlist-pending.test.ts
+- node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs scripts/check-large-files.test.mjs
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b15a9912` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
