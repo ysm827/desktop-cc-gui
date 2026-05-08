@@ -1587,3 +1587,40 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 381: 修复 Claude 历史会话引擎解析
+
+**Date**: 2026-05-09
+**Task**: 修复 Claude 历史会话引擎解析
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+新增 OpenSpec change fix-claude-session-engine-resolution，并修复 useLayoutNodes 在恢复已有 Claude session 时错误使用全局 selectedEngine 的问题；conversationState 和 Messages activeEngine 改为优先使用 active thread metadata。
+
+### Main Changes
+
+- Created OpenSpec change `fix-claude-session-engine-resolution`.
+- Updated `useLayoutNodes` so existing conversation restore resolves engine from active thread metadata before falling back to the global selected engine.
+- Added a layout hook regression test for opening a Claude history session while the global selected engine is Codex.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6df27c10` | (see git log) |
+
+### Testing
+
+- [OK] `npx vitest run src/features/layout/hooks/useLayoutNodes.client-ui-visibility.test.tsx`
+- [OK] `npm run typecheck`
+- [OK] `openspec validate --all --strict --no-interactive`
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

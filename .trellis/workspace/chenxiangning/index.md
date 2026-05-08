@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-11.md`
-- **Total Sessions**: 380
+- **Total Sessions**: 381
 - **Last Active**: 2026-05-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-11.md` | ~1589 | Active |
+| `journal-11.md` | ~1622 | Active |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
@@ -39,6 +39,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 381 | 2026-05-09 | 修复 Claude 历史会话引擎解析 | `6df27c10` | `feature/v0.4.15` |
 | 380 | 2026-05-09 | 修复 Claude 控制面会话污染 | `1d84be70` | `feature/v0.4.15` |
 | 379 | 2026-05-08 | 归档 Claude 动态模型发现 OpenSpec 变更 | `cd31397f` | `feature/v0.4.15` |
 | 378 | 2026-05-08 | 完成 Claude 动态模型发现与门禁兼容修复提交 | `4436398a`, `0ec5f4b7` | `feature/v0.4.15` |
