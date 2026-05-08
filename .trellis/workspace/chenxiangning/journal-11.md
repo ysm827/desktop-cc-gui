@@ -1295,3 +1295,45 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 375: 记录会话文件夹内新建会话能力
+
+**Date**: 2026-05-08
+**Task**: 记录会话文件夹内新建会话能力
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 提交 | `37a1f383 feat(sidebar): 支持在会话文件夹中新建会话` |
+| 能力 | 在 workspace session folder 行与上下文菜单中增加新建会话入口，复用现有 workspace engine session menu。 |
+| 数据流 | 新建会话流程现在向调用方返回真实 thread id；若返回可 assignment 的真实 session id，则调用 folder assignment 把新 session 放入目标 folder。 |
+| 边界 | 对 `claude-pending-*`、`gemini-pending-*`、`opencode-pending-*` 等 pending id 做保护，避免真实 session 尚未创建时提前移动到 folder。 |
+| 规范 | 更新 `configure-workspace-thread-root-visibility` 的 session management 场景与任务，记录 folder-scoped session creation。 |
+| 验证 | `openspec validate configure-workspace-thread-root-visibility --strict --no-interactive` 通过；`npx vitest run src/features/app/components/Sidebar.test.tsx src/features/app/hooks/useWorkspaceActions.test.tsx` 通过，59 tests passed；`npm run typecheck` 通过。 |
+| 注意 | 工作区仍保留未提交并行改动：`scripts/test-batched.*`、`src/features/threads/hooks/threadReducerTypes.ts`、`dynamic-claude-model-discovery`、`persist-web-service-access-token`。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `37a1f383` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
