@@ -139,6 +139,67 @@ describe("useWorkspaceFiles", () => {
     unmount();
   });
 
+  it("keeps a pending loading state before a disconnected workspace confirms its first snapshot", async () => {
+    const disconnectedWorkspace: WorkspaceInfo = {
+      ...workspaceA,
+      connected: false,
+    };
+    const getWorkspaceFilesMock = vi.mocked(getWorkspaceFiles);
+
+    const { result, unmount } = renderHook(() =>
+      useWorkspaceFiles({
+        activeWorkspace: disconnectedWorkspace,
+        pollingEnabled: false,
+      }),
+    );
+
+    await flushAsyncWork();
+
+    expect(getWorkspaceFilesMock).not.toHaveBeenCalled();
+    expect(result.current.files).toEqual([]);
+    expect(result.current.directories).toEqual([]);
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.loadError).toBeNull();
+
+    unmount();
+  });
+
+  it("does not clear a loaded snapshot when the same workspace briefly disconnects", async () => {
+    const getWorkspaceFilesMock = vi.mocked(getWorkspaceFiles);
+    getWorkspaceFilesMock.mockResolvedValue({
+      files: ["src/app.tsx"],
+      directories: ["src"],
+      gitignored_files: [],
+      gitignored_directories: [],
+    });
+
+    const { rerender, result, unmount } = renderHook(
+      ({ activeWorkspace }: { activeWorkspace: WorkspaceInfo | null }) =>
+        useWorkspaceFiles({
+          activeWorkspace,
+          pollingEnabled: false,
+        }),
+      {
+        initialProps: { activeWorkspace: workspaceA },
+      },
+    );
+
+    await flushAsyncWork();
+    expect(result.current.files).toEqual(["src/app.tsx"]);
+    expect(result.current.directories).toEqual(["src"]);
+    expect(result.current.isLoading).toBe(false);
+
+    rerender({ activeWorkspace: { ...workspaceA, connected: false } });
+    await flushAsyncWork();
+
+    expect(result.current.files).toEqual(["src/app.tsx"]);
+    expect(result.current.directories).toEqual(["src"]);
+    expect(result.current.isLoading).toBe(false);
+    expect(getWorkspaceFilesMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
   it("ignores stale responses from the previous workspace after a fast switch", async () => {
     const workspaceAResponse = createDeferred<{
       files: string[];

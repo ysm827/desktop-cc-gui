@@ -211,8 +211,20 @@ export function useWorkspaceFiles({
     consecutiveFailures.current = 0;
     retryAttemptsByWorkspaceId.current.clear();
     clearInitialRetryTimer();
-    setIsLoading(Boolean(workspaceId && isConnected));
-  }, [clearInitialRetryTimer, isConnected, workspaceId]);
+    setIsLoading(Boolean(workspaceId));
+  }, [clearInitialRetryTimer, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setIsLoading(false);
+      return;
+    }
+    if (hasLoadedWorkspaceId.current === workspaceId) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+  }, [isConnected, workspaceId]);
 
   useEffect(() => clearInitialRetryTimer, [clearInitialRetryTimer]);
 

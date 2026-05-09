@@ -839,7 +839,8 @@ export function FileTreePanel({
     lazyLoadableDirectories.forEach((path) => result.add(path));
     return result;
   }, [seededLazyLoadableDirectories, lazyLoadableDirectories]);
-  const showLoading = isLoading && mergedFiles.length === 0;
+  const hasTreeEntries = mergedFiles.length > 0 || mergedDirectories.length > 0;
+  const showLoading = isLoading && !hasTreeEntries;
   const normalizedLoadError =
     typeof loadError === "string" && loadError.trim().length > 0 ? loadError.trim() : null;
 
@@ -2026,7 +2027,7 @@ export function FileTreePanel({
               />
             ))}
           </div>
-        ) : !isRootVisibleExpanded ? null : normalizedLoadError && nodes.length === 0 ? (
+        ) : !isRootVisibleExpanded ? null : normalizedLoadError && !hasTreeEntries ? (
           <div className="file-tree-empty" title={normalizedLoadError}>
             <div>{t("files.loadFilesFailed")}</div>
             {onRefreshFiles ? (
@@ -2040,7 +2041,7 @@ export function FileTreePanel({
               </button>
             ) : null}
           </div>
-        ) : nodes.length === 0 ? (
+        ) : !hasTreeEntries ? (
           <div className="file-tree-empty">
             {t("files.noFilesAvailable")}
           </div>
