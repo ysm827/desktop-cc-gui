@@ -9,6 +9,19 @@ type AssistantMessageItem = Extract<ConversationItem, { kind: "message" }> & {
   role: "assistant";
 };
 
+function syntheticContinuationSummaryText() {
+  return [
+    "This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.",
+    "",
+    "Summary:",
+    "Primary Request and Intent:",
+    "The user asked to analyze the current project.",
+    "",
+    "Current Work:",
+    "Continue the conversation from where it left off without asking the user any further questions.",
+  ].join("\n");
+}
+
 describe("parseClaudeHistoryMessages", () => {
   it("filters Codex control-plane messages from Claude history", () => {
     const items = parseClaudeHistoryMessages([
@@ -62,6 +75,77 @@ describe("parseClaudeHistoryMessages", () => {
       kind: "message",
       role: "user",
     });
+  });
+
+  it("filters synthetic continuation summaries without hiding normal summary discussion", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "message",
+        id: "synthetic-continuation",
+        role: "user",
+        text: syntheticContinuationSummaryText(),
+        isVisibleInTranscriptOnly: true,
+        isCompactSummary: true,
+        cwd: "C:\\Users\\fay\\code\\vinci",
+      },
+      {
+        kind: "message",
+        id: "legacy-raw-continuation",
+        isSynthetic: true,
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: syntheticContinuationSummaryText(),
+            },
+          ],
+        },
+        cwd: "/Users/fay/code/vinci",
+      },
+      {
+        kind: "message",
+        id: "real-user-question",
+        role: "user",
+        text: "Why did `This session is being continued from a previous conversation` appear in my chat?",
+      },
+      {
+        kind: "message",
+        id: "real-user-pasted-summary",
+        role: "user",
+        text: syntheticContinuationSummaryText(),
+      },
+      {
+        kind: "message",
+        id: "real-assistant",
+        role: "assistant",
+        text: "It is a synthetic continuation summary leaking from runtime history.",
+      },
+    ]);
+
+    expect(items).toHaveLength(3);
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: "real-user-question",
+        kind: "message",
+        role: "user",
+      }),
+      expect.objectContaining({
+        id: "real-user-pasted-summary",
+        kind: "message",
+        role: "user",
+      }),
+      expect.objectContaining({
+        id: "real-assistant",
+        kind: "message",
+        role: "assistant",
+      }),
+    ]);
+    expect(items[1]).toEqual(
+      expect.objectContaining({
+        text: syntheticContinuationSummaryText(),
+      }),
+    );
   });
 
   it("formats Claude local-control messages and hides internal rows", () => {
@@ -609,7 +693,9 @@ describe("parseClaudeHistoryMessages", () => {
         kind: "tool",
         toolType: "fileChange",
         output: "Approved and updated ccc.txt",
-        changes: [expect.objectContaining({ path: "ccc.txt", kind: "modified" })],
+        changes: [
+          expect.objectContaining({ path: "ccc.txt", kind: "modified" }),
+        ],
       }),
     );
     expect(items[1]).toEqual(
@@ -901,6 +987,8 @@ describe("createClaudeHistoryLoader", () => {
 
     const snapshot = await loader.load("claude:session-transcript-heavy");
     expect(snapshot.items.some((item) => item.kind === "reasoning")).toBe(true);
-    expect(snapshot.items.filter((item) => item.kind === "tool")).toHaveLength(2);
+    expect(snapshot.items.filter((item) => item.kind === "tool")).toHaveLength(
+      2,
+    );
   });
 });
