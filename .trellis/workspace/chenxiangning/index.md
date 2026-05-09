@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 390
+- **Total Sessions**: 391
 - **Last Active**: 2026-05-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~96 | Active |
+| `journal-12.md` | ~130 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 391 | 2026-05-09 | 隔离 OpenCode CLI 测试依赖 | `c2e24bba` | `feature/v0.4.15` |
 | 390 | 2026-05-09 | 轻量准备 Tauri 测试资源 | `b1f43c8a` | `feature/v0.4.15` |
 | 389 | 2026-05-09 | 修复跨平台 CI 前置契约 | `684395ca` | `feature/v0.4.15` |
 | 388 | 2026-05-09 | 隔离 Claude synthetic transcript 污染 | `5fc41d5fcec099fb1ad00df1d388155b73400518` | `feature/v0.4.15` |

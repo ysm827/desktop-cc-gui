@@ -94,3 +94,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 391: 隔离 OpenCode CLI 测试依赖
+
+**Date**: 2026-05-09
+**Task**: 隔离 OpenCode CLI 测试依赖
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+修复 Rust OpenCode 测试在 CI 无 opencode CLI 时失败的问题。将 opencode command 构造测试改为创建临时 fake opencode/opencode.cmd 并通过 EngineConfig.bin_path 注入，避免依赖开发机 PATH。同步修正 status lightweight 测试的 fake CLI 文件名为 resolver 接受的 opencode，确保 matching_custom_bin 不会忽略测试二进制。验证通过 cargo test --manifest-path src-tauri/Cargo.toml engine::opencode::tests::build_command 和 cargo test --manifest-path src-tauri/Cargo.toml engine::status::tests::detect_opencode_status_lightweight_skips_models_probe。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2e24bba` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
