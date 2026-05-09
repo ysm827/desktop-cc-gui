@@ -64,6 +64,162 @@ describe("parseClaudeHistoryMessages", () => {
     });
   });
 
+  it("formats Claude local-control messages and hides internal rows", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "message",
+        id: "permission-mode",
+        type: "permission-mode",
+        role: "user",
+        text: "default",
+        cwd: "/Users/fay/code/vinci",
+      },
+      {
+        kind: "message",
+        id: "resume-command",
+        role: "user",
+        text: "<command-name>/resume</command-name>",
+        cwd: "C:\\Users\\fay\\code\\vinci",
+      },
+      {
+        kind: "message",
+        id: "resume-failed",
+        role: "user",
+        text: "<local-command-stdout>Session \u001b[1m1778306483383\u001b[22m was not found.</local-command-stdout>",
+        cwd: "C:\\Users\\fay\\code\\vinci",
+      },
+      {
+        kind: "message",
+        id: "model-changed",
+        role: "user",
+        text: "<local-command-stdout>Set model to \u001b[1mMiniMax-M2.7\u001b[22m</local-command-stdout>",
+        cwd: "/Users/fay/code/vinci",
+      },
+      {
+        kind: "message",
+        id: "interrupted",
+        role: "user",
+        text: "[Request interrupted by user]",
+      },
+      {
+        kind: "message",
+        id: "synthetic-no-response",
+        role: "assistant",
+        model: "<synthetic>",
+        text: "No response requested.",
+      },
+      {
+        id: "local-command-system",
+        kind: "message",
+        role: "user",
+        message: {
+          type: "system",
+          subtype: "local_command",
+        },
+        text: "local command metadata",
+      },
+      {
+        kind: "message",
+        id: "real-user",
+        role: "user",
+        text: "你好",
+      },
+    ]);
+
+    expect(items).toHaveLength(4);
+    const controlEvents = items.filter(
+      (item): item is Extract<ConversationItem, { kind: "tool" }> =>
+        item.kind === "tool" && item.toolType === "claudeControlEvent",
+    );
+    expect(controlEvents).toHaveLength(3);
+    expect(controlEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "resume-failed",
+          title: "恢复失败",
+          output: "Session 1778306483383 was not found.",
+          status: "failed",
+        }),
+        expect.objectContaining({
+          id: "model-changed",
+          title: "模型已切换",
+          output: "Set model to MiniMax-M2.7",
+          status: "completed",
+        }),
+        expect.objectContaining({
+          id: "interrupted",
+          title: "用户已中断",
+          output: "[Request interrupted by user]",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(items)).not.toContain("<local-command-stdout>");
+    expect(JSON.stringify(items)).not.toContain("<command-name>");
+    expect(JSON.stringify(items)).not.toContain("No response requested");
+    expect(JSON.stringify(items)).not.toContain("local command metadata");
+    expect(items[3]).toMatchObject({
+      id: "real-user",
+      kind: "message",
+      role: "user",
+      text: "你好",
+    });
+  });
+
+  it("preserves backend-formatted Claude control events as tool items", () => {
+    const items = parseClaudeHistoryMessages([
+      {
+        kind: "tool",
+        id: "backend-resume-event",
+        role: "system",
+        toolType: "claudeControlEvent",
+        title: "Resume failed",
+        text: "Session 1778306483383 was not found.",
+        status: "failed",
+        tool_input: {
+          eventType: "resumeFailed",
+          source: "claude-history",
+        },
+        tool_output: {
+          detail: "Session 1778306483383 was not found.",
+        },
+      },
+    ]);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: "backend-resume-event",
+        kind: "tool",
+        toolType: "claudeControlEvent",
+        title: "恢复失败",
+        output: "Session 1778306483383 was not found.",
+        status: "failed",
+      }),
+    ]);
+  });
+
+  it("skips malformed history rows without failing restore", () => {
+    const items = parseClaudeHistoryMessages([
+      null,
+      "corrupt row",
+      ["nested array"],
+      {
+        kind: "message",
+        id: "valid-user",
+        role: "user",
+        text: "still visible",
+      },
+    ]);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: "valid-user",
+        kind: "message",
+        role: "user",
+        text: "still visible",
+      }),
+    ]);
+  });
+
   it("preserves transcript-style bash output and command metadata", () => {
     const items = parseClaudeHistoryMessages([
       {

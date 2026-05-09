@@ -59,6 +59,19 @@ type RequestUserInputSubmittedPayload = {
   }>;
 };
 
+type ClaudeLocalControlEventType =
+  | "resumeFailed"
+  | "modelChanged"
+  | "interrupted"
+  | "localCommandOutput";
+
+type ClaudeLocalControlClassification =
+  | { kind: "normal" }
+  | { kind: "hidden" }
+  | { kind: "displayable"; eventType: ClaudeLocalControlEventType; detail: string };
+
+const CLAUDE_CONTROL_EVENT_TOOL_TYPE = "claudeControlEvent";
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -141,6 +154,204 @@ function isClaudeControlPlaneMessage(message: Record<string, unknown>) {
   }
 
   return isCodexAppServerControlPlaneText(asString(message.text ?? ""));
+}
+
+function unwrapTaggedText(text: string, tag: string): string | null {
+  const trimmed = text.trim();
+  const open = `<${tag}>`;
+  if (!trimmed.startsWith(open)) {
+    return null;
+  }
+  const close = `</${tag}>`;
+  return (trimmed.endsWith(close)
+    ? trimmed.slice(open.length, -close.length)
+    : trimmed.slice(open.length)
+  ).trim();
+}
+
+function stripAnsiEscapeSequences(text: string) {
+  const output: string[] = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text.charCodeAt(index) !== 27) {
+      output.push(text[index]);
+      continue;
+    }
+    if (text[index + 1] !== "[") {
+      continue;
+    }
+    index += 2;
+    while (index < text.length) {
+      const charCode = text.charCodeAt(index);
+      if (charCode >= 0x40 && charCode <= 0x7e) {
+        break;
+      }
+      index += 1;
+    }
+  }
+  return output.join("");
+}
+
+function sanitizeClaudeLocalControlText(text: string) {
+  let cleaned = text.trim();
+  for (const tag of [
+    "command-name",
+    "command-message",
+    "command-args",
+    "local-command-stdout",
+    "local-command-stderr",
+    "local-command-caveat",
+  ]) {
+    const unwrapped = unwrapTaggedText(cleaned, tag);
+    if (unwrapped !== null) {
+      cleaned = unwrapped;
+      break;
+    }
+  }
+  return stripAnsiEscapeSequences(cleaned).trim();
+}
+
+function getNestedString(record: Record<string, unknown>, key: string) {
+  return asString(record[key] ?? asRecord(record.tool_input)?.[key] ?? asRecord(record.toolInput)?.[key]);
+}
+
+function getClaudeControlEventTitle(eventType: ClaudeLocalControlEventType) {
+  switch (eventType) {
+    case "resumeFailed":
+      return i18n.t("tools.claudeControlResumeFailed");
+    case "modelChanged":
+      return i18n.t("tools.claudeControlModelChanged");
+    case "interrupted":
+      return i18n.t("tools.claudeControlInterrupted");
+    case "localCommandOutput":
+      return i18n.t("tools.claudeControlLocalOutput");
+  }
+}
+
+function classifyClaudeLocalControlMessage(
+  message: Record<string, unknown>,
+): ClaudeLocalControlClassification {
+  const explicitToolType = asString(message.toolType ?? message.tool_type);
+  if (explicitToolType === CLAUDE_CONTROL_EVENT_TOOL_TYPE) {
+    const rawEventType = getNestedString(message, "eventType");
+    const eventType: ClaudeLocalControlEventType =
+      rawEventType === "resumeFailed" ||
+      rawEventType === "modelChanged" ||
+      rawEventType === "interrupted" ||
+      rawEventType === "localCommandOutput"
+        ? rawEventType
+        : "localCommandOutput";
+    const detail =
+      sanitizeClaudeLocalControlText(
+        asString(
+          message.text ??
+            asRecord(message.tool_output)?.detail ??
+            asRecord(message.toolOutput)?.detail ??
+            "",
+        ),
+      ) || getClaudeControlEventTitle(eventType);
+    return { kind: "displayable", eventType, detail };
+  }
+
+  const nestedMessage = asRecord(message.message);
+  if (
+    (message.type === "system" && message.subtype === "local_command") ||
+    (nestedMessage?.type === "system" && nestedMessage.subtype === "local_command")
+  ) {
+    return { kind: "hidden" };
+  }
+
+  const rowType = asString(
+    message.type ??
+      message.subtype ??
+      message.event ??
+      nestedMessage?.type ??
+      nestedMessage?.subtype ??
+      nestedMessage?.event,
+  );
+  if (
+    [
+      "permission-mode",
+      "file-history-snapshot",
+      "last-prompt",
+      "queue-operation",
+      "attachment",
+      "mcp_instructions_delta",
+      "skill_listing",
+      "stop_hook_summary",
+      "turn_duration",
+      "local_command",
+    ].includes(rowType)
+  ) {
+    return { kind: "hidden" };
+  }
+
+  const text = asString(message.text ?? "");
+  const role = asString(message.role) === "user" ? "user" : "assistant";
+  const sanitized = sanitizeClaudeLocalControlText(text);
+  if (
+    role === "assistant" &&
+    asString(message.model ?? "") === "<synthetic>" &&
+    sanitized === "No response requested."
+  ) {
+    return { kind: "hidden" };
+  }
+  if (text.trim() === "[Request interrupted by user]") {
+    return { kind: "displayable", eventType: "interrupted", detail: sanitized };
+  }
+  if (
+    text.trim().startsWith("<command-name>") ||
+    text.trim().startsWith("<command-message>") ||
+    text.trim().startsWith("<command-args>") ||
+    text.trim().startsWith("<local-command-caveat>")
+  ) {
+    return { kind: "hidden" };
+  }
+  if (
+    sanitized.includes(
+      "Caveat: The messages below were generated by the user while running local commands",
+    ) ||
+    sanitized.includes("Warmup")
+  ) {
+    return { kind: "hidden" };
+  }
+  if (
+    text.trim().startsWith("<local-command-stdout>") ||
+    text.trim().startsWith("<local-command-stderr>")
+  ) {
+    const lower = sanitized.toLowerCase();
+    if (lower.includes("session ") && lower.includes(" was not found")) {
+      return { kind: "displayable", eventType: "resumeFailed", detail: sanitized };
+    }
+    if (lower.startsWith("set model to ") || lower.includes(" set model to ")) {
+      return { kind: "displayable", eventType: "modelChanged", detail: sanitized };
+    }
+    if (sanitized.length <= 240) {
+      return { kind: "displayable", eventType: "localCommandOutput", detail: sanitized };
+    }
+    return { kind: "hidden" };
+  }
+  return { kind: "normal" };
+}
+
+function buildClaudeControlEventItem(
+  message: Record<string, unknown>,
+  classification: Extract<ClaudeLocalControlClassification, { kind: "displayable" }>,
+  fallbackIndex: number,
+): Extract<ConversationItem, { kind: "tool" }> {
+  const itemId = asString(message.id ?? `claude-control-event-${fallbackIndex}`);
+  return {
+    id: itemId || `claude-control-event-${fallbackIndex}`,
+    kind: "tool",
+    toolType: CLAUDE_CONTROL_EVENT_TOOL_TYPE,
+    title: getClaudeControlEventTitle(classification.eventType),
+    detail: JSON.stringify({
+      eventType: classification.eventType,
+      source: "claude-history",
+      detail: classification.detail,
+    }),
+    status: classification.eventType === "resumeFailed" ? "failed" : "completed",
+    output: classification.detail,
+  };
 }
 
 function isReasoningSnapshotDuplicate(previous: string, incoming: string) {
@@ -988,11 +1199,27 @@ export function parseClaudeHistoryMessages(messagesData: unknown): ConversationI
     return "";
   };
 
-  const messages = Array.isArray(messagesData)
-    ? (messagesData as Array<Record<string, unknown>>)
-    : [];
-  for (const message of messages) {
+  const messages = Array.isArray(messagesData) ? messagesData : [];
+  for (const rawMessage of messages) {
+    const message = asRecord(rawMessage);
+    if (!message) {
+      continue;
+    }
     if (isClaudeControlPlaneMessage(message)) {
+      continue;
+    }
+    const localControlClassification = classifyClaudeLocalControlMessage(message);
+    if (localControlClassification.kind === "hidden") {
+      continue;
+    }
+    if (localControlClassification.kind === "displayable") {
+      items.push(
+        buildClaudeControlEventItem(
+          message,
+          localControlClassification,
+          items.length + 1,
+        ),
+      );
       continue;
     }
     const kind = asString(message.kind ?? "");

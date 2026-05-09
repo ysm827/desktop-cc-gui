@@ -6,6 +6,8 @@ use serde_json::Value;
 pub mod claude;
 #[path = "../../engine/claude_history.rs"]
 pub mod claude_history;
+#[path = "../../engine/claude_history_entries.rs"]
+pub(crate) mod claude_history_entries;
 #[allow(dead_code)]
 #[path = "../../engine/claude_message_content.rs"]
 pub(crate) mod claude_message_content;
