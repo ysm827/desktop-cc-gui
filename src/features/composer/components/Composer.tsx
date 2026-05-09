@@ -155,7 +155,7 @@ type ComposerProps = {
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];
   selectedEffort: string | null;
-  onSelectEffort: (effort: string) => void;
+  onSelectEffort: (effort: string | null) => void;
   reasoningSupported: boolean;
   onResolvedAlwaysThinkingChange?: (enabled: boolean) => void;
   opencodeAgents?: OpenCodeAgentOption[];

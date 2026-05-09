@@ -205,7 +205,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       onModeSelect,
       onModelSelect,
       onProviderSelect,
-      reasoningEffort = 'medium',
+      reasoningEffort = null,
+      reasoningOptions,
       onReasoningChange,
       activeFile,
       selectedLines,
@@ -1511,6 +1512,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               providerStatusLabels={providerStatusLabels}
               providerDisabledMessages={providerDisabledMessages}
               reasoningEffort={reasoningEffort}
+              reasoningOptions={reasoningOptions}
               accountRateLimits={accountRateLimits}
               usageShowRemaining={usageShowRemaining}
               onRefreshAccountRateLimits={onRefreshAccountRateLimits}

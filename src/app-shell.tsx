@@ -147,6 +147,7 @@ import { renderAppShell } from "./app-shell-parts/renderAppShell";
 import {
   getEffectiveSelectedEffort,
   getEffectiveModels,
+  getEffectiveReasoningOptions,
   getEffectiveReasoningSupported,
   getEffectiveSelectedModelId,
   getReasoningOptionsForModel,
@@ -1125,12 +1126,15 @@ export function AppShell() {
       reasoningOptions: persistedGlobalComposerReasoningOptions,
     });
   }, [persistedGlobalComposerReasoningOptions, selectedEffort]);
-  const effectiveReasoningOptions = useMemo(() => {
+  const modelReasoningOptions = useMemo(() => {
     return getReasoningOptionsForModel(effectiveSelectedModel);
   }, [effectiveSelectedModel]);
+  const effectiveReasoningOptions = useMemo(() => {
+    return getEffectiveReasoningOptions(activeEngine, modelReasoningOptions);
+  }, [activeEngine, modelReasoningOptions]);
   const effectiveReasoningSupported = useMemo(() => {
-    return getEffectiveReasoningSupported(activeEngine, effectiveReasoningOptions.length > 0);
-  }, [activeEngine, effectiveReasoningOptions.length]);
+    return getEffectiveReasoningSupported(activeEngine, modelReasoningOptions.length > 0);
+  }, [activeEngine, modelReasoningOptions.length]);
   const effectiveSelectedEffort = useMemo(() => {
     return getEffectiveSelectedEffort({
       activeEngine,
@@ -1171,7 +1175,10 @@ export function AppShell() {
                     effort: effectiveSelectedEffort,
                   }
                 : null,
-              reasoningOptions: getReasoningOptionsForModel(nextSelectedModel),
+              reasoningOptions: getEffectiveReasoningOptions(
+                activeEngine,
+                getReasoningOptionsForModel(nextSelectedModel),
+              ),
             })
           : effectiveSelectedEffort;
       if (import.meta.env.DEV) {
@@ -1219,7 +1226,7 @@ export function AppShell() {
               reasoningOptions: effectiveReasoningOptions,
             })
           : effort;
-      if (!(activeEngine === "codex" && hasActiveComposerThread)) {
+      if (activeEngine === "codex" && !hasActiveComposerThread) {
         setSelectedEffort(nextEffort);
       }
       handleSelectComposerSelection({

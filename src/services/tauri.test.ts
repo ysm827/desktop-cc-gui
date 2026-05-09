@@ -1768,6 +1768,36 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("preserves Claude reasoning effort in engine_send_message payload", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ engine: "claude", threadId: "claude:session-1" });
+
+    await engineSendMessage("ws-claude", {
+      text: "think harder",
+      engine: "claude",
+      model: "Cxn[1m]",
+      effort: "high",
+      threadId: "claude:session-1",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("engine_send_message", {
+      workspaceId: "ws-claude",
+      text: "think harder",
+      engine: "claude",
+      model: "Cxn[1m]",
+      effort: "high",
+      disableThinking: false,
+      images: null,
+      continueSession: false,
+      accessMode: null,
+      threadId: "claude:session-1",
+      sessionId: null,
+      agent: null,
+      variant: null,
+      customSpecRoot: null,
+    });
+  });
+
   it("blocks non-codex engine switch after web runtime fallback state is learned", async () => {
     const invokeMock = vi.mocked(invoke);
     setWebRuntimeFlag(true);

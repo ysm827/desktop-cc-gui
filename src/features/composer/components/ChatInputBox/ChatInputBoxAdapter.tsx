@@ -307,7 +307,7 @@ export interface ChatInputBoxAdapterProps {
   // Reasoning
   reasoningOptions?: string[];
   selectedEffort?: string | null;
-  onSelectEffort?: (effort: string) => void;
+  onSelectEffort?: (effort: string | null) => void;
   reasoningSupported?: boolean;
   alwaysThinkingEnabled?: boolean;
   onToggleThinking?: (enabled: boolean) => void;
@@ -594,11 +594,12 @@ function providerToEngine(providerId: string): EngineType {
   }
 }
 
-/**
- * Maps Composer effort string to ChatInputBox ReasoningEffort type
- */
-function effortToReasoning(effort?: string | null): ReasoningEffort {
-  switch (effort) {
+function normalizeReasoningEffort(effort?: string | null): ReasoningEffort | null {
+  if (effort === null || effort === undefined) {
+    return null;
+  }
+  const normalizedEffort = effort.trim();
+  switch (normalizedEffort) {
     case 'low':
       return 'low';
     case 'medium':
@@ -606,11 +607,26 @@ function effortToReasoning(effort?: string | null): ReasoningEffort {
     case 'high':
       return 'high';
     case 'xhigh':
-    case 'max':
       return 'xhigh';
+    case 'max':
+      return 'max';
     default:
-      return 'medium';
+      return null;
   }
+}
+
+function effortToOptionalReasoning(effort?: string | null): ReasoningEffort | null {
+  return normalizeReasoningEffort(effort);
+}
+
+function normalizeReasoningOptions(options?: string[]): ReasoningEffort[] | undefined {
+  if (!options || options.length === 0) {
+    return undefined;
+  }
+  const normalized = options
+    .map((option) => effortToOptionalReasoning(option))
+    .filter((option): option is ReasoningEffort => option !== null);
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function normalizePath(path: string): string {
@@ -748,6 +764,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onSelectEngine,
       models,
       onSelectModel,
+      reasoningOptions,
       selectedEffort,
       onSelectEffort,
       alwaysThinkingEnabled,
@@ -932,7 +949,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
     }, [onSelectModel]);
 
     // Handle reasoning effort change
-    const handleReasoningChange = useCallback((effort: ReasoningEffort) => {
+    const handleReasoningChange = useCallback((effort: ReasoningEffort | null) => {
       onSelectEffort?.(effort);
     }, [onSelectEffort]);
 
@@ -1623,7 +1640,8 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         onModeSelect={onModeSelect}
         onModelSelect={handleModelSelect}
         onProviderSelect={onSelectEngine ? handleProviderSelect : undefined}
-        reasoningEffort={effortToReasoning(selectedEffort)}
+        reasoningEffort={effortToOptionalReasoning(selectedEffort)}
+        reasoningOptions={normalizeReasoningOptions(reasoningOptions)}
         onReasoningChange={onSelectEffort ? handleReasoningChange : undefined}
         alwaysThinkingEnabled={resolvedAlwaysThinkingEnabled}
         onToggleThinking={handleThinkingToggle}

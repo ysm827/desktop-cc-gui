@@ -243,6 +243,7 @@ export function ChatInputBoxFooter({
   providerStatusLabels,
   providerDisabledMessages,
   reasoningEffort,
+  reasoningOptions,
   accountRateLimits,
   usageShowRemaining,
   onRefreshAccountRateLimits,
@@ -298,7 +299,8 @@ export function ChatInputBoxFooter({
   providerVersions?: Partial<Record<ProviderId, string | null>>;
   providerStatusLabels?: Partial<Record<ProviderId, string | null>>;
   providerDisabledMessages?: Partial<Record<ProviderId, string | null>>;
-  reasoningEffort: ReasoningEffort;
+  reasoningEffort: ReasoningEffort | null;
+  reasoningOptions?: ReasoningEffort[];
   accountRateLimits?: AccountRateLimitsInfo | null;
   usageShowRemaining?: boolean;
   onRefreshAccountRateLimits?: () => Promise<void> | void;
@@ -312,7 +314,7 @@ export function ChatInputBoxFooter({
   onModeSelect?: (mode: PermissionMode) => void;
   onModelSelect?: (modelId: string) => void;
   onProviderSelect?: (providerId: string) => void;
-  onReasoningChange?: (effort: ReasoningEffort) => void;
+  onReasoningChange?: (effort: ReasoningEffort | null) => void;
   onEnhancePrompt: () => void;
   alwaysThinkingEnabled?: boolean;
   onToggleThinking?: (enabled: boolean) => void;
@@ -517,6 +519,7 @@ export function ChatInputBoxFooter({
         providerStatusLabels={providerStatusLabels}
         providerDisabledMessages={providerDisabledMessages}
         reasoningEffort={reasoningEffort}
+        reasoningOptions={reasoningOptions}
         accountRateLimits={accountRateLimits}
         usageShowRemaining={usageShowRemaining}
         onRefreshAccountRateLimits={onRefreshAccountRateLimits}

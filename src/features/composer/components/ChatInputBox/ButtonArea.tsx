@@ -9,7 +9,7 @@ import type { CodexCustomModel } from '../../types/provider';
 // Stable no-op callbacks to avoid re-renders when optional handlers are not provided
 const NOOP_MODE = (_mode: PermissionMode) => {};
 const NOOP_MODEL = (_modelId: string) => {};
-const NOOP_REASONING = (_effort: ReasoningEffort) => {};
+const NOOP_REASONING = (_effort: ReasoningEffort | null) => {};
 const RELEVANT_MODEL_STORAGE_KEYS = new Set<string>([
   STORAGE_KEYS.CODEX_CUSTOM_MODELS,
   STORAGE_KEYS.CLAUDE_CUSTOM_MODELS,
@@ -197,7 +197,8 @@ export const ButtonArea = ({
   providerVersions,
   providerStatusLabels,
   providerDisabledMessages,
-  reasoningEffort = 'medium',
+  reasoningEffort = null,
+  reasoningOptions,
   accountRateLimits,
   usageShowRemaining = false,
   onRefreshAccountRateLimits,
@@ -411,8 +412,18 @@ export const ButtonArea = ({
           }
           isRefreshingConfig={Boolean(isModelConfigRefreshing)}
         />
-        {currentProvider === 'codex' && (
-          <ReasoningSelect value={reasoningEffort} onChange={onReasoningChange ?? NOOP_REASONING} />
+        {(currentProvider === 'codex' || currentProvider === 'claude') && (
+          <ReasoningSelect
+            value={reasoningEffort}
+            onChange={onReasoningChange ?? NOOP_REASONING}
+            options={reasoningOptions}
+            showDefaultOption={currentProvider === 'claude'}
+            defaultLabel={
+              currentProvider === 'claude'
+                ? t('reasoning.claudeDefault', { defaultValue: 'Claude 默认' })
+                : undefined
+            }
+          />
         )}
         {currentProvider === 'codex' && isPlanModeEnabled && (
           <button

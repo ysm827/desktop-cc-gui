@@ -2293,6 +2293,9 @@ const zhPart2 = {
   // 推理深度
   reasoning: {
     title: "选择思考深度",
+    default: "默认",
+    claudeDefault: "Claude 默认",
+    defaultDescription: "使用引擎默认思考行为",
     low: {
       label: "较少",
       description: "快速响应，基础推理",
@@ -2306,8 +2309,12 @@ const zhPart2 = {
       description: "深度推理，适合复杂任务",
     },
     xhigh: {
+      label: "极高",
+      description: "极高思考强度",
+    },
+    max: {
       label: "最多",
-      description: "最深推理，最高精度",
+      description: "最高思考强度",
     },
   },
 

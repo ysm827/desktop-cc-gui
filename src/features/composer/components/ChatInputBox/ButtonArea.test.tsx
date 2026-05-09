@@ -36,7 +36,31 @@ vi.mock("./selectors", () => ({
   ),
   ModeSelect: () => <div data-testid="mode-select" />,
   ProviderSelect: () => <div data-testid="provider-select" />,
-  ReasoningSelect: () => <div data-testid="reasoning-select" />,
+  ReasoningSelect: ({
+    value,
+    options,
+    showDefaultOption,
+    defaultLabel,
+    onChange,
+  }: {
+    value: string | null;
+    options?: string[];
+    showDefaultOption?: boolean;
+    defaultLabel?: string;
+    onChange?: (value: string | null) => void;
+  }) => (
+    <div data-testid="reasoning-select">
+      <span data-testid="reasoning-value">{value ?? ""}</span>
+      <span data-testid="reasoning-options">{(options ?? []).join(",")}</span>
+      <span data-testid="reasoning-default">{showDefaultOption ? defaultLabel : ""}</span>
+      <button type="button" data-testid="reasoning-pick-high" onClick={() => onChange?.("high")}>
+        high
+      </button>
+      <button type="button" data-testid="reasoning-pick-default" onClick={() => onChange?.(null)}>
+        default
+      </button>
+    </div>
+  ),
   ShortcutActionsSelect: () => <div data-testid="shortcut-actions-select" />,
 }));
 
@@ -210,6 +234,64 @@ describe("ButtonArea custom model storage refresh", () => {
     expect(modelList).toContain("gpt-5.4:::My GPT 5.4");
     expect(modelList.match(/gpt-5\.4:/g)).toHaveLength(1);
     expect(modelList).toContain("gpt-5.5:::gpt-5.5");
+  });
+
+  it("renders Claude reasoning selector with Claude default state", () => {
+    render(
+      <ButtonArea
+        currentProvider="claude"
+        models={[]}
+        selectedModel=""
+        reasoningEffort={null}
+        reasoningOptions={["low", "medium", "high", "xhigh", "max"]}
+        hasInputContent
+        onSubmit={vi.fn()}
+        onReasoningChange={vi.fn()}
+        shortcutActions={[]}
+      />,
+    );
+
+    expect(screen.getByTestId("reasoning-select")).toBeTruthy();
+    expect(screen.getByTestId("reasoning-value").textContent).toBe("");
+    expect(screen.getByTestId("reasoning-options").textContent).toBe("low,medium,high,xhigh,max");
+    expect(screen.getByTestId("reasoning-default").textContent).toBe("reasoning.claudeDefault");
+  });
+
+  it("does not render reasoning selector for Gemini", () => {
+    render(
+      <ButtonArea
+        currentProvider="gemini"
+        models={[]}
+        selectedModel=""
+        hasInputContent
+        onSubmit={vi.fn()}
+        onReasoningChange={vi.fn()}
+        shortcutActions={[]}
+      />,
+    );
+
+    expect(screen.queryByTestId("reasoning-select")).toBeNull();
+  });
+
+  it("keeps the existing Codex reasoning selector without a default reset option", () => {
+    render(
+      <ButtonArea
+        currentProvider="codex"
+        models={[]}
+        selectedModel=""
+        reasoningEffort="high"
+        reasoningOptions={["medium", "high"]}
+        hasInputContent
+        onSubmit={vi.fn()}
+        onReasoningChange={vi.fn()}
+        shortcutActions={[]}
+      />,
+    );
+
+    expect(screen.getByTestId("reasoning-select")).toBeTruthy();
+    expect(screen.getByTestId("reasoning-value").textContent).toBe("high");
+    expect(screen.getByTestId("reasoning-options").textContent).toBe("medium,high");
+    expect(screen.getByTestId("reasoning-default").textContent).toBe("");
   });
 
   it("does not apply legacy Claude mapping to dynamic backend models", () => {

@@ -77,6 +77,7 @@ struct PendingClaudeToolSummary {
 const RETRYABLE_PROMPT_TOO_LONG_PREFIX: &str = "__claude_retryable_prompt_too_long__:";
 const AUTO_COMPACT_SIGNAL_SOURCE: &str = "auto_compact_retry";
 const CLAUDE_TEXT_DELTA_COALESCE_WINDOW_MS: u64 = 32;
+const CLAUDE_REASONING_EFFORTS: &[&str] = &["low", "medium", "high", "xhigh", "max"];
 
 #[derive(Debug, Default)]
 struct BufferedClaudeTextDelta {
@@ -395,6 +396,16 @@ impl ClaudeSession {
         if let Some(ref model) = params.model {
             cmd.arg("--model");
             cmd.arg(model);
+        }
+
+        if let Some(effort) = params
+            .effort
+            .as_ref()
+            .map(|value| value.trim())
+            .filter(|value| CLAUDE_REASONING_EFFORTS.contains(value))
+        {
+            cmd.arg("--effort");
+            cmd.arg(effort);
         }
 
         // Session continuation / explicit session identity

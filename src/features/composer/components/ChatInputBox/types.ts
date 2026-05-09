@@ -352,11 +352,11 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
 ];
 
 /**
- * Codex Reasoning Effort (thinking depth)
- * Controls the depth of reasoning for Codex models
- * Valid values: low, medium, high, xhigh
+ * Reasoning effort (thinking depth)
+ * Controls the depth of reasoning for engines that expose a runtime effort option.
+ * Valid values: low, medium, high, xhigh, max
  */
-export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /**
  * Reasoning level information
@@ -392,8 +392,14 @@ export const REASONING_LEVELS: ReasoningInfo[] = [
   },
   {
     id: 'xhigh',
-    label: 'Max',
+    label: 'Extra High',
     icon: 'codicon-flame',
+    description: 'Extra high reasoning depth',
+  },
+  {
+    id: 'max',
+    label: 'Max',
+    icon: 'codicon-rocket',
     description: 'Maximum reasoning depth',
   },
 ];
@@ -569,10 +575,12 @@ export interface ChatInputBoxProps {
   onModelSelect?: (modelId: string) => void;
   /** Switch provider */
   onProviderSelect?: (providerId: string) => void;
-  /** Current reasoning effort (Codex only) */
-  reasoningEffort?: ReasoningEffort;
-  /** Switch reasoning effort callback (Codex only) */
-  onReasoningChange?: (effort: ReasoningEffort) => void;
+  /** Current reasoning effort */
+  reasoningEffort?: ReasoningEffort | null;
+  /** Reasoning effort options visible for current provider */
+  reasoningOptions?: ReasoningEffort[];
+  /** Switch reasoning effort callback */
+  onReasoningChange?: (effort: ReasoningEffort | null) => void;
   /** Toggle thinking mode */
   onToggleThinking?: (enabled: boolean) => void;
   /** Whether streaming is enabled */
@@ -706,8 +714,10 @@ export interface ButtonAreaProps {
   providerStatusLabels?: Partial<Record<ProviderId, string | null>>;
   /** Provider disabled click message */
   providerDisabledMessages?: Partial<Record<ProviderId, string | null>>;
-  /** Current reasoning effort (Codex only) */
-  reasoningEffort?: ReasoningEffort;
+  /** Current reasoning effort */
+  reasoningEffort?: ReasoningEffort | null;
+  /** Reasoning effort options visible for current provider */
+  reasoningOptions?: ReasoningEffort[];
   /** Account rate limits snapshot for codex usage panel */
   accountRateLimits?: AccountRateLimitsInfo | null;
   /** Show remaining limits instead of used */
@@ -731,8 +741,8 @@ export interface ButtonAreaProps {
   onModeSelect?: (mode: PermissionMode) => void;
   onModelSelect?: (modelId: string) => void;
   onProviderSelect?: (providerId: string) => void;
-  /** Switch reasoning effort callback (Codex only) */
-  onReasoningChange?: (effort: ReasoningEffort) => void;
+  /** Switch reasoning effort callback */
+  onReasoningChange?: (effort: ReasoningEffort | null) => void;
   /** Enhance prompt callback */
   onEnhancePrompt?: () => void;
   /** Whether always thinking enabled */

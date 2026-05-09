@@ -70,6 +70,52 @@ fn build_command_passes_custom_bracket_model_to_cli_argv() {
     }));
 }
 
+#[test]
+fn build_command_appends_allowed_reasoning_efforts() {
+    let session = ClaudeSession::new("test-workspace".to_string(), test_workspace_path(), None);
+
+    for effort in ["low", "medium", "high", "xhigh", "max"] {
+        let mut params = SendMessageParams::default();
+        params.text = "1+1".to_string();
+        params.effort = Some(effort.to_string());
+
+        let command = session.build_command(&params, false);
+        let args: Vec<String> = command
+            .as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect();
+
+        assert!(
+            args.windows(2)
+                .any(|window| window[0] == "--effort" && window[1] == effort),
+            "missing --effort {effort} in args: {args:?}"
+        );
+    }
+}
+
+#[test]
+fn build_command_ignores_missing_empty_and_invalid_reasoning_effort() {
+    let session = ClaudeSession::new("test-workspace".to_string(), test_workspace_path(), None);
+
+    for effort in [None, Some(""), Some("   "), Some("ultra"), Some("--danger")] {
+        let mut params = SendMessageParams::default();
+        params.text = "1+1".to_string();
+        params.effort = effort.map(str::to_string);
+
+        let command = session.build_command(&params, false);
+        let args: Vec<String> = command
+            .as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect();
+
+        assert!(!args.iter().any(|arg| arg == "--effort"));
+        assert!(!args.iter().any(|arg| arg == "--danger"));
+        assert!(!args.iter().any(|arg| arg == "ultra"));
+    }
+}
+
 #[tokio::test]
 async fn session_manager_get_or_create() {
     let manager = ClaudeSessionManager::new();

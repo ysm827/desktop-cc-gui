@@ -2329,6 +2329,9 @@ const enPart2 = {
   // Reasoning depth
   reasoning: {
     title: "Select reasoning depth",
+    default: "Default",
+    claudeDefault: "Claude default",
+    defaultDescription: "Use the engine default reasoning behavior",
     low: {
       label: "Low",
       description: "Quick responses with basic reasoning",
@@ -2342,6 +2345,10 @@ const enPart2 = {
       description: "Deep reasoning for complex tasks",
     },
     xhigh: {
+      label: "Extra High",
+      description: "Extra high reasoning depth",
+    },
+    max: {
       label: "Max",
       description: "Maximum reasoning depth",
     },
