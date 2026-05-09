@@ -926,6 +926,7 @@ fn build_web_tauri_shim_script() -> String {
   let requestSeq = 1;
   let ws = null;
   let reconnectTimer = null;
+  let socketOpenedBefore = false;
 
   function readToken() {{
     return (localStorage.getItem(storageKey) || "").trim();
@@ -1006,6 +1007,13 @@ fn build_web_tauri_shim_script() -> String {
     }}
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     ws = new WebSocket(protocol + "://" + location.host + "/ws?token=" + encodeURIComponent(token));
+    ws.onopen = function () {{
+      if (socketOpenedBefore) {{
+        window.dispatchEvent(new CustomEvent("mossx:web-service-reconnected"));
+        return;
+      }}
+      socketOpenedBefore = true;
+    }};
     ws.onmessage = function (event) {{
       if (!event || typeof event.data !== "string") {{
         return;
