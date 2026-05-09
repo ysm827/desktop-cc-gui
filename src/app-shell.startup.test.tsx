@@ -1304,12 +1304,14 @@ describe("AppShell startup", () => {
       expect(sentinel.getAttribute("data-effort")).toBe("medium");
     });
 
-    expect(startupState.queueSaveSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lastComposerModelId: "gpt-5.5",
-        lastComposerReasoningEffort: "medium",
-      }),
-    );
+    await waitFor(() => {
+      expect(startupState.queueSaveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastComposerModelId: "gpt-5.5",
+          lastComposerReasoningEffort: "medium",
+        }),
+      );
+    });
   });
 
   it("keeps the thread selection stable when a pending codex thread finalizes", async () => {

@@ -1009,7 +1009,7 @@ fn build_web_tauri_shim_script() -> String {
     ws = new WebSocket(protocol + "://" + location.host + "/ws?token=" + encodeURIComponent(token));
     ws.onopen = function () {{
       if (socketOpenedBefore) {{
-        window.dispatchEvent(new CustomEvent("mossx:web-service-reconnected"));
+        window.dispatchEvent(new CustomEvent("ccgui:web-service-reconnected"));
         return;
       }}
       socketOpenedBefore = true;
