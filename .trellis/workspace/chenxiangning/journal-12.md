@@ -422,3 +422,51 @@ Web service 浏览器端 WebSocket 重连后，前端执行轻量状态补偿，
 ### Next Steps
 
 - None - task complete
+
+
+## Session 400: 接入会话归档菜单
+
+**Date**: 2026-05-09
+**Task**: 接入会话归档菜单
+**Branch**: `feature/v0.4.16`
+
+### Summary
+
+复用现有 archiveWorkspaceSessions 能力，为会话右键菜单接入归档入口，并隐藏 shared 会话的 unsupported 归档入口。
+
+### Main Changes
+
+## 完成内容
+- 在 Sidebar/useLayoutNodes/useSidebarMenus 链路接入 onArchiveThread。
+- 复用 services/tauri 的 archiveWorkspaceSessions 归档单个会话。
+- 普通会话右键菜单展示 Archive，shared 会话通过 canArchive=false 隐藏 Archive，避免触发 backend UNSUPPORTED_SHARED_SESSION。
+- 新增 workspace.archiveConversationFailed 中英文文案，避免归档失败时误显示删除失败。
+- 补充 useSidebarMenus、ThreadList、PinnedThreadList 测试覆盖归档菜单与 shared 会话隐藏归档。
+
+## 验证
+- npx vitest run src/features/app/hooks/useSidebarMenus.test.tsx src/features/app/components/ThreadList.test.tsx src/features/app/components/PinnedThreadList.test.tsx
+- npx eslint src/features/app/hooks/useSidebarMenus.ts src/features/app/hooks/useSidebarMenus.test.tsx src/features/app/components/ThreadList.tsx src/features/app/components/ThreadList.test.tsx src/features/app/components/PinnedThreadList.tsx src/features/app/components/PinnedThreadList.test.tsx src/features/app/components/WorkspaceSessionFolderTree.tsx src/features/app/components/WorktreeSection.tsx src/app-shell-parts/useAppShellLayoutNodesSection.tsx src/i18n/locales/en.part2.ts src/i18n/locales/zh.part2.ts
+- git diff --check
+
+## 注意
+- 提交时精确暂存 locale 文件中的 archiveConversationFailed 文案，未包含同文件已有的 reasoning effort 改动。
+- commit 后工作区仍保留 unrelated reasoning effort / Claude engine / OpenSpec 未提交改动。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c51a75a5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
