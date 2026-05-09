@@ -1926,3 +1926,60 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 388: 隔离 Claude synthetic transcript 污染
+
+**Date**: 2026-05-09
+**Task**: 隔离 Claude synthetic transcript 污染
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+完成 harden-engine-transcript-channel-isolation 提案实施，隔离 Claude continuation summary、control-plane 和 internal runtime records，补齐 CI 门禁与回归测试。
+
+### Main Changes
+
+## 本次完成
+
+- 实施 OpenSpec change: `harden-engine-transcript-channel-isolation`。
+- 后端 `claude_history_entries` 增加 hidden reason 分类：`control-plane`、`synthetic-runtime`、`internal-record`、`quarantine`。
+- 后端 session scan、session load、fork transcript 路径在投影前过滤污染记录，避免 synthetic continuation summary 进入 session title、first message、message count、用户消息或 forked JSONL。
+- 前端 `claudeHistoryLoader` 增加兼容 fallback，支持 legacy/cached payload 和 nested `message.content`。
+- continuation summary 过滤改为“文本结构 + runtime provenance”，真实字段包括 `isVisibleInTranscriptOnly`、`isCompactSummary`，同时保留用户主动粘贴/讨论同款摘要文本的正常对话。
+- CI 增加 `pull_request` / `push` 触发，使现有 Mac/Win gate 可达。
+
+## 验证
+
+- `cargo test --manifest-path src-tauri/Cargo.toml engine::claude_history`
+- `pnpm vitest run src/features/threads/loaders/claudeHistoryLoader.test.ts`
+- `npm run check:runtime-contracts`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`，441 个 test files 全部通过
+- `openspec validate harden-engine-transcript-channel-isolation --strict --no-interactive`
+- `git diff --check`
+
+## 留意事项
+
+- 当前工作区仍有未跟踪目录 `openspec/changes/add-client-module-documentation-window/`，不是本次提交范围。
+- `cargo fmt --check` 仍会暴露仓库既有无关 Rust 格式漂移；本次提交未纳入这些无关格式化变更。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5fc41d5fcec099fb1ad00df1d388155b73400518` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
