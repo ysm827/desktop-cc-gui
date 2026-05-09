@@ -1819,3 +1819,50 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 386: 修复文件树项目切换瞬态空态
+
+**Date**: 2026-05-09
+**Task**: 修复文件树项目切换瞬态空态
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Item | Summary |
+|------|---------|
+| OpenSpec | Added `fix-workspace-filetree-transient-empty-state` with proposal, design, tasks, and specs for file tree refresh state. |
+| Frontend | Updated `useWorkspaceFiles` to distinguish pending snapshots from confirmed empty snapshots during workspace selection and connection transitions. |
+| File Tree | Updated `FileTreePanel` empty/loading checks to treat directories as valid tree entries. |
+| Tests | Added regression coverage for pending disconnected workspace state, connection flicker preserving loaded snapshot, and directories-only tree snapshots. |
+
+**Validation**:
+- `pnpm vitest run src/features/workspaces/hooks/useWorkspaceFiles.test.tsx src/features/files/components/FileTreePanel.run.test.tsx` passed: 36 tests.
+- `npm run typecheck` passed.
+- `openspec validate --all --strict --no-interactive` passed: 244 items.
+
+**Scope Guard**:
+- Commit intentionally excluded unrelated `src-tauri/src/engine/claude_history.rs` and `openspec/changes/format-claude-history-control-events/` changes.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `52a01585` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
