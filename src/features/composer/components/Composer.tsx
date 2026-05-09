@@ -168,6 +168,7 @@ type ComposerProps = {
   onOpenModelSettings?: (providerId?: string) => void;
   onRefreshModelConfig?: (providerId?: string) => Promise<void> | void;
   isModelConfigRefreshing?: boolean;
+  onForkQuickStart?: () => void;
   opencodeVariantOptions?: string[];
   selectedOpenCodeVariant?: string | null;
   onSelectOpenCodeVariant?: (variant: string | null) => void;
@@ -417,6 +418,7 @@ export const Composer = memo(function Composer({
   onOpenModelSettings,
   onRefreshModelConfig,
   isModelConfigRefreshing,
+  onForkQuickStart,
   opencodeVariantOptions: _opencodeVariantOptions = [],
   selectedOpenCodeVariant: _selectedOpenCodeVariant = null,
   onSelectOpenCodeVariant: _onSelectOpenCodeVariant,
@@ -1223,6 +1225,20 @@ export const Composer = memo(function Composer({
     },
     [disabled, isReviewQuickActionEngine, onSend, selectedEngine],
   );
+
+  const handleForkQuickStart = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+    if (onForkQuickStart) {
+      onForkQuickStart();
+      return;
+    }
+    if (selectedEngine !== "codex" && selectedEngine !== "claude") {
+      return;
+    }
+    void onSend("/fork", []);
+  }, [disabled, onForkQuickStart, onSend, selectedEngine]);
 
   const handleSend = useCallback(
     (submittedText?: string, submittedImages?: string[]) => {
@@ -2134,6 +2150,7 @@ export const Composer = memo(function Composer({
               usageShowRemaining={usageShowRemaining}
               onRefreshAccountRateLimits={onRefreshAccountRateLimits}
               onCodexQuickCommand={handleCodexQuickCommand}
+              onForkQuickStart={handleForkQuickStart}
               hasMessages={items.length > 0}
               onRewind={handleRewind}
               showRewindEntry={canRewindSession}

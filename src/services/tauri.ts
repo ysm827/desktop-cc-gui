@@ -1863,6 +1863,7 @@ export async function engineSendMessage(
     images?: string[] | null;
     continueSession?: boolean;
     sessionId?: string | null;
+    forkSessionId?: string | null;
     accessMode?: string | null;
     threadId?: string | null;
     agent?: string | null;
@@ -1890,6 +1891,7 @@ export async function engineSendMessage(
       accessMode: params.accessMode ?? null,
       threadId: params.threadId ?? null,
       sessionId: params.sessionId ?? null,
+      forkSessionId: params.forkSessionId ?? null,
       agent: params.agent ?? null,
       variant: params.variant ?? null,
       customSpecRoot: params.customSpecRoot ?? null,
@@ -1924,6 +1926,7 @@ export async function engineSendMessageSync(
     images?: string[] | null;
     continueSession?: boolean;
     sessionId?: string | null;
+    forkSessionId?: string | null;
     accessMode?: string | null;
     agent?: string | null;
     variant?: string | null;
@@ -1945,6 +1948,7 @@ export async function engineSendMessageSync(
       continueSession: params.continueSession ?? false,
       accessMode: params.accessMode ?? null,
       sessionId: params.sessionId ?? null,
+      forkSessionId: params.forkSessionId ?? null,
       agent: params.agent ?? null,
       variant: params.variant ?? null,
       customSpecRoot: params.customSpecRoot ?? null,

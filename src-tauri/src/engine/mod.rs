@@ -317,6 +317,8 @@ pub struct SendMessageParams {
     pub continue_session: bool,
     /// Session ID to resume (for Claude)
     pub session_id: Option<String>,
+    /// Parent session ID to fork from (for Claude)
+    pub fork_session_id: Option<String>,
     /// Agent id/name (for OpenCode)
     pub agent: Option<String>,
     /// Variant/reasoning mode (for OpenCode)
@@ -338,6 +340,7 @@ impl Default for SendMessageParams {
             images: None,
             continue_session: false,
             session_id: None,
+            fork_session_id: None,
             agent: None,
             variant: None,
             collaboration_mode: None,

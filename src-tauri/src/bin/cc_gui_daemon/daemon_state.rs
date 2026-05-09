@@ -891,6 +891,7 @@ impl DaemonState {
         continue_session: bool,
         thread_id: Option<String>,
         session_id: Option<String>,
+        fork_session_id: Option<String>,
         agent: Option<String>,
         variant: Option<String>,
         custom_spec_root: Option<String>,
@@ -936,8 +937,18 @@ impl DaemonState {
                 let has_images = images
                     .as_ref()
                     .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
+                let normalized_fork_session_id = fork_session_id
+                    .as_ref()
+                    .map(|value| value.trim())
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string);
+                if fork_session_id.is_some() && normalized_fork_session_id.is_none() {
+                    return Err("forkSessionId is required for Claude fork session".to_string());
+                }
                 let continue_session_for_send = continue_session;
-                let resolved_session_id = if continue_session {
+                let resolved_session_id = if normalized_fork_session_id.is_some() {
+                    None
+                } else if continue_session {
                     if session_id.is_some() {
                         session_id
                     } else {
@@ -987,6 +998,7 @@ impl DaemonState {
                     images,
                     continue_session: continue_session_for_send,
                     session_id: resolved_session_id,
+                    fork_session_id: normalized_fork_session_id,
                     agent: None,
                     variant: None,
                     collaboration_mode: None,
@@ -1175,6 +1187,7 @@ impl DaemonState {
                     images,
                     continue_session,
                     session_id: resolved_session_id,
+                    fork_session_id: None,
                     agent,
                     variant,
                     collaboration_mode: None,
@@ -1306,6 +1319,7 @@ impl DaemonState {
                     images,
                     continue_session,
                     session_id: resolved_session_id,
+                    fork_session_id: None,
                     agent: None,
                     variant: None,
                     collaboration_mode: None,
@@ -1476,6 +1490,7 @@ impl DaemonState {
         images: Option<Vec<String>>,
         continue_session: bool,
         session_id: Option<String>,
+        fork_session_id: Option<String>,
         agent: Option<String>,
         variant: Option<String>,
         custom_spec_root: Option<String>,
@@ -1501,8 +1516,18 @@ impl DaemonState {
                 let has_images = images
                     .as_ref()
                     .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
+                let normalized_fork_session_id = fork_session_id
+                    .as_ref()
+                    .map(|value| value.trim())
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string);
+                if fork_session_id.is_some() && normalized_fork_session_id.is_none() {
+                    return Err("forkSessionId is required for Claude fork session".to_string());
+                }
                 let continue_session_for_send = continue_session;
-                let resolved_session_id = if session_id.is_some() {
+                let resolved_session_id = if normalized_fork_session_id.is_some() {
+                    None
+                } else if session_id.is_some() {
                     session_id
                 } else if continue_session {
                     session.get_session_id().await
@@ -1530,6 +1555,7 @@ impl DaemonState {
                     images,
                     continue_session: continue_session_for_send,
                     session_id: resolved_session_id,
+                    fork_session_id: normalized_fork_session_id,
                     agent: None,
                     variant: None,
                     collaboration_mode: None,
@@ -1590,6 +1616,7 @@ impl DaemonState {
                     images,
                     continue_session,
                     session_id: resolved_session_id,
+                    fork_session_id: None,
                     agent,
                     variant,
                     collaboration_mode: None,
@@ -1642,6 +1669,7 @@ impl DaemonState {
                     images,
                     continue_session,
                     session_id: resolved_session_id,
+                    fork_session_id: None,
                     agent: None,
                     variant: None,
                     collaboration_mode: None,

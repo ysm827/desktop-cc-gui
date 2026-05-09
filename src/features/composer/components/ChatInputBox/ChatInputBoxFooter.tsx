@@ -252,6 +252,7 @@ export function ChatInputBoxFooter({
   codexSpeedMode = 'unknown',
   onCodexSpeedModeChange,
   onCodexReviewQuickStart,
+  onForkQuickStart,
   onSubmit,
   onStop,
   onModeSelect,
@@ -309,6 +310,7 @@ export function ChatInputBoxFooter({
   codexSpeedMode?: 'standard' | 'fast' | 'unknown';
   onCodexSpeedModeChange?: (mode: 'standard' | 'fast') => void;
   onCodexReviewQuickStart?: () => void;
+  onForkQuickStart?: () => void;
   onSubmit: () => void;
   onStop?: () => void;
   onModeSelect?: (mode: PermissionMode) => void;
@@ -528,6 +530,7 @@ export function ChatInputBoxFooter({
         codexSpeedMode={codexSpeedMode}
         onCodexSpeedModeChange={onCodexSpeedModeChange}
         onCodexReviewQuickStart={onCodexReviewQuickStart}
+        onForkQuickStart={onForkQuickStart}
         onSubmit={onSubmit}
         onStop={onStop}
         onModeSelect={onModeSelect}

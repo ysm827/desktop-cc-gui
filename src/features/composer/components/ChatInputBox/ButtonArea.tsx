@@ -207,6 +207,7 @@ export const ButtonArea = ({
   codexSpeedMode,
   onCodexSpeedModeChange,
   onCodexReviewQuickStart,
+  onForkQuickStart,
   onSubmit,
   onStop,
   onModeSelect,
@@ -382,6 +383,7 @@ export const ButtonArea = ({
           codexSpeedMode={codexSpeedMode}
           onCodexSpeedModeChange={onCodexSpeedModeChange}
           onCodexReviewQuickStart={onCodexReviewQuickStart}
+          onForkQuickStart={onForkQuickStart}
           selectedAgent={selectedAgent}
           onAgentSelect={onAgentSelect}
           onOpenAgentSettings={onOpenAgentSettings}

@@ -1663,6 +1663,7 @@ describe("tauri invoke wrappers", () => {
       continueSession: false,
       accessMode: "read-only",
       sessionId: null,
+      forkSessionId: null,
       agent: null,
       variant: null,
       customSpecRoot: null,
@@ -1693,6 +1694,7 @@ describe("tauri invoke wrappers", () => {
       continueSession: false,
       accessMode: null,
       sessionId: null,
+      forkSessionId: null,
       agent: null,
       variant: null,
       customSpecRoot: "/tmp/external-openspec",
@@ -1762,6 +1764,7 @@ describe("tauri invoke wrappers", () => {
       accessMode: null,
       threadId: "codex-thread-1",
       sessionId: null,
+      forkSessionId: null,
       agent: null,
       variant: null,
       customSpecRoot: null,
@@ -1792,6 +1795,37 @@ describe("tauri invoke wrappers", () => {
       accessMode: null,
       threadId: "claude:session-1",
       sessionId: null,
+      forkSessionId: null,
+      agent: null,
+      variant: null,
+      customSpecRoot: null,
+    });
+  });
+
+  it("preserves Claude fork session id in engine_send_message payload", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ engine: "claude" });
+
+    await engineSendMessage("ws-claude", {
+      text: "start from here",
+      engine: "claude",
+      threadId: "claude-fork:parent-session-1:local-1",
+      forkSessionId: "parent-session-1",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("engine_send_message", {
+      workspaceId: "ws-claude",
+      text: "start from here",
+      engine: "claude",
+      model: null,
+      effort: null,
+      disableThinking: false,
+      images: null,
+      continueSession: false,
+      accessMode: null,
+      threadId: "claude-fork:parent-session-1:local-1",
+      sessionId: null,
+      forkSessionId: "parent-session-1",
       agent: null,
       variant: null,
       customSpecRoot: null,

@@ -1071,6 +1071,7 @@ pub async fn engine_send_message(
     continue_session: bool,
     thread_id: Option<String>,
     session_id: Option<String>,
+    fork_session_id: Option<String>,
     agent: Option<String>,
     variant: Option<String>,
     custom_spec_root: Option<String>,
@@ -1100,6 +1101,7 @@ pub async fn engine_send_message(
                 "continueSession": continue_session,
                 "threadId": thread_id,
                 "sessionId": session_id,
+                "forkSessionId": fork_session_id,
                 "agent": agent,
                 "variant": variant,
                 "customSpecRoot": custom_spec_root,
@@ -1115,7 +1117,7 @@ pub async fn engine_send_message(
     let settings = read_app_settings_snapshot(&state).await;
     ensure_engine_enabled(&settings, effective_engine)?;
     log::info!(
-        "[engine_send_message] engine={:?} active_engine={:?} workspace_id={} model={:?} continue_session={} thread_id={:?} session_id={:?} agent={:?} variant={:?}",
+        "[engine_send_message] engine={:?} active_engine={:?} workspace_id={} model={:?} continue_session={} thread_id={:?} session_id={:?} fork_session_id={:?} agent={:?} variant={:?}",
         effective_engine,
         active_engine,
         workspace_id,
@@ -1123,6 +1125,7 @@ pub async fn engine_send_message(
         continue_session,
         thread_id,
         session_id,
+        fork_session_id,
         agent,
         variant
     );
@@ -1159,13 +1162,23 @@ pub async fn engine_send_message(
             let has_images = images
                 .as_ref()
                 .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
+            let normalized_fork_session_id = fork_session_id
+                .as_ref()
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+            if fork_session_id.is_some() && normalized_fork_session_id.is_none() {
+                return Err("forkSessionId is required for Claude fork session".to_string());
+            }
             let continue_session_for_send = continue_session;
 
             // Resolve session id according to mode:
             // 1) continue_session=true  -> explicit session_id or tracked session id
             // 2) continue_session=false -> force a fresh unique session id so concurrent
             //    Claude turns never collapse into one shared persisted session.
-            let resolved_session_id = if continue_session {
+            let resolved_session_id = if normalized_fork_session_id.is_some() {
+                None
+            } else if continue_session {
                 if session_id.is_some() {
                     session_id
                 } else {
@@ -1215,6 +1228,7 @@ pub async fn engine_send_message(
                 images,
                 continue_session: continue_session_for_send,
                 session_id: resolved_session_id,
+                fork_session_id: normalized_fork_session_id,
                 agent: None,
                 variant: None,
                 collaboration_mode: None,
@@ -1397,6 +1411,7 @@ pub async fn engine_send_message(
                 images,
                 continue_session,
                 session_id: resolved_session_id,
+                fork_session_id: None,
                 agent,
                 variant,
                 collaboration_mode: None,
@@ -1537,6 +1552,7 @@ pub async fn engine_send_message(
                 images,
                 continue_session,
                 session_id: resolved_session_id,
+                fork_session_id: None,
                 agent: None,
                 variant: None,
                 collaboration_mode: None,
@@ -1706,6 +1722,7 @@ pub async fn engine_send_message_sync(
     images: Option<Vec<String>>,
     continue_session: bool,
     session_id: Option<String>,
+    fork_session_id: Option<String>,
     agent: Option<String>,
     variant: Option<String>,
     custom_spec_root: Option<String>,
@@ -1727,6 +1744,7 @@ pub async fn engine_send_message_sync(
             images,
             continue_session,
             session_id,
+            fork_session_id,
             agent,
             variant,
             custom_spec_root,
@@ -1755,9 +1773,19 @@ pub async fn engine_send_message_sync(
             let has_images = images
                 .as_ref()
                 .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
+            let normalized_fork_session_id = fork_session_id
+                .as_ref()
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+            if fork_session_id.is_some() && normalized_fork_session_id.is_none() {
+                return Err("forkSessionId is required for Claude fork session".to_string());
+            }
             let continue_session_for_send = continue_session;
 
-            let resolved_session_id = if session_id.is_some() {
+            let resolved_session_id = if normalized_fork_session_id.is_some() {
+                None
+            } else if session_id.is_some() {
                 session_id
             } else if continue_session {
                 session.get_session_id().await
@@ -1787,6 +1815,7 @@ pub async fn engine_send_message_sync(
                 images,
                 continue_session: continue_session_for_send,
                 session_id: resolved_session_id,
+                fork_session_id: normalized_fork_session_id,
                 agent: None,
                 variant: None,
                 collaboration_mode: None,
@@ -1857,6 +1886,7 @@ pub async fn engine_send_message_sync(
                 images,
                 continue_session,
                 session_id: resolved_session_id,
+                fork_session_id: None,
                 agent,
                 variant,
                 collaboration_mode: None,
@@ -1937,6 +1967,7 @@ pub async fn engine_send_message_sync(
                 images,
                 continue_session,
                 session_id: resolved_session_id,
+                fork_session_id: None,
                 agent: None,
                 variant: None,
                 collaboration_mode: None,

@@ -52,6 +52,76 @@ fn build_command_uses_resume_when_continue_session_is_enabled() {
 }
 
 #[test]
+fn build_command_uses_native_fork_session_contract() {
+    let session = ClaudeSession::new("test-workspace".to_string(), test_workspace_path(), None);
+    let mut params = SendMessageParams::default();
+    params.text = "branch from parent".to_string();
+    params.session_id = Some("child-should-not-be-used".to_string());
+    params.fork_session_id = Some("33333333-3333-4333-8333-333333333333".to_string());
+
+    let command = session.build_command(&params, false);
+    let args: Vec<String> = command
+        .as_std()
+        .get_args()
+        .map(|arg| arg.to_string_lossy().to_string())
+        .collect();
+
+    assert!(args.windows(2).any(|window| {
+        window[0] == "--resume" && window[1] == "33333333-3333-4333-8333-333333333333"
+    }));
+    assert!(args.iter().any(|arg| arg == "--fork-session"));
+    assert!(!args.windows(2).any(|window| {
+        window[0] == "--session-id" && window[1] == "child-should-not-be-used"
+    }));
+}
+
+#[test]
+fn build_command_rejects_invalid_native_fork_session_ids() {
+    let session = ClaudeSession::new("test-workspace".to_string(), test_workspace_path(), None);
+    for invalid in [
+        "",
+        "   ",
+        ".",
+        "../secrets",
+        "..\\secrets",
+        "--continue",
+        "abc\nresume",
+        "parent:child",
+        "parent.jsonl",
+    ] {
+        let mut params = SendMessageParams::default();
+        params.text = "branch from parent".to_string();
+        params.fork_session_id = Some(invalid.to_string());
+        params.continue_session = true;
+        params.session_id = Some("must-not-fallback".to_string());
+
+        assert!(
+            ClaudeSession::normalized_fork_session_id(&params).is_err(),
+            "expected invalid fork session id to be rejected: {invalid:?}",
+        );
+        let command = session.build_command(&params, false);
+        let args: Vec<String> = command
+            .as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect();
+        assert!(
+            !args.iter().any(|arg| arg == "--fork-session"),
+            "invalid fork session id must not reach argv: {args:?}",
+        );
+        assert!(
+            !args.windows(2)
+                .any(|window| window[0] == "--resume" && window[1] == "must-not-fallback"),
+            "invalid fork session id must not silently fall back to resume: {args:?}",
+        );
+        assert!(
+            !args.iter().any(|arg| arg == "--continue"),
+            "invalid fork session id must not silently fall back to continue: {args:?}",
+        );
+    }
+}
+
+#[test]
 fn build_command_passes_custom_bracket_model_to_cli_argv() {
     let session = ClaudeSession::new("test-workspace".to_string(), test_workspace_path(), None);
     let mut params = SendMessageParams::default();

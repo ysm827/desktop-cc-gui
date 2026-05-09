@@ -1360,6 +1360,7 @@ async fn handle_rpc_request(
             let continue_session = parse_optional_bool(&params, "continueSession").unwrap_or(false);
             let thread_id = parse_optional_string(&params, "threadId");
             let session_id = parse_optional_string(&params, "sessionId");
+            let fork_session_id = parse_optional_string(&params, "forkSessionId");
             let agent = parse_optional_string(&params, "agent");
             let variant = parse_optional_string(&params, "variant");
             let custom_spec_root = parse_optional_string(&params, "customSpecRoot");
@@ -1376,6 +1377,7 @@ async fn handle_rpc_request(
                     continue_session,
                     thread_id,
                     session_id,
+                    fork_session_id,
                     agent,
                     variant,
                     custom_spec_root,
@@ -1395,6 +1397,7 @@ async fn handle_rpc_request(
             let images = parse_optional_string_array(&params, "images");
             let continue_session = parse_optional_bool(&params, "continueSession").unwrap_or(false);
             let session_id = parse_optional_string(&params, "sessionId");
+            let fork_session_id = parse_optional_string(&params, "forkSessionId");
             let agent = parse_optional_string(&params, "agent");
             let variant = parse_optional_string(&params, "variant");
             let custom_spec_root = parse_optional_string(&params, "customSpecRoot");
@@ -1410,6 +1413,7 @@ async fn handle_rpc_request(
                     images,
                     continue_session,
                     session_id,
+                    fork_session_id,
                     agent,
                     variant,
                     custom_spec_root,

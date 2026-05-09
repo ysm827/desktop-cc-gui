@@ -1468,6 +1468,7 @@ export type EngineSendMessageParams = {
   images: string[] | null;
   continueSession: boolean;
   sessionId: string | null;
+  forkSessionId?: string | null;
   accessMode: string | null;
   agent?: string | null;
   variant?: string | null;

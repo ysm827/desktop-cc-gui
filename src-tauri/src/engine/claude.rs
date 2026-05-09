@@ -173,6 +173,32 @@ pub struct ClaudeSession {
 }
 
 impl ClaudeSession {
+    fn is_invalid_fork_session_id(value: &str) -> bool {
+        value.is_empty()
+            || value == "."
+            || value.starts_with('-')
+            || value.contains('/')
+            || value.contains('\\')
+            || value.contains("..")
+            || !value
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+    }
+
+    fn normalized_fork_session_id(params: &SendMessageParams) -> Result<Option<String>, String> {
+        let Some(value) = params.fork_session_id.as_ref() else {
+            return Ok(None);
+        };
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err("forkSessionId is required for Claude fork session".to_string());
+        }
+        if Self::is_invalid_fork_session_id(trimmed) {
+            return Err("invalid forkSessionId for Claude fork session".to_string());
+        }
+        Ok(Some(trimmed.to_string()))
+    }
+
     fn configure_spawn_command(cmd: &mut Command) {
         #[cfg(unix)]
         unsafe {
@@ -408,20 +434,32 @@ impl ClaudeSession {
             cmd.arg(effort);
         }
 
-        // Session continuation / explicit session identity
-        if params.continue_session {
-            if let Some(ref session_id) = params.session_id {
+        // Session continuation / explicit session identity.
+        // Claude's native fork contract resumes a parent session and asks the
+        // CLI to allocate a new child session id.
+        match Self::normalized_fork_session_id(params) {
+            Ok(Some(fork_session_id)) => {
                 cmd.arg("--resume");
-                cmd.arg(session_id);
-            } else {
-                cmd.arg("--continue");
+                cmd.arg(fork_session_id);
+                cmd.arg("--fork-session");
             }
-        } else if let Some(ref session_id) = params.session_id {
-            // Force a fresh, stable identity for "new conversation" runs.
-            // This prevents concurrent Claude turns from collapsing into the
-            // same persisted session due CLI implicit reuse behavior.
-            cmd.arg("--session-id");
-            cmd.arg(session_id);
+            Ok(None) => {
+                if params.continue_session {
+                    if let Some(ref session_id) = params.session_id {
+                        cmd.arg("--resume");
+                        cmd.arg(session_id);
+                    } else {
+                        cmd.arg("--continue");
+                    }
+                } else if let Some(ref session_id) = params.session_id {
+                    // Force a fresh, stable identity for "new conversation" runs.
+                    // This prevents concurrent Claude turns from collapsing into the
+                    // same persisted session due CLI implicit reuse behavior.
+                    cmd.arg("--session-id");
+                    cmd.arg(session_id);
+                }
+            }
+            Err(_) => {}
         }
 
         if let Some(spec_root) = params
@@ -484,6 +522,19 @@ impl ClaudeSession {
         // Reset cumulative text tracker for the new turn only.
         if let Ok(mut map) = self.last_emitted_text_by_turn.lock() {
             map.remove(turn_id);
+        }
+
+        if let Err(error_msg) = Self::normalized_fork_session_id(&params) {
+            self.emit_turn_event(
+                turn_id,
+                EngineEvent::TurnError {
+                    workspace_id: self.workspace_id.clone(),
+                    error: error_msg.clone(),
+                    code: None,
+                },
+            );
+            self.clear_turn_ephemeral_state(turn_id);
+            return Err(error_msg);
         }
 
         let use_stream_json_input = Self::should_use_stream_json_input(&params);

@@ -535,6 +535,8 @@ export interface ChatInputBoxProps {
   onCodexSpeedModeChange?: (mode: Exclude<CodexSpeedMode, 'unknown'>) => void;
   /** Trigger review quick action (codex/claude only) */
   onCodexReviewQuickStart?: () => void;
+  /** Trigger fork quick action (codex/claude only) */
+  onForkQuickStart?: () => void;
   /** Whether always thinking is enabled */
   alwaysThinkingEnabled?: boolean;
   /** Attachment list */
@@ -734,6 +736,8 @@ export interface ButtonAreaProps {
   onCodexSpeedModeChange?: (mode: Exclude<CodexSpeedMode, 'unknown'>) => void;
   /** Trigger review quick action (codex/claude only) */
   onCodexReviewQuickStart?: () => void;
+  /** Trigger fork quick action (codex/claude only) */
+  onForkQuickStart?: () => void;
 
   // Event callbacks
   onSubmit?: () => void;

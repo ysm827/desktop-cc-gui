@@ -387,6 +387,7 @@ export interface ChatInputBoxAdapterProps {
   onOpenFileReference?: (path: string) => void;
   onRefreshModelConfig?: (providerId?: string) => Promise<void> | void;
   isModelConfigRefreshing?: boolean;
+  onForkQuickStart?: () => void;
   hasMessages?: boolean;
   onRewind?: () => void;
   showRewindEntry?: boolean;
@@ -821,6 +822,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onOpenFileReference,
       onRefreshModelConfig,
       isModelConfigRefreshing,
+      onForkQuickStart,
       hasMessages,
       onRewind,
       showRewindEntry,
@@ -1660,6 +1662,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         onOpenFileReference={onOpenFileReference}
         onRefreshModelConfig={onRefreshModelConfig}
         isModelConfigRefreshing={isModelConfigRefreshing}
+        onForkQuickStart={onForkQuickStart}
         hasMessages={hasMessages}
         onRewind={onRewind}
         showRewindEntry={showRewindEntry}

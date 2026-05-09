@@ -1222,6 +1222,15 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     ]);
   });
 
+  it('passes fork quick handler to ChatInputBox', async () => {
+    const onForkQuickStart = vi.fn();
+
+    renderAdapter({ onForkQuickStart });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+    expect(mockState.latestProps?.onForkQuickStart).toBe(onForkQuickStart);
+  });
+
   it('sorts prompt completion by usage heat', async () => {
     recordPromptUsage('/tmp/workspace/.ccgui/prompts/review.md');
     recordPromptUsage('/tmp/workspace/.ccgui/prompts/review.md');
