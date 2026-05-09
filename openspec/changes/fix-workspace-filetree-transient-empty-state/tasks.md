@@ -7,6 +7,7 @@
 
 - [x] 2.1 Input: `FileTreePanel` loading and empty checks; Output: empty state considers both files and directories; Verification: component test covers directories-only snapshot.
 - [x] 2.2 Input: root node selection refresh path; Output: delayed current snapshot renders children without page navigation; Verification: hook/component tests cover delayed refresh.
+- [x] 2.3 Input: light theme pending root snapshot; Output: root pending state renders a compact inline loading indicator; Verification: component test asserts status row renders before empty state.
 
 ## 3. Validation
 

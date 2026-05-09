@@ -527,6 +527,32 @@ describe("FileTreePanel run action isolation", () => {
     expect(screen.queryByText("files.noFilesAvailable")).toBeNull();
   });
 
+  it("renders the root loading indicator while the first workspace snapshot is pending", () => {
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={[]}
+        directories={[]}
+        isLoading={true}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        onInsertText={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitStatusFiles={[]}
+        gitignoredFiles={new Set<string>()}
+        gitignoredDirectories={new Set<string>()}
+      />,
+    );
+
+    expect(screen.getByRole("status").textContent).toContain("files.loadingFiles");
+    expect(screen.queryByText("files.noFilesAvailable")).toBeNull();
+  });
+
   it("does not render run icon button when handler is absent", () => {
     const openTargets: OpenAppTarget[] = [];
 

@@ -19,6 +19,7 @@
 - 不改变 Tauri command payload。
 - 不重构 FileTreePanel 的交互模型。
 - 不改变 progressive loading 的特殊目录策略。
+- 不重设文件树整体视觉；只修正 pending loading indicator 可见性与一致性。
 
 ## Decisions
 
@@ -58,6 +59,19 @@ Alternatives:
 Rationale:
 
 本 bug 是前端把未知态误渲为空态，不需要扩展后端。
+
+### Decision 4: pending loading 使用内联 spinner 而非大面积 skeleton
+
+`FileTreePanel` 的 pending 态应在 root 下方显示克制的 inline loading row：小型 spinner + `files.loadingFiles` 文案。它比大面积 skeleton 更适合窄文件树，也能沿用项目里 `LoaderCircle` + spin 的统一 loading 语言。
+
+Alternatives:
+
+- 大面积 skeleton：可见性强，但在文件树里显得笨重，且会制造“很多文件占位”的错误预期。
+- 继续使用白色透明度：深色主题可接受，但浅色主题仍像空白。
+
+Rationale:
+
+本问题的用户感知是“没有 loading 过程”。内联 spinner 能清楚表达 pending，又不会污染文件树的结构密度。
 
 ## Risks / Trade-offs
 

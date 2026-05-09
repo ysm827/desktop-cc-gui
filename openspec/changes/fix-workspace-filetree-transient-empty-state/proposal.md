@@ -12,12 +12,13 @@
 
 - 不重写文件扫描后端。
 - 不改变特殊目录 progressive loading 语义。
-- 不调整文件树视觉样式、context menu、文件打开多 Tab 行为。
+- 不重设文件树整体视觉、context menu、文件打开多 Tab 行为；仅允许修复 pending loading indicator 的可见性与一致性。
 
 ## What Changes
 
 - 文件树数据 hook MUST 区分“尚未完成当前 workspace 首次加载”和“已确认当前 workspace 为空”。
 - 切换 workspace 或 workspace connection 状态刷新时，UI MUST NOT 将 pending snapshot 渲染为“无可用文件”。
+- pending snapshot 的 loading indicator MUST 在浅色/深色主题下都可见，且 SHOULD 复用项目内的小型 inline loading 视觉语言。
 - async 刷新仍 MUST 忽略旧 workspace 的 stale response，避免旧数据覆盖新 workspace。
 - 文件树空态判断 SHOULD 同时考虑 files 与 directories，避免只有目录的 workspace 被误判为空。
 

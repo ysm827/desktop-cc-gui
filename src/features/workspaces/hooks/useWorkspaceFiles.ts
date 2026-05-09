@@ -36,7 +36,7 @@ export function useWorkspaceFiles({
   const [directories, setDirectories] = useState<string[]>([]);
   const [gitignoredFiles, setGitignoredFiles] = useState<Set<string>>(new Set());
   const [gitignoredDirectories, setGitignoredDirectories] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => Boolean(activeWorkspace?.id));
   const [loadError, setLoadError] = useState<string | null>(null);
   const hasLoadedWorkspaceId = useRef<string | null>(null);
   const latestWorkspaceIdRef = useRef<string | null>(null);

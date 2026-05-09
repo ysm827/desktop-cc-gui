@@ -96,6 +96,46 @@ describe("useWorkspaceFiles", () => {
     unmount();
   });
 
+  it("starts in a pending loading state for the first connected workspace snapshot", async () => {
+    const firstSnapshot = createDeferred<{
+      files: string[];
+      directories: string[];
+      gitignored_files: string[];
+      gitignored_directories: string[];
+    }>();
+    const getWorkspaceFilesMock = vi.mocked(getWorkspaceFiles);
+    getWorkspaceFilesMock.mockReturnValue(firstSnapshot.promise);
+
+    const { result, unmount } = renderHook(() =>
+      useWorkspaceFiles({
+        activeWorkspace: workspaceA,
+        pollingEnabled: false,
+      }),
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.files).toEqual([]);
+    expect(result.current.directories).toEqual([]);
+
+    await act(async () => {
+      firstSnapshot.resolve({
+        files: ["src/app.tsx"],
+        directories: ["src"],
+        gitignored_files: [],
+        gitignored_directories: [],
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.files).toEqual(["src/app.tsx"]);
+    expect(result.current.directories).toEqual(["src"]);
+    expect(getWorkspaceFilesMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
   it("cleans up a scheduled retry when the active workspace changes", async () => {
     const getWorkspaceFilesMock = vi.mocked(getWorkspaceFiles);
     getWorkspaceFilesMock
