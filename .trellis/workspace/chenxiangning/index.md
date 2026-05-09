@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 393
+- **Total Sessions**: 394
 - **Last Active**: 2026-05-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~204 | Active |
+| `journal-12.md` | ~242 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 394 | 2026-05-09 | 提交剩余变更文件 | `fbec17f0` | `feature/v0.4.15` |
 | 393 | 2026-05-09 | 客户端说明文档窗口收口 | `1a6773ae` | `feature/v0.4.15` |
 | 392 | 2026-05-09 | 修复 branding Windows 路径匹配 | `57f01b9e` | `feature/v0.4.15` |
 | 391 | 2026-05-09 | 隔离 OpenCode CLI 测试依赖 | `c2e24bba` | `feature/v0.4.15` |

@@ -202,3 +202,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 394: 提交剩余变更文件
+
+**Date**: 2026-05-09
+**Task**: 提交剩余变更文件
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+提交剩余 CHANGELOG 与 Git history 测试稳定性变更，并完成目标验证。
+
+### Main Changes
+
+- 按用户要求提交剩余两个文件：`CHANGELOG.md` 和 `src/features/git-history/components/GitHistoryPanel.test.tsx`。
+- `CHANGELOG.md` 补充 0.4.15 中英文变更说明，包括文件行标注上下文、OpenSpec 同步归档、Claude thinking visibility、文件树瞬态空态、Claude history/control-plane 与 synthetic transcript 修复说明。
+- `GitHistoryPanel.test.tsx` 增加 `clickReadyCreatePrAction()` helper，等待 create PR 按钮解除 `aria-disabled` 后再点击，降低异步加载期间的测试竞态。
+- 验证通过：`npm exec vitest run src/features/git-history/components/GitHistoryPanel.test.tsx`（40 tests）、`npm run typecheck`、`npm run lint`。
+- 提交前后确认工作区从剩余 2 个脏文件变为 clean。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fbec17f0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
