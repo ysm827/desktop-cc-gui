@@ -1765,3 +1765,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 385: 接入文件行标注上下文
+
+**Date**: 2026-05-09
+**Task**: 接入文件行标注上下文
+**Branch**: `feature/v0.4.15`
+
+### Summary
+
+完成代码标注从文件预览、diff、git history、状态面板到 Composer 的 UI 闭环，并通过类型、lint、runtime contract、大文件治理和 heavy-test-noise 门禁。
+
+### Main Changes
+
+## 交付内容
+- 新增 code-annotations 类型与工具，统一标注创建、去重、行号格式化和跨平台路径匹配。
+- 文件预览支持 Markdown/代码行标注、草稿编辑、删除和焦点稳定处理，标注不写回源文件。
+- DiffBlock、GitDiffViewer、GitDiffPanel、GitHistory、Checkpoint、SessionActivity 接入标注创建和渲染。
+- Composer 增加标注上下文条，发送时追加标注文案，发送后清理，不改后端发送入口。
+- 用户消息把引用标注从正常气泡文本中拆出，默认折叠展示，适配主题紧凑样式。
+- 补充 OpenSpec、i18n、CSS 和覆盖边界行为的单元测试。
+
+## Review 修复
+- 修复 GitHistory 拆分 render scope 漏传 code annotation props 导致的 runtime contract / ReferenceError。
+- 修复 Windows 与 POSIX 路径分隔符不一致导致标注无法匹配渲染的问题。
+- 检查 large-file governance：存在 near-threshold watch，但没有 hard gate failure，本轮未做高风险拆分。
+
+## 验证
+- npm run typecheck
+- npm run lint
+- npm run check:runtime-contracts
+- npm run check:large-files:gate
+- npm run check:large-files:near-threshold
+- npm run check:heavy-test-noise
+- git diff --check
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eb53db1382b7b52a8b6edc7f4a2976688d36701b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

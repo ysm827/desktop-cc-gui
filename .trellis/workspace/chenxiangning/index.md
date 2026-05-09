@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-11.md`
-- **Total Sessions**: 384
+- **Total Sessions**: 385
 - **Last Active**: 2026-05-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-11.md` | ~1767 | Active |
+| `journal-11.md` | ~1821 | Active |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
@@ -39,6 +39,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 385 | 2026-05-09 | 接入文件行标注上下文 | `eb53db1382b7b52a8b6edc7f4a2976688d36701b` | `feature/v0.4.15` |
 | 384 | 2026-05-09 | 归档 Claude 思考可见性 OpenSpec | `f0c8c8f6` | `feature/v0.4.15` |
 | 383 | 2026-05-09 | 对齐 Claude 思考开关前后端行为 | `2df603dbcf4e017d783b68f77290adf7f5dd0b2c` | `feature/v0.4.15` |
 | 382 | 2026-05-09 | 修复邮件设置加载竞态 | `c29bd224` | `feature/v0.4.15` |
