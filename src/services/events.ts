@@ -5,7 +5,7 @@ import type {
 } from "./tauri";
 
 export type Unsubscribe = () => void;
-export const WEB_SERVICE_RECONNECTED_EVENT = "mossx:web-service-reconnected" as const;
+export const WEB_SERVICE_RECONNECTED_EVENT = "ccgui:web-service-reconnected" as const;
 
 export type TerminalOutputEvent = {
   workspaceId: string;
