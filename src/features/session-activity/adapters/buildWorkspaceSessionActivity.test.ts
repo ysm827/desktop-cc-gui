@@ -1350,4 +1350,39 @@ describe("buildWorkspaceSessionActivity", () => {
 
     expect(result.timeline.some((event) => event.kind === "subagent")).toBe(false);
   });
+
+  it("normalizes malformed restored tool items without throwing", () => {
+    const threads: ThreadSummary[] = [
+      { id: "root", name: "Root", updatedAt: 1_000_000 },
+    ];
+    const malformedTask = {
+      id: "malformed-task",
+      kind: "tool",
+      toolType: "task",
+      detail: "{}",
+      status: "completed",
+    } as unknown as ConversationItem;
+    const malformedCommand = {
+      id: "malformed-command",
+      kind: "tool",
+      toolType: "commandExecution",
+      status: "completed",
+    } as unknown as ConversationItem;
+
+    const result = buildWorkspaceSessionActivity({
+      activeThreadId: "root",
+      threads,
+      itemsByThread: {
+        root: [malformedTask, malformedCommand],
+      },
+      threadParentById: {},
+      threadStatusById: { root: { isProcessing: false } },
+    });
+
+    const taskEvent = result.timeline.find((event) => event.kind === "task");
+    const commandEvent = result.timeline.find((event) => event.kind === "command");
+
+    expect(taskEvent?.summary).toBe("Task · Task");
+    expect(commandEvent?.summary).toBe("Command");
+  });
 });

@@ -1060,14 +1060,16 @@ export function isAskUserQuestionToolItem(
   if (item.kind !== "tool") {
     return false;
   }
-  const normalizedToolType = item.toolType.trim().toLowerCase();
+  const normalizedToolType =
+    typeof item.toolType === "string" ? item.toolType.trim().toLowerCase() : "";
   if (
     normalizedToolType === "askuserquestion" ||
     normalizedToolType === "ask_user_question"
   ) {
     return true;
   }
-  const normalizedTitle = item.title.trim().toLowerCase();
+  const normalizedTitle =
+    typeof item.title === "string" ? item.title.trim().toLowerCase() : "";
   return (
     normalizedTitle.includes("askuserquestion") ||
     normalizedTitle.includes("ask_user_question")

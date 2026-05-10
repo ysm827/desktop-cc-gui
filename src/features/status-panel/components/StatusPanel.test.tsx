@@ -2005,4 +2005,29 @@ describe("StatusPanel", () => {
       }),
     );
   });
+
+  it("does not crash when restored tool items miss runtime string fields", () => {
+    const malformedAgentTool = {
+      id: "malformed-agent",
+      kind: "tool",
+      toolType: "agent",
+      detail: "{}",
+      status: "completed",
+    } as unknown as ConversationItem;
+    const malformedCommandTool = {
+      id: "malformed-command",
+      kind: "tool",
+      toolType: "commandExecution",
+      status: "completed",
+    } as unknown as ConversationItem;
+
+    expect(() =>
+      render(
+        <StatusPanel
+          items={[malformedAgentTool, malformedCommandTool]}
+          isProcessing={false}
+        />,
+      ),
+    ).not.toThrow();
+  });
 });

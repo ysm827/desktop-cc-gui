@@ -243,12 +243,16 @@ function collectThreadSubtreeIds(
   return subtreeIds;
 }
 
-function extractToolName(title: string) {
-  return title.replace(/^Tool:\s*/i, "").trim();
+function normalizeRuntimeString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function extractToolName(title: unknown) {
+  return normalizeRuntimeString(title).replace(/^Tool:\s*/i, "").trim();
 }
 
 function isClaudeAgentTool(item: ToolConversationItem) {
-  const normalizedToolType = item.toolType.trim().toLowerCase();
+  const normalizedToolType = normalizeRuntimeString(item.toolType).trim().toLowerCase();
   const normalizedToolName = extractToolName(item.title).trim().toLowerCase();
   return normalizedToolType === "agent" || normalizedToolName === "agent";
 }
@@ -298,7 +302,7 @@ function buildClaudeLiveSubagentRows(
     if (item.kind !== "tool" || !isClaudeAgentTool(item)) {
       return;
     }
-    const args = parseToolArgs(item.detail);
+    const args = parseToolArgs(normalizeRuntimeString(item.detail));
     const taskId = getFirstStringField(args, ["task_id", "taskId"]);
     const stableAgentId = getFirstStringField(args, ["agent_id", "agentId"]);
     const childSessionId = stableAgentId
@@ -307,7 +311,8 @@ function buildClaudeLiveSubagentRows(
     if (childSessionId && threadIds.has(childSessionId)) {
       return;
     }
-    if (!stableAgentId && isCompletedToolStatus(item.status, item.output) && unmatchedRealChildCount > 0) {
+    const output = normalizeRuntimeString(item.output);
+    if (!stableAgentId && isCompletedToolStatus(item.status, output) && unmatchedRealChildCount > 0) {
       unmatchedRealChildCount -= 1;
       return;
     }
@@ -317,7 +322,7 @@ function buildClaudeLiveSubagentRows(
     }
     const description =
       getFirstStringField(args, ["description", "prompt", "query", "task"]) ||
-      item.output?.split(/\r?\n/, 1)[0]?.trim() ||
+      output.split(/\r?\n/, 1)[0]?.trim() ||
       "Claude subagent";
     const subagentType =
       getFirstStringField(args, ["subagent_type", "agent", "type", "name"]) || "Agent";
