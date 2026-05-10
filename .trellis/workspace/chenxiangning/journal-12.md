@@ -812,3 +812,49 @@ daemon 的 engine_bridge 漏挂 claude_history_subagents 导致 CI/打包 Rust u
 ### Next Steps
 
 - None - task complete
+
+
+## Session 409: 精简 status panel 对话面板视觉
+
+**Date**: 2026-05-11
+**Task**: 精简 status panel 对话面板视觉
+**Branch**: `feature/v0.4.16`
+
+### Summary
+
+精简 dock 状态面板 tab 与用户对话时间线展示，去除冗余下划线和排序胶囊。
+
+### Main Changes
+
+## 本次提交
+- Commit: d456f253f96b3847220af625891fd755b4b4b9ca
+- 标题: style(status-panel): 精简对话面板标签视觉
+
+## 主要改动
+- 去掉 dock 状态面板 tab 选中下划线，改为 active icon 蓝色高亮。
+- 为 dock tab bar 增加完整边框，并压缩圆角、padding 与底部留白，让顶部区域更紧凑。
+- 移除用户对话时间线中的排序胶囊和对应 i18n 文案，只保留 #n 编号。
+- 同步更新 StatusPanel 与 UserConversationTimelinePanel 测试断言。
+
+## 验证
+- npx vitest run src/features/status-panel/components/UserConversationTimelinePanel.test.tsx src/features/status-panel/components/StatusPanel.test.tsx
+- npx vitest run src/styles/status-panel-theme.test.ts
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d456f253f96b3847220af625891fd755b4b4b9ca` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
