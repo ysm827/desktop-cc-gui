@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 404
+- **Total Sessions**: 405
 - **Last Active**: 2026-05-11
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~646 | Active |
+| `journal-12.md` | ~686 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 405 | 2026-05-11 | 记录 Claude 上下文用量和子代理树 UI 提交 | `919b2615` | `feature/v0.4.16` |
 | 404 | 2026-05-11 | 记录 Claude 上下文用量与子代理历史提交 | `7597a551` | `feature/v0.4.16` |
 | 403 | 2026-05-10 | 接入 Claude 原生 fork session | `a34f3458` | `feature/v0.4.16` |
 | 402 | 2026-05-10 | Codex 计划模式入口联动 | `ee4f4b7e` | `feature/v0.4.16` |
