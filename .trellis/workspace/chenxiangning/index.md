@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 409
+- **Total Sessions**: 410
 - **Last Active**: 2026-05-11
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~860 | Active |
+| `journal-12.md` | ~912 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 410 | 2026-05-11 | 修复标注交互闪烁 | `b2f87f6d` | `feature/v0.4.16` |
 | 409 | 2026-05-11 | 精简 status panel 对话面板视觉 | `d456f253f96b3847220af625891fd755b4b4b9ca` | `feature/v0.4.16` |
 | 408 | 2026-05-11 | 记录客户端启动编排归档 | `39c6fac0` | `feature/v0.4.16` |
 | 407 | 2026-05-11 | 修复 cc_gui_daemon 打包：补齐 claude_history_subagents 模块 | `7fd55178` | `feature/v0.4.16` |

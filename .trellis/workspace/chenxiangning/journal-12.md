@@ -858,3 +858,55 @@ daemon 的 engine_bridge 漏挂 claude_history_subagents 导致 CI/打包 Rust u
 ### Next Steps
 
 - None - task complete
+
+
+## Session 410: 修复标注交互闪烁
+
+**Date**: 2026-05-11
+**Task**: 修复标注交互闪烁
+**Branch**: `feature/v0.4.16`
+
+### Summary
+
+修复带标注用户气泡初始测量闪烁与 Markdown 预览 AI 标注按钮 hover 闪烁。
+
+### Main Changes
+
+## Work Summary
+- 修复 `CollapsibleUserTextBlock` 初始高度测量时的 max-height transition 闪烁。
+- 在 content 变化时重新进入测量保护，避免 optimistic/reconciled 文本复用时再次闪动。
+- 收窄 Markdown 预览段落 AI 标注按钮 hover 稳定区，使用 `pointer-events: none` 避免隐形层截获点击。
+
+## Files
+- `src/features/messages/components/CollapsibleUserTextBlock.tsx`
+- `src/features/messages/components/CollapsibleUserTextBlock.test.tsx`
+- `src/styles/messages.part1.css`
+- `src/styles/file-view-panel.css`
+
+## Validation
+- `npm exec vitest run src/features/messages/components/CollapsibleUserTextBlock.test.tsx`
+- `npm exec vitest run src/features/files/components/FileViewPanel.test.tsx -- --testNamePattern="markdown annotation|markdown modes"`
+- `npm exec vitest run src/features/composer/components/Composer.file-reference-token.test.tsx`
+
+## Notes
+- 本次 commit 只包含 UI 标注闪烁修复。
+- 工作区中已有 git/Rust/tauri 相关未提交改动未纳入本次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2f87f6d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
