@@ -259,7 +259,7 @@ describe("ContextBar live canvas controls visibility", () => {
       />,
     );
 
-    expect(container.querySelector(".token-percentage-label")?.textContent).toBe("...");
+    expect(container.querySelector(".token-percentage-label")).toBeNull();
     expect(screen.queryByText("0%")).toBeNull();
     expect(screen.getByText("chat.claudeContextFreshness.pending")).toBeTruthy();
   });

@@ -229,7 +229,9 @@ export const TokenIndicator = ({
           )}
         </div>
       </div>
-      <span className="token-percentage-label">{formattedPercentage}</span>
+      {resolvedPercentage !== null ? (
+        <span className="token-percentage-label">{formattedPercentage}</span>
+      ) : null}
     </div>
   );
 };
