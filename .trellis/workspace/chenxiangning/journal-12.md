@@ -943,3 +943,46 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 412: 修复失效输入请求卡片关闭
+
+**Date**: 2026-05-11
+**Task**: 修复失效输入请求卡片关闭
+**Branch**: `feature/v0.4.16`
+
+### Summary
+
+为 requestUserInput 卡片增加纯前端关闭路径，避免错过回答时机后 stale request 继续提交失败并阻塞后续对话。
+
+### Main Changes
+
+- 新增 `handleUserInputDismiss`，只移除 pending user input request，不调用 `respondToUserInputRequest`，不标记 processing，不插入提交历史记录。
+- 将 dismiss 回调从 `useThreads` 透传到 `useLayoutNodes`、`Messages`、`RequestUserInputMessage`，在提交按钮旁新增“关闭”按钮。
+- 补充中英文 i18n、按钮样式和测试 mock 文案。
+- 增加组件层、Messages 层、hook 层回归测试，覆盖关闭不提交 stale answer、queue 移除后卡片消失、runtime submit 不被调用。
+
+验证：
+- `npx vitest run src/features/app/components/RequestUserInputMessage.test.tsx src/features/messages/components/chatCanvasSmoke.test.tsx src/features/threads/hooks/useThreadUserInput.test.tsx`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:large-files`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7a524810` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
