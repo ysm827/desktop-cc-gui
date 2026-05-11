@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 412
+- **Total Sessions**: 413
 - **Last Active**: 2026-05-11
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~988 | Active |
+| `journal-12.md` | ~1043 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 413 | 2026-05-11 | 修复 macOS native 菜单死锁风险 | `3dcc5163` | `feature/v0.4.17` |
 | 412 | 2026-05-11 | 修复失效输入请求卡片关闭 | `7a524810` | `feature/v0.4.16` |
 | 411 | 2026-05-11 | 修复非仓库工作区 git 状态轮询 | `b331208c` | `feature/v0.4.16` |
 | 410 | 2026-05-11 | 修复标注交互闪烁 | `b2f87f6d` | `feature/v0.4.16` |

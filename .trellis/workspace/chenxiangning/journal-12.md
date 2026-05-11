@@ -986,3 +986,58 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 413: 修复 macOS native 菜单死锁风险
+
+**Date**: 2026-05-11
+**Task**: 修复 macOS native 菜单死锁风险
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+迁移高风险 Tauri native popup 到 renderer menu，收窄 Rust menu registry 锁作用域，新增 native menu 静态守卫和 OpenSpec 变更。
+
+### Main Changes
+
+## 完成内容
+
+- 基于 macOS hang stackshot 定位 Tauri native menu / WebKit URL scheme / main runloop 互等风险。
+- 创建并实现 OpenSpec change `fix-tauri-native-menu-deadlock`。
+- 新增 `RendererContextMenu`，将 commit message selector、sidebar thread/worktree menu、file link menu 从 Tauri native popup 迁移到 renderer-owned menu。
+- 修复 `src-tauri/src/menu.rs` 中 `MenuItemRegistry::set_text` 持锁调用 native mutator 的风险。
+- 新增 `scripts/check-native-menu-usage.mjs` 和 `npm run check:native-menu-usage`，阻止 P0 路径回退到 native menu。
+- 补充 focused tests：`RendererContextMenu`、`useFileLinkOpener`、sidebar/status-panel 相关回归。
+
+## 验证
+
+- `npm run typecheck` passed。
+- `npx vitest run src/components/ui/RendererContextMenu.test.tsx src/features/messages/hooks/useFileLinkOpener.test.tsx src/features/app/hooks/useSidebarMenus.test.tsx src/features/status-panel/components/StatusPanel.test.tsx` passed，91 tests。
+- `cargo test --manifest-path src-tauri/Cargo.toml menu --lib` passed，3 tests。
+- `npm run check:native-menu-usage` passed。
+- `npm run check:large-files:gate` passed。
+- `openspec validate fix-tauri-native-menu-deadlock --type change --strict --no-interactive` passed。
+
+## 剩余事项
+
+- macOS 手测矩阵仍需人工确认：重复操作 commit selector、sidebar menu、file link menu，观察是否仍出现不可恢复 hang。
+- P1 剩余 native popup allowlist 后续继续收敛。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3dcc5163` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
