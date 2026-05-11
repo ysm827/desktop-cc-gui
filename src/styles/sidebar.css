@@ -696,7 +696,15 @@
   background: transparent;
 }
 
-.sidebar-workspace-menu {
+.renderer-context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+}
+
+.sidebar-workspace-menu,
+.renderer-context-menu {
   position: fixed;
   min-width: 256px;
   max-width: min(332px, calc(100vw - 24px));
@@ -724,20 +732,23 @@
   min-width: 220px;
 }
 
-.sidebar-workspace-menu-group-title {
+.sidebar-workspace-menu-group-title,
+.renderer-context-menu-label {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
   padding: 3px 8px 6px;
 }
 
-.sidebar-workspace-menu-divider {
+.sidebar-workspace-menu-divider,
+.renderer-context-menu-separator {
   margin: 8px 4px 2px;
   height: 1px;
   background: var(--border-subtle);
 }
 
-.sidebar-workspace-menu-item {
+.sidebar-workspace-menu-item,
+.renderer-context-menu-item {
   width: 100%;
   border: 0;
   background: transparent;
@@ -761,11 +772,14 @@
 }
 
 .sidebar-workspace-menu-item:hover,
-.sidebar-workspace-menu-item:focus-visible {
+.sidebar-workspace-menu-item:focus-visible,
+.renderer-context-menu-item:hover,
+.renderer-context-menu-item:focus-visible {
   background: var(--surface-hover);
 }
 
-.sidebar-workspace-menu-item:disabled {
+.sidebar-workspace-menu-item:disabled,
+.renderer-context-menu-item:disabled {
   cursor: not-allowed;
 }
 
@@ -778,7 +792,8 @@
   background: transparent;
 }
 
-.sidebar-workspace-menu-item.is-danger {
+.sidebar-workspace-menu-item.is-danger,
+.renderer-context-menu-item.is-danger {
   color: var(--danger-strong, #d64545);
 }
 

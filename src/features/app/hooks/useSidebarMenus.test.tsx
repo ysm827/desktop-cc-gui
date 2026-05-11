@@ -10,10 +10,6 @@ import type {
   EngineRefreshResult,
 } from "../../engine/hooks/useEngineController";
 
-const mockMenuPopup = vi.fn<
-  (items: Array<{ text: string; enabled?: boolean; action?: () => Promise<void> | void }>) => Promise<void>
->();
-
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => {
@@ -51,38 +47,6 @@ vi.mock("react-i18next", () => ({
       return dict[key] ?? key;
     },
   }),
-}));
-
-vi.mock("@tauri-apps/api/menu", () => ({
-  Menu: {
-    new: vi.fn(
-      async ({
-        items,
-      }: {
-        items: Array<{ text: string; enabled?: boolean; action?: () => Promise<void> | void }>;
-      }) => ({
-        popup: vi.fn(async () => {
-          await mockMenuPopup(items);
-        }),
-      }),
-    ),
-  },
-  MenuItem: { new: vi.fn(async (options: Record<string, unknown>) => options) },
-}));
-
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ scaleFactor: () => 1 }),
-}));
-
-vi.mock("@tauri-apps/api/dpi", () => ({
-  LogicalPosition: class LogicalPosition {
-    x: number;
-    y: number;
-    constructor(x: number, y: number) {
-      this.x = x;
-      this.y = y;
-    }
-  },
 }));
 
 vi.mock("../../../services/tauri", () => ({
@@ -184,7 +148,6 @@ function createHandlers() {
 
 describe("useSidebarMenus", () => {
   beforeEach(() => {
-    mockMenuPopup.mockReset();
     pushGlobalRuntimeNoticeMock.mockReset();
     getOpenCodeProviderHealthMock.mockReset();
     getOpenCodeProviderHealthMock.mockResolvedValue({
@@ -508,9 +471,8 @@ describe("useSidebarMenus", () => {
       );
     });
 
-    expect(mockMenuPopup).toHaveBeenCalledTimes(1);
-    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.text)).toEqual([
+    const items = result.current.sidebarContextMenuState?.items ?? [];
+    expect(items.map((item) => item.type === "separator" ? "---" : item.label)).toEqual([
       "Rename",
       "Auto name",
       "Sync from server",
@@ -520,7 +482,7 @@ describe("useSidebarMenus", () => {
       "Size: 1.5 KB",
       "Delete",
     ]);
-    expect(items[6]?.enabled).toBe(false);
+    expect(items[6]?.type).toBe("label");
   });
 
   it("archives a thread from the thread context menu", async () => {
@@ -542,8 +504,8 @@ describe("useSidebarMenus", () => {
       );
     });
 
-    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.text)).toEqual([
+    const items = result.current.sidebarContextMenuState?.items ?? [];
+    expect(items.map((item) => item.type === "separator" ? "---" : item.label)).toEqual([
       "Rename",
       "Auto name",
       "Pin",
@@ -553,7 +515,9 @@ describe("useSidebarMenus", () => {
     ]);
 
     await act(async () => {
-      await items[4]?.action?.();
+      if (items[4]?.type === "item") {
+        await items[4].onSelect();
+      }
     });
 
     expect(handlers.onArchiveThread).toHaveBeenCalledWith(
@@ -585,8 +549,8 @@ describe("useSidebarMenus", () => {
       );
     });
 
-    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.text)).toEqual([
+    const items = result.current.sidebarContextMenuState?.items ?? [];
+    expect(items.map((item) => item.type === "separator" ? "---" : item.label)).toEqual([
       "Rename",
       "Auto name",
       "Sync from server",
@@ -621,8 +585,8 @@ describe("useSidebarMenus", () => {
       );
     });
 
-    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.text)).toEqual([
+    const items = result.current.sidebarContextMenuState?.items ?? [];
+    expect(items.map((item) => item.type === "separator" ? "---" : item.label)).toEqual([
       "Rename",
       "Auto name",
       "Sync from server",
@@ -634,11 +598,13 @@ describe("useSidebarMenus", () => {
       "Planning",
       "Delete",
     ]);
-    expect(items[6]?.enabled).toBe(false);
-    expect(items[8]?.enabled).toBe(false);
+    expect(items[6]?.type).toBe("label");
+    expect(items[8]?.type === "item" ? items[8].disabled : false).toBe(true);
 
     await act(async () => {
-      await items[7]?.action?.();
+      if (items[7]?.type === "item") {
+        await items[7].onSelect();
+      }
     });
 
     expect(handlers.onMoveThreadToFolder).toHaveBeenCalledWith(
@@ -677,8 +643,8 @@ describe("useSidebarMenus", () => {
       );
     });
 
-    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.text)).toEqual([
+    const items = result.current.sidebarContextMenuState?.items ?? [];
+    expect(items.map((item) => item.type === "separator" ? "---" : item.label)).toEqual([
       "Rename",
       "Auto name",
       "Sync from server",
@@ -691,7 +657,9 @@ describe("useSidebarMenus", () => {
     ]);
 
     await act(async () => {
-      await items[7]?.action?.();
+      if (items[7]?.type === "item") {
+        await items[7].onSelect();
+      }
     });
 
     expect(handlers.onOpenThreadFolderPicker).toHaveBeenCalledWith(

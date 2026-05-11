@@ -19,6 +19,7 @@ import { WorkspaceCard } from "./WorkspaceCard";
 import { WorkspaceGroup } from "./WorkspaceGroup";
 import { WorkspaceSessionFolderTree } from "./WorkspaceSessionFolderTree";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RendererContextMenu } from "../../../components/ui/RendererContextMenu";
 import { useCollapsedGroups } from "../hooks/useCollapsedGroups";
 import { useExitedSessionVisibility } from "../hooks/useExitedSessionVisibility";
 import { useSidebarMenus } from "../hooks/useSidebarMenus";
@@ -794,7 +795,9 @@ export function Sidebar({
     showWorkspaceSessionMenu,
     showWorktreeMenu,
     workspaceMenuState,
+    sidebarContextMenuState,
     closeWorkspaceMenu,
+    closeSidebarContextMenu,
     onWorkspaceMenuAction,
   } =
     useSidebarMenus({
@@ -2392,6 +2395,13 @@ export function Sidebar({
             ))}
           </div>
         </div>
+      ) : null}
+      {sidebarContextMenuState ? (
+        <RendererContextMenu
+          menu={sidebarContextMenuState}
+          onClose={closeSidebarContextMenu}
+          className="renderer-context-menu sidebar-renderer-context-menu"
+        />
       ) : null}
     </aside>
   );

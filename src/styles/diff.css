@@ -1708,6 +1708,66 @@
   opacity: 1;
 }
 
+.commit-message-generate-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 40;
+  min-width: 252px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.commit-message-generate-menu-group + .commit-message-generate-menu-group {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--border-muted) 60%, transparent);
+}
+
+.commit-message-generate-menu-engine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.commit-message-generate-menu-engine-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.commit-message-generate-menu-languages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.commit-message-generate-menu-item {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-strong);
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.commit-message-generate-menu-item:hover,
+.commit-message-generate-menu-item:focus-visible {
+  background: var(--surface-control-hover);
+  outline: none;
+}
+
 .commit-message-generate-button--loading:disabled {
   opacity: 1;
 }
