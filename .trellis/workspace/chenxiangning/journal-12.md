@@ -1094,3 +1094,40 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 415: 归档完成 OpenSpec 提案
+
+**Date**: 2026-05-12
+**Task**: 归档完成 OpenSpec 提案
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+归档已完成 OpenSpec changes，并同步主 specs。
+
+### Main Changes
+
+- 归档 7 个完成态 OpenSpec change，包括 composer readiness、conversation fact contract、runtime lifecycle、Claude fork/reasoning/subagent tree、Codex SessionStart fallback。
+- 同步新增/修改主 specs：composer readiness、conversation fact contract、runtime lifecycle stability、Codex stale binding、Codex app server wrapper launch 等。
+- 补充 client stability readiness 与 manual test matrix 文档。
+- 验证：openspec validate --all --strict 253 passed；git diff --check 通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e64182b7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
