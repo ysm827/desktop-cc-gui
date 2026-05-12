@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 415
+- **Total Sessions**: 416
 - **Last Active**: 2026-05-12
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~1133 | Active |
+| `journal-12.md` | ~1171 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 416 | 2026-05-12 | 稳定 Codex 会话生命周期恢复 | `6ac6aad6` | `feature/v0.4.17` |
 | 415 | 2026-05-12 | 归档完成 OpenSpec 提案 | `e64182b7` | `feature/v0.4.17` |
 | 414 | 2026-05-12 | 记录 Codex SessionStart hook 兜底恢复 | `631695f7` | `feature/v0.4.17` |
 | 413 | 2026-05-11 | 修复 macOS native 菜单死锁风险 | `3dcc5163` | `feature/v0.4.17` |

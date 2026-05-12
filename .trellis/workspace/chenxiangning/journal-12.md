@@ -1131,3 +1131,41 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 416: 稳定 Codex 会话生命周期恢复
+
+**Date**: 2026-05-12
+**Task**: 稳定 Codex 会话生命周期恢复
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+提交 Codex runtime lifecycle、stale binding 与 create-session race 后端修复。
+
+### Main Changes
+
+- 增强 Codex create-session 在 stopping/manual-shutdown race 下的 bounded retry 与 recovery probe。
+- 增加 runtime lifecycle state、transition 测试、quarantine/reconnect refresh 诊断与 snapshot 更新。
+- 注册 `note_web_service_reconnected` 命令，支持 WebService reconnect 后刷新 runtime/thread 状态。
+- 补充 Rust targeted tests 覆盖 lifecycle transition、recovery guard、stale runtime reuse 与 diagnostics。
+- 验证：本批提交前执行 git diff --cached --check 通过；前置全量 openspec validate 与 git diff --check 已通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6ac6aad6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
