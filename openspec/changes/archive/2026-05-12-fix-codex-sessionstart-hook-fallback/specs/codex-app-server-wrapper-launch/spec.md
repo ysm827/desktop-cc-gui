@@ -15,6 +15,8 @@ The system MUST keep the current primary Codex app-server launch behavior for ma
 - **AND** it MUST NOT restart runtime in hook-safe fallback mode
 - **AND** it MUST NOT show a hook skipped warning
 
+## ADDED Requirements
+
 ### Requirement: Codex App Server Creation MUST Treat SessionStart Hook As Recoverable Enhancement
 
 The system MUST treat project SessionStart hook execution as an enhancement to Codex thread context, not as a hard dependency that can permanently block ccgui session creation.
