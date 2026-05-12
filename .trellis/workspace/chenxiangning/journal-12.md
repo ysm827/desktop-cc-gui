@@ -1687,3 +1687,41 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 429: 修复代码块跨行选区锚点
+
+**Date**: 2026-05-12
+**Task**: 修复代码块跨行选区锚点
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+将消息 Markdown 多行 code block 改为按行渲染，修复鼠标从第二行拖选时选区锚点容易回到第一行的问题。
+
+### Main Changes
+
+- 修改 `src/features/messages/components/Markdown.tsx`：新增 `renderHighlightedCodeLines`，多行 code block 逐行调用 `highlightLine` 并渲染 `.markdown-codeblock-line`。
+- 修改 `src/styles/messages.part2.css`：将 code block 横向滚动保持在 `pre/code`，把正文 padding 下放到行级 wrapper。
+- 修改 `src/features/messages/components/Markdown.codeblock-rendering.test.tsx`：新增多行 code block 行级 wrapper 回归测试。
+- 验证：`npx vitest run src/features/messages/components/Markdown.codeblock-rendering.test.tsx` 通过，4 tests passed。
+- 验证：`npm run typecheck` 通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d243be8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
