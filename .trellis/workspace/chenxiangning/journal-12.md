@@ -1591,3 +1591,55 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 427: 修复 Claude pending 会话续聊竞态
+
+**Date**: 2026-05-12
+**Task**: 修复 Claude pending 会话续聊竞态
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+阻断 Claude pending 会话在 native session confirmation 前继续发送，避免 provisional sessionId 被用于 resume；补充 OpenSpec 提案与 focused tests。
+
+### Main Changes
+
+## 主要改动
+
+- 新增 OpenSpec change `fix-claude-native-session-continuation-race`，记录 proposal/design/tasks/spec deltas。
+- 修改 `useThreadMessaging`：Claude pending thread 不再缓存 `engine_send_message` response `sessionId/session_id` 作为 native resume id。
+- 对 `claude-pending-*` 且已有本地活动、active turn、processing 或 awaiting marker 的线程，在 native rebind 前阻断 follow-up，避免 invalid `--resume` 或静默新开会话。
+- 保持 finalized `claude:<sessionId>` 续聊、Claude fork first-send `forkSessionId`、Gemini/OpenCode/Codex continuation 不变。
+- 更新 `useThreadMessaging.test.tsx`，覆盖 response-derived id 禁用、snake_case 禁用、恢复后的 pending thread guard、finalized Claude 续聊与 fork first-send。
+
+## 验证
+
+- `openspec validate fix-claude-native-session-continuation-race --type change --strict --no-interactive`
+- `pnpm vitest run src/features/threads/hooks/useThreadMessaging.test.tsx`
+- `pnpm vitest run src/features/threads/hooks/useThreadTurnEvents.test.tsx src/features/app/hooks/useAppServerEvents.test.tsx src/features/app/hooks/useSidebarMenus.test.tsx src/features/app/utils/claudeResumeCommand.test.ts`
+- `npm run typecheck`
+
+## 注意
+
+- 当前没有实际 GUI/Claude 环境复现条件，本轮完成代码级与 focused test 验证。
+- 本次提交前工作区 clean，record 只对应 commit `6fd5f347`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6fd5f347` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 426
+- **Total Sessions**: 427
 - **Last Active**: 2026-05-12
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~1593 | Active |
+| `journal-12.md` | ~1645 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 427 | 2026-05-12 | 修复 Claude pending 会话续聊竞态 | `6fd5f347` | `feature/v0.4.17` |
 | 426 | 2026-05-12 | 添加 Claude TUI resume 操作 | `4c6ad73b` | `feature/v0.4.17` |
 | 425 | 2026-05-12 | 优化队列融合状态中文文案 | `c6f928cd` | `feature/v0.4.17` |
 | 424 | 2026-05-12 | 修复队列融合状态 i18n key 泄露 | `842716ad` | `feature/v0.4.17` |
