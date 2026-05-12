@@ -1725,3 +1725,41 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 430: 稳定邮件启用保存测试
+
+**Date**: 2026-05-12
+**Task**: 稳定邮件启用保存测试
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+修复 EmailSenderSettings inline enable-and-save 测试在 CI 慢环境下点击 disabled 按钮导致 mock 未调用的竞态。
+
+### Main Changes
+
+- 修改 `src/features/settings/components/settings-view/sections/EmailSenderSettings.test.tsx`：在点击 `settings.emailEnableAndSave` 前等待按钮 `disabled === false`。
+- 原因：组件 mount 后会先执行 `getEmailSenderSettings()` 并设置 `action=load`，慢环境下按钮可能尚未恢复可点击，立即 `fireEvent.click` 会被浏览器丢弃。
+- 验证：`npx vitest run src/features/settings/components/settings-view/sections/EmailSenderSettings.test.tsx` 通过。
+- 验证：`npx vitest run src/features/settings/components/settings-view/sections/RuntimePoolSection.test.tsx src/features/settings/components/settings-view/hooks/useWorkspaceSessionCatalog.test.tsx` 通过。
+- 验证：`npm run typecheck` 通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aad62c59` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

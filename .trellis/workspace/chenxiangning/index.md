@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 429
+- **Total Sessions**: 430
 - **Last Active**: 2026-05-12
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~1727 | Active |
+| `journal-12.md` | ~1765 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 430 | 2026-05-12 | 稳定邮件启用保存测试 | `aad62c59` | `feature/v0.4.17` |
 | 429 | 2026-05-12 | 修复代码块跨行选区锚点 | `6d243be8` | `feature/v0.4.17` |
 | 428 | 2026-05-12 | 调整工作区眼睛按钮位置 | `8634b51c4241f4298d2190c0311848ce2eedfbcd` | `feature/v0.4.17` |
 | 427 | 2026-05-12 | 修复 Claude pending 会话续聊竞态 | `6fd5f347` | `feature/v0.4.17` |
