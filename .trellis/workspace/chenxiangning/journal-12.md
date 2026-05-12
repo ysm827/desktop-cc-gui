@@ -1245,3 +1245,40 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 419: 补齐 App 交互锚点与菜单测试
+
+**Date**: 2026-05-12
+**Task**: 补齐 App 交互锚点与菜单测试
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+提交 request-user-input 锚点、sidebar renderer menu 测试与 diff stat 样式收尾。
+
+### Main Changes
+
+- 为 request-user-input card 增加稳定 DOM anchor、request/workspace/thread data attributes 与可聚焦目标，便于跳转定位。
+- 将 Sidebar 相关测试从 Tauri native menu mock 调整为 renderer-owned menu 断言，匹配当前菜单实现。
+- 调整 diff stat add/del 为 tabular numeric inline-block，减少工具块数字列抖动。
+- 验证：本批提交前执行 git diff --cached --check 通过；前置全量 openspec validate 与 git diff --check 已通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `141833fd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
