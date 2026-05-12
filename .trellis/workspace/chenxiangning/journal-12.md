@@ -1550,3 +1550,44 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 426: 添加 Claude TUI resume 操作
+
+**Date**: 2026-05-12
+**Task**: 添加 Claude TUI resume 操作
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+实现并归档 add-claude-tui-resume-actions：为 finalized Claude GUI 线程增加复制 resume 命令与应用内 Claude TUI 打开入口，完成 OpenSpec 同步归档与自动化/手工验证。
+
+### Main Changes
+
+- 新增 `claudeResumeCommand` helper，集中处理 `claude:<session_id>` 解析、POSIX/Windows resume command 构造，以及应用内 terminal 安全命令。
+- 在 Claude finalized thread 右键菜单中加入 `Copy Claude resume command` 与 `Open in Claude TUI`，保留 `Copy ID` 裸 session id 行为。
+- 通过 Sidebar -> LayoutNodes -> AppShell workspace flows 复用现有 terminal infrastructure，自动打开 workspace terminal 并写入 `claude --resume <session_id>`。
+- 补齐 ThreadList/PinnedThreadList/WorkspaceSessionFolderTree/WorktreeSection 的 `workspacePath` 传递，确保菜单能生成 workspace-scoped command。
+- 补齐中英文 i18n 文案、focused tests、helper tests、AppShell callback boundary tests。
+- 回写 proposal，新增 implementation notes，归档 OpenSpec change 到 `openspec/changes/archive/2026-05-12-add-claude-tui-resume-actions/`，并创建主 spec `openspec/specs/claude-tui-resume-affordance/spec.md`。
+- 验证：`openspec validate --specs --strict` 通过；归档前 change strict validate 通过；focused Vitest 通过；`npm run typecheck` 通过；`npm run lint` 退出码 0（未纳入本提交的 `useThreadMessaging.ts` 仍有一个既存/并行改动 warning）；`npm run test` 全量 457 test files 通过；用户完成 GUI-created Claude session 在应用内 TUI resume 的手工验证。
+- 提交时刻刻意未纳入并行改动：`src/features/threads/hooks/useThreadMessaging.*` 与 `openspec/changes/fix-claude-native-session-continuation-race/`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4c6ad73b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
