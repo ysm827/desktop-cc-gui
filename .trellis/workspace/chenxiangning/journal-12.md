@@ -1459,3 +1459,49 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 424: 修复队列融合状态 i18n key 泄露
+
+**Date**: 2026-05-12
+**Task**: 修复队列融合状态 i18n key 泄露
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+修复 MessageQueue 队列状态使用错误 chat namespace 导致 i18n key 原样显示的问题，状态文案改走 composer namespace，并新增 locale merge contract 测试。
+
+### Main Changes
+
+## 改动
+- 将 MessageQueue 的 queue status key 从 `chat.queueStatus*` 修正为 `composer.queueStatus*`。
+- 保留队列动作按钮文案使用 `chat.fuseFromQueue` / `chat.deleteQueuedMessage`。
+- 新增 `src/i18n/locales/chatLocaleMerge.test.ts`，验证状态文案和按钮文案分别在正确 namespace 下可用。
+
+## 验证
+- `npm exec eslint src/features/composer/components/ChatInputBox/MessageQueue.tsx src/features/composer/components/ChatInputBox/MessageQueue.test.tsx src/i18n/locales/chatLocaleMerge.test.ts` 通过。
+- `npm exec vitest run src/i18n/locales/chatLocaleMerge.test.ts src/features/composer/components/ChatInputBox/MessageQueue.test.tsx` 通过，9 tests passed。
+- `npm run typecheck` 被既有 dirty 文件 `src/app-shell-parts/useAppShellWorkspaceFlowsSection.test.tsx` 的 `TerminalStatus` 类型错误阻断，非本次提交范围。
+
+## 备注
+- 本次 commit 仅包含 i18n 队列状态修复相关 3 个文件。
+- 工作区仍存在其它未提交业务改动，未纳入本次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `842716ad` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
