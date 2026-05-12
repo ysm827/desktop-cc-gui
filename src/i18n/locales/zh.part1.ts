@@ -2242,8 +2242,8 @@ const zhPart1 = {
       "empty-draft": "输入为空",
     },
     queueStatusWaiting: "排队到下一轮",
-    queueStatusFuseReady: "可融合到当前轮",
-    queueStatusFusing: "正在融合到当前轮",
+    queueStatusFuseReady: "可并入本轮回复",
+    queueStatusFusing: "正在并入本轮回复",
     queueStatusCommand: "Slash 命令等待下一轮",
     // 审查
     reviewAgainstBaseBranch: "对比基础分支审查",
