@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-12.md`
-- **Total Sessions**: 435
+- **Active File**: `journal-13.md`
+- **Total Sessions**: 436
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~1971 | Active |
+| `journal-13.md` | ~54 | Active |
+| `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 436 | 2026-05-13 | 压缩 composer 消息队列高度 | `fc713308` | `feature/v0.4.17` |
 | 435 | 2026-05-13 | 修复 realtime pending alias 解析短路兼容问题 | `9042308f` | `feature/v0.4.17` |
 | 434 | 2026-05-13 | 修复 realtime turn 完成清算竞态 | `b5d9f2b8` | `feature/v0.4.17` |
 | 433 | 2026-05-13 | 回写近期 OpenSpec 文档 | `3057eb47` | `feature/v0.4.17` |
