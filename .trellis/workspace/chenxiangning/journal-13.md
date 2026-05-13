@@ -306,3 +306,53 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 443: 归档 Phase 1 已完成 OpenSpec 变更
+
+**Date**: 2026-05-13
+**Task**: 归档 Phase 1 已完成 OpenSpec 变更
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 目标 | Phase 1 release hardening 收尾：同步主 specs 并归档已完成 OpenSpec changes。 |
+| 归档 | `fix-realtime-late-event-terminal-fence`、`fix-realtime-turn-completion-settlement-race`、`fix-tauri-native-menu-deadlock`、`fix-claude-session-engine-resolution` 移入 `openspec/changes/archive/2026-05-13-*`。 |
+| Spec 同步 | `conversation-lifecycle-contract` 增加 realtime terminal settlement/fence 与 Claude restore engine resolution；`conversation-realtime-client-performance` 增加 terminal settlement diagnostics 与 scheduling fence；新增 `client-native-menu-deadlock-prevention` 主 spec。 |
+| 状态判断 | 保留仍需真机/平台手测的 active changes：CLI installer、Linux AppImage、runtime scheduling、Claude continuation、Windows wrapper、Claude rollout。 |
+
+**验证**:
+- `npm run lint && npm run typecheck && npm run test` 通过，463 test files。
+- `npm run doctor:strict` 通过。
+- `npm run check:large-files` 通过，found=0。
+- `npm run check:native-menu-usage` 通过。
+- `npm run check:heavy-test-noise` 通过，466 test files，act warnings=0，stdout/stderr payload=0；仅 npm `electron_mirror` environment-owned warning。
+- `openspec validate --all --strict --no-interactive` 通过，257 passed / 0 failed。
+
+**后续**:
+- Phase 1 剩余为外部证据：CLI installer macOS/Windows/remote/WSL、Linux AppImage artifact + Arch Wayland、Claude continuation/fork/delete/Copy ID/resume command、Windows Codex wrapper affected/healthy Win11、runtime scheduling 双并发性能、Claude rollout 手测矩阵。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0ad9a56a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
