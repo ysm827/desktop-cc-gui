@@ -1,7 +1,9 @@
 # workspace-filetree-special-directory-loading Specification
 
 ## Purpose
-TBD - created by archiving change filetree-special-directory-progressive-loading. Update Purpose after archive.
+
+Defines the workspace-filetree-special-directory-loading behavior contract, covering Special Directory Classification For Progressive Loading.
+
 ## Requirements
 ### Requirement: Special Directory Classification For Progressive Loading
 The system SHALL classify dependency directories and build-artifact directories as special directories for progressive loading.

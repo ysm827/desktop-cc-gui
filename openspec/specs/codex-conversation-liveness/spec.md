@@ -1,7 +1,9 @@
 # codex-conversation-liveness Specification
 
 ## Purpose
-TBD - created by archiving change harden-codex-conversation-liveness. Update Purpose after archive.
+
+Defines the codex-conversation-liveness behavior contract, covering Codex Conversation Liveness MUST Separate Draft, Identity, Runtime, And Turn State.
+
 ## Requirements
 ### Requirement: Codex Conversation Liveness MUST Separate Draft, Identity, Runtime, And Turn State
 

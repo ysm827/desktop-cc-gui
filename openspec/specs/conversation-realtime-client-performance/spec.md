@@ -1,7 +1,9 @@
 # conversation-realtime-client-performance Specification
 
 ## Purpose
-TBD - created by archiving change optimize-realtime-conversation-client-performance. Update Purpose after archive.
+
+Defines the conversation-realtime-client-performance behavior contract, covering Realtime Conversation Client MUST Expose A Three-Engine Performance Budget.
+
 ## Requirements
 ### Requirement: Realtime Conversation Client MUST Expose A Three-Engine Performance Budget
 The client MUST define a shared performance budget for Codex, Claude Code, and Gemini realtime conversation turns so optimization decisions are evaluated against the same observable contract.

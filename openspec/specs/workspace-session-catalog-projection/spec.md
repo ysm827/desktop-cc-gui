@@ -1,7 +1,9 @@
 # workspace-session-catalog-projection Specification
 
 ## Purpose
-TBD - created by archiving change workspace-session-catalog-projection-parity. Update Purpose after archive.
+
+Defines the workspace-session-catalog-projection behavior contract, covering Shared Workspace Session Projection MUST Use One Scope Resolver.
+
 ## Requirements
 ### Requirement: Shared Workspace Session Projection MUST Use One Scope Resolver
 

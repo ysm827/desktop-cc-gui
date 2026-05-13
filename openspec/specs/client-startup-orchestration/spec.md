@@ -1,7 +1,9 @@
 # client-startup-orchestration Specification
 
 ## Purpose
-TBD - created by archiving change refactor-client-startup-orchestrator. Update Purpose after archive.
+
+Defines the client-startup-orchestration behavior contract, covering Client startup SHALL use phase-based orchestration.
+
 ## Requirements
 ### Requirement: Client startup SHALL use phase-based orchestration
 The client SHALL route startup-time loading through a frontend Startup Orchestrator that assigns each task to exactly one startup phase: `critical`, `first-paint`, `active-workspace`, `idle-prewarm`, or `on-demand`.

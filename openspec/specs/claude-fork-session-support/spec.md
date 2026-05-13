@@ -1,7 +1,9 @@
 # claude-fork-session-support Specification
 
 ## Purpose
-TBD - created by archiving change add-claude-fork-session-support. Update Purpose after archive.
+
+Defines the claude-fork-session-support behavior contract, covering Claude Fork Session MUST Create A New Session From A Historical Parent.
+
 ## Requirements
 ### Requirement: Claude Fork Session MUST Create A New Session From A Historical Parent
 

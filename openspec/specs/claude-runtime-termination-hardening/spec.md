@@ -1,7 +1,9 @@
 # claude-runtime-termination-hardening Specification
 
 ## Purpose
-TBD - created by archiving change 2026-04-08-fix-claude-runtime-termination-hardening. Update Purpose after archive.
+
+Defines the claude-runtime-termination-hardening behavior contract, covering Claude Child Process Termination MUST Be Cross-Platform and Tree-Safe.
+
 ## Requirements
 ### Requirement: Claude Child Process Termination MUST Be Cross-Platform and Tree-Safe
 Managed runtime termination MUST use a unified child termination primitive that is deterministic across platforms, safe for already-exited processes, and reusable by the broader runtime shutdown coordinator.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change t1-4-manual-memory-reference-in-chat. Update Purpose after archive.
+Defines the composer-manual-memory-reference behavior contract, covering `@@` 触发项目记忆候选.
 
 ## Requirements
 

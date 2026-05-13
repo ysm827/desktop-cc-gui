@@ -1,7 +1,9 @@
 # runtime-session-lifecycle-stability Specification
 
 ## Purpose
-TBD - created by archiving change stabilize-runtime-session-lifecycle. Update Purpose after archive.
+
+Defines the runtime-session-lifecycle-stability behavior contract, covering Runtime Session Lifecycle MUST Be Explicit For Each Workspace Engine Pair.
+
 ## Requirements
 ### Requirement: Runtime Session Lifecycle MUST Be Explicit For Each Workspace Engine Pair
 

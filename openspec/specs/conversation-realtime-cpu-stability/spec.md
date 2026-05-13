@@ -1,7 +1,9 @@
 # conversation-realtime-cpu-stability Specification
 
 ## Purpose
-TBD - created by archiving change codex-2026-03-23-chat-realtime-cpu-stability-no-behavior-change. Update Purpose after archive.
+
+Defines the conversation-realtime-cpu-stability behavior contract, covering Lossless Realtime Event Micro-Batching.
+
 ## Requirements
 ### Requirement: Lossless Realtime Event Micro-Batching
 

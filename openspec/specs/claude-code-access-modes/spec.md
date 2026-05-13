@@ -1,7 +1,9 @@
 # claude-code-access-modes Specification
 
 ## Purpose
-TBD - created by archiving change claude-code-mode-progressive-rollout. Update Purpose after archive.
+
+Defines the claude-code-access-modes behavior contract, covering Claude Code Mode Availability MUST Follow Progressive Rollout Rules.
+
 ## Requirements
 ### Requirement: Claude Code Mode Availability MUST Follow Progressive Rollout Rules
 
