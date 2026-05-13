@@ -188,3 +188,47 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 440: 稳定 Web 服务启动按钮测试
+
+**Date**: 2026-05-13
+**Task**: 稳定 Web 服务启动按钮测试
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+修复 WebServiceSettings 启动相关测试的时序 flake。
+
+改动：
+- 在 3 个点击 settings.webServiceStart 的测试中，点击前等待 Start button disabled=false。
+- 避免组件 mount 后 refreshStatus/refreshDaemonStatus 初始化期间，测试过早点击 disabled button 导致 startWebServerMock 调用次数为 0。
+
+验证：
+- pnpm vitest run src/features/settings/components/settings-view/sections/WebServiceSettings.test.tsx --reporter verbose
+- pnpm vitest run src/features/settings/components/settings-view/sections/WebServiceSettings.test.tsx src/features/settings/components/settings-view/sections/runtimePoolSection.utils.test.ts src/features/settings/components/settings-view/sections/RuntimePoolSection.test.tsx src/features/settings/components/settings-view/sections/SessionManagementSection.test.tsx --reporter verbose
+
+结果：目标测试 10 passed；原始 4 文件组合 39 passed。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `040c6062` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
