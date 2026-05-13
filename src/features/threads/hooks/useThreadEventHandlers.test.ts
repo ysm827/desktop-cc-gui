@@ -6,6 +6,7 @@ import {
   CODEX_TURN_NO_PROGRESS_STALL_MS,
   useThreadEventHandlers,
 } from "./useThreadEventHandlers";
+import { useThreadItemEvents } from "./useThreadItemEvents";
 import {
   noteThreadVisibleRender,
   primeThreadStreamLatencyContext,
@@ -41,6 +42,33 @@ const streamLatencyMocks = vi.hoisted(() => ({
   isWindowsPlatform: vi.fn(),
   isMacPlatform: vi.fn(),
 }));
+
+const itemHookFactory = vi.hoisted(() => {
+  let flushPendingRealtimeEvents = vi.fn();
+  let isRealtimeTurnTerminalExact = vi.fn(() => false);
+  let noteRealtimeTurnStarted = vi.fn();
+  let markRealtimeTurnTerminal = vi.fn();
+  return {
+    reset() {
+      flushPendingRealtimeEvents = vi.fn();
+      isRealtimeTurnTerminalExact = vi.fn(() => false);
+      noteRealtimeTurnStarted = vi.fn();
+      markRealtimeTurnTerminal = vi.fn();
+    },
+    getFlushPendingRealtimeEvents() {
+      return flushPendingRealtimeEvents;
+    },
+    getIsRealtimeTurnTerminalExact() {
+      return isRealtimeTurnTerminalExact;
+    },
+    getNoteRealtimeTurnStarted() {
+      return noteRealtimeTurnStarted;
+    },
+    getMarkRealtimeTurnTerminal() {
+      return markRealtimeTurnTerminal;
+    },
+  };
+});
 
 vi.mock("./useThreadApprovalEvents", () => ({
   useThreadApprovalEvents: vi.fn(() => vi.fn()),
@@ -162,6 +190,10 @@ vi.mock("./useThreadItemEvents", () => ({
     onCommandOutputDelta: vi.fn(),
     onTerminalInteraction: vi.fn(),
     onFileChangeOutputDelta: vi.fn(),
+    flushPendingRealtimeEvents: itemHookFactory.getFlushPendingRealtimeEvents(),
+    isRealtimeTurnTerminalExact: itemHookFactory.getIsRealtimeTurnTerminalExact(),
+    noteRealtimeTurnStarted: itemHookFactory.getNoteRealtimeTurnStarted(),
+    markRealtimeTurnTerminal: itemHookFactory.getMarkRealtimeTurnTerminal(),
   })),
 }));
 
@@ -216,6 +248,7 @@ describe("useThreadEventHandlers diagnostics", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-18T10:00:00.000Z"));
     turnHookFactory.setOnTurnCompletedOverride(null);
+    itemHookFactory.reset();
     window.localStorage.removeItem("ccgui.debug.turnDiagnosticsVerbose");
     streamLatencyMocks.getCurrentClaudeConfig.mockReset();
     streamLatencyMocks.appendRendererDiagnostic.mockReset();
@@ -933,7 +966,7 @@ describe("useThreadEventHandlers diagnostics", () => {
     ]);
   });
 
-  it("classifies visible final output with rejected turn settlement as frontend terminal settlement failure", () => {
+  it("applies conservative fallback settlement when final assistant output is visible and no newer turn exists", () => {
     const onDebug = vi.fn();
     const options = makeOptions(onDebug);
     const rejectCompletion = vi.fn(() => false);
@@ -957,21 +990,183 @@ describe("useThreadEventHandlers diagnostics", () => {
     });
 
     expect(rejectCompletion).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
-    expect(options.markProcessing).not.toHaveBeenCalledWith("thread-1", false);
-    expect(options.setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
-    const rejectedEntry = collectDiagnosticCalls(onDebug).find(
-      (entry) => entry.label === "thread/session:turn-diagnostic:terminal-settlement-rejected",
+    expect(options.markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(options.setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    const fallbackEntry = collectDiagnosticCalls(onDebug).find(
+      (entry) => entry.label === "thread/session:turn-diagnostic:terminal-settlement-fallback-applied",
     );
-    expect(rejectedEntry?.payload).toEqual(
+    expect(fallbackEntry?.payload).toEqual(
       expect.objectContaining({
         workspaceId: "ws-1",
         threadId: "thread-1",
         turnId: "turn-1",
         assistantCompletedItemId: "assistant-1",
         diagnosticCategory: "frontend-terminal-settlement",
-        reason: "turn-completed-settlement-rejected",
+        reason: "turn-completed-settlement-fallback-applied",
       }),
     );
+  });
+
+  it("does not apply fallback settlement when a newer active turn already exists", () => {
+    const onDebug = vi.fn();
+    const options = makeOptions(onDebug);
+    const rejectCompletion = vi.fn(() => false);
+    turnHookFactory.setOnTurnCompletedOverride(rejectCompletion);
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+      result.current.onAgentMessageCompleted({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        text: "final answer",
+      });
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-2");
+    });
+    options.markProcessing.mockClear();
+    options.setActiveTurnId.mockClear();
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(rejectCompletion).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
+    expect(options.markProcessing).not.toHaveBeenCalledWith("thread-1", false);
+    expect(options.setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
+    const fallbackEntry = collectDiagnosticCalls(onDebug).find(
+      (entry) =>
+        entry.label ===
+        "thread/session:turn-diagnostic:terminal-settlement-fallback-applied",
+    );
+    expect(fallbackEntry).toBeUndefined();
+  });
+
+  it("flushes pending realtime batches before completed turn settlement clears processing", () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+    });
+    options.markProcessing.mockClear();
+    options.setActiveTurnId.mockClear();
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-1");
+    });
+
+    const flushPendingRealtimeEvents =
+      itemHookFactory.getFlushPendingRealtimeEvents();
+    const markRealtimeTurnTerminal =
+      itemHookFactory.getMarkRealtimeTurnTerminal();
+    expect(flushPendingRealtimeEvents).toHaveBeenCalledTimes(1);
+    expect(markRealtimeTurnTerminal).toHaveBeenCalledWith("thread-1", "turn-1");
+    expect(options.markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(
+      flushPendingRealtimeEvents.mock.invocationCallOrder[0],
+    ).toBeLessThan(markRealtimeTurnTerminal.mock.invocationCallOrder[0]);
+    expect(
+      markRealtimeTurnTerminal.mock.invocationCallOrder[0],
+    ).toBeLessThan(options.markProcessing.mock.invocationCallOrder[0]);
+  });
+
+  it("flushes pending realtime batches before terminal error and stalled settlement", () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnError("ws-1", "thread-1", "turn-1", {
+        message: "failed",
+        willRetry: false,
+      });
+      result.current.onTurnStalled("ws-1", "thread-2", "turn-2", {
+        message: "stalled",
+        reasonCode: "timeout",
+        stage: "stalled",
+        source: "test",
+        startedAtMs: null,
+        timeoutMs: null,
+      });
+    });
+
+    expect(itemHookFactory.getFlushPendingRealtimeEvents()).toHaveBeenCalledTimes(2);
+    expect(itemHookFactory.getMarkRealtimeTurnTerminal()).toHaveBeenNthCalledWith(
+      1,
+      "thread-1",
+      "turn-1",
+    );
+    expect(itemHookFactory.getMarkRealtimeTurnTerminal()).toHaveBeenNthCalledWith(
+      2,
+      "thread-2",
+      "turn-2",
+    );
+  });
+
+  it("notes the active realtime turn before turn-start handling runs", () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(itemHookFactory.getNoteRealtimeTurnStarted()).toHaveBeenCalledWith(
+      "thread-1",
+      "turn-1",
+    );
+    expect(
+      itemHookFactory.getNoteRealtimeTurnStarted().mock.invocationCallOrder[0],
+    ).toBeLessThan(options.markProcessing.mock.invocationCallOrder[0]);
+  });
+
+  it("skips late raw item updates when the realtime turn is already terminal", () => {
+    const options = makeOptions();
+    itemHookFactory.getIsRealtimeTurnTerminalExact().mockReturnValue(true);
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onItemUpdated("ws-1", "thread-1", {
+        type: "agentMessage",
+        id: "assistant-1",
+        text: "late snapshot",
+        turnId: "turn-1",
+      });
+    });
+
+    const mockedItemHook = vi.mocked(useThreadItemEvents);
+    const latestReturn = mockedItemHook.mock.results.at(-1)?.value;
+    expect(itemHookFactory.getIsRealtimeTurnTerminalExact()).toHaveBeenCalledWith(
+      "thread-1",
+      "turn-1",
+    );
+    expect(latestReturn?.onItemUpdated).not.toHaveBeenCalled();
+    expect(options.markProcessing).not.toHaveBeenCalledWith("thread-1", true);
+  });
+
+  it("skips late assistant completion side effects when the realtime turn is already terminal", () => {
+    const options = makeOptions();
+    itemHookFactory.getIsRealtimeTurnTerminalExact().mockReturnValue(true);
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onAgentMessageCompleted({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        text: "late final snapshot",
+        turnId: "turn-1",
+      });
+    });
+
+    const mockedItemHook = vi.mocked(useThreadItemEvents);
+    const latestReturn = mockedItemHook.mock.results.at(-1)?.value;
+    expect(itemHookFactory.getIsRealtimeTurnTerminalExact()).toHaveBeenCalledWith(
+      "thread-1",
+      "turn-1",
+    );
+    expect(latestReturn?.onAgentMessageCompleted).not.toHaveBeenCalled();
+    expect(options.onAgentMessageCompletedExternal).not.toHaveBeenCalled();
   });
 
   it("does not defer completed codex wait status snapshots", () => {
