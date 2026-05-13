@@ -1829,3 +1829,51 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 433: 回写近期 OpenSpec 文档
+
+**Date**: 2026-05-13
+**Task**: 回写近期 OpenSpec 文档
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Task goal: 根据近 2 天代码变更回写 OpenSpec 提案与文档，并提交结果。
+
+Main changes:
+- 更新 CHANGELOG.md 的 v0.4.17 条目，补齐 Linux AppImage Wayland/Mesa libwayland 冲突修复说明。
+- 更新 openspec/project.md 的 workspace 快照：active=10、archive=278、specs=249，并补齐当前 active changes 列表。
+- 新增 openspec/changes/fix-linux-appimage-wayland-library-pruning/implementation-notes.md，记录 AppImage pruning 的实现证据、验证证据、剩余 Linux/Arch 手测项与 rollback。
+- 新增并提交 openspec/changes/add-cli-one-click-installer/ proposal/design/spec/tasks，标记 spec/contract 阶段完成，保留 backend/frontend/跨平台实现任务未完成。
+
+Validation:
+- openspec validate --all --strict --no-interactive passed: 258 passed, 0 failed.
+- git commit completed: 3057eb47 docs(openspec): 回写近期变更文档.
+
+Follow-ups:
+- Linux AppImage 仍需用最终 artifact 验证 squashfs-root/usr/lib 中无 libwayland-*，并在 Arch Linux / Wayland 环境确认无 wl_fixes_interface 启动错误。
+- CLI one-click installer 仍需进入 backend installer core、remote parity、frontend UX 和跨平台验证实现阶段。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3057eb47` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
