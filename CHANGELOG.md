@@ -2,6 +2,64 @@
 
 ---
 
+##### **2026年5月13日（v0.4.17）**
+
+中文：
+
+✨ Features
+- 新增 Claude TUI resume 操作，在普通会话、pinned 会话、工作区会话和文件夹树入口中提供恢复到 Claude TUI 的路径，降低从历史会话继续原生 Claude 工作流的操作成本
+- 新增 composer 发送就绪与队列提示栏，显式展示当前输入是否可发送、队列是否合并以及后台运行状态，减少排队发送和状态判断的不确定性
+
+🔧 Improvements
+- 迁移动态业务菜单到 renderer 侧上下文菜单，收敛 macOS native menu 的同步调用边界，并新增菜单使用检查脚本，降低菜单打开时主线程假死风险
+- 稳定 Codex 会话生命周期恢复链路，补齐 runtime 会话恢复命令、诊断信息和测试覆盖，让异常退出后的会话状态更容易恢复与定位
+- 收敛会话事实与恢复状态模型，补齐 conversation fact contract、history normalization 和全局 runtime notice，减少历史恢复、运行态重连和 UI 展示之间的状态漂移
+- 优化 Claude 历史大图片载荷处理，将大图片内容延迟加载并接入独立命令链路，降低历史列表和消息渲染时的内存与首屏压力
+- 调整工作区卡片眼睛按钮位置与可见性反馈，让工作区显示控制入口更贴近卡片语义区域，并减少侧栏局部布局干扰
+- 同步并归档 Codex runtime、Claude context usage 与 Claude TUI resume 相关 OpenSpec 规范，保持行为契约、实现和验证记录一致
+
+🐛 Fixes
+- 修复 Codex `SessionStart` hook 阻塞后的兜底恢复问题，避免 app server wrapper 启动失败后会话无法继续创建或恢复
+- 修复 macOS native 菜单死锁风险，避免动态业务菜单在 native menu 回调中触发阻塞式前端调用
+- 修复模型选择同步循环，避免 app shell 与模型选择状态互相回写导致重复更新
+- 修复代码块跨行选区锚点问题，避免从代码块内拖选到普通文本时选区起点或复制范围漂移
+- 修复本地图片预览加载问题，让文件预览面板可以正确解析并展示本地图片资源，同时补齐加载失败提示
+- 修复 Linux AppImage 在 Arch Linux / Wayland / Mesa 环境下因 bundled `libwayland-*` 冲突导致的启动失败，发布流程会在签名前剔除冲突库并重新打包
+- 修复 Markdown 预览中文件行标注闪烁问题，让标注按钮在预览区展开和 hover 时更稳定
+- 修复队列融合状态文案 key 泄露，并优化中文提示表达，避免用户看到未翻译的 i18n key
+- 修复 Claude pending 会话续聊竞态，避免 pending 状态被误判导致续聊或 resume 入口行为不稳定
+- 补齐输入请求卡片交互锚点和菜单测试，降低交互入口缺失或测试覆盖漂移的风险
+- 稳定邮件启用保存测试，降低设置页邮件开关回归测试中的异步状态抖动
+
+English:
+
+✨ Features
+- Add Claude TUI resume actions across ordinary sessions, pinned sessions, workspace sessions, and folder-tree entries so historical Claude sessions can continue in the native TUI more directly
+- Add composer send-readiness and queue-status hints, making send availability, queue merging, and background runtime state visible before submission
+
+🔧 Improvements
+- Move dynamic business menus to renderer-side context menus and add a native-menu usage checker, reducing macOS main-thread freeze risk from synchronous native menu callbacks
+- Stabilize Codex session lifecycle recovery with runtime recovery commands, diagnostics, and stronger test coverage so interrupted sessions are easier to restore and debug
+- Consolidate conversation facts and recovery state with explicit contracts, history normalization, and global runtime notices to reduce drift between history recovery, runtime reconnects, and UI state
+- Improve Claude large-image history handling by lazy-loading heavy payloads through a dedicated command path, reducing memory and first-render pressure in history and message views
+- Adjust the workspace-card visibility button position and feedback so the show/hide control stays closer to the card context with less sidebar layout noise
+- Sync and archive OpenSpec coverage for Codex runtime recovery, Claude context usage, and Claude TUI resume so behavior contracts, implementation, and verification records stay aligned
+
+🐛 Fixes
+- Fix Codex `SessionStart` hook fallback recovery so app-server wrapper startup failures no longer leave sessions unable to create or resume
+- Fix macOS native menu deadlock risk by avoiding blocking frontend calls from native menu callbacks
+- Fix a model-selection synchronization loop between the app shell and selected model state
+- Fix cross-line selection anchors for code blocks so selections dragging from code into normal text keep the expected start point and copied range
+- Fix local image preview loading so the file preview panel can resolve and display local image assets correctly, with clearer failure copy
+- Fix Linux AppImage startup failures on Arch Linux / Wayland / Mesa by pruning conflicting bundled `libwayland-*` libraries before signing the final release artifact
+- Fix Markdown preview file-line annotation flicker during expansion and hover interactions
+- Fix queue-merge status i18n key leakage and refine the Chinese copy shown to users
+- Fix a Claude pending-session continuation race that could make resume or follow-up behavior unstable
+- Add missing interaction anchors and menu tests for input-request cards to reduce entrypoint and coverage drift
+- Stabilize the email-enable save test to reduce asynchronous state flakiness in settings regressions
+
+---
+
 ##### **2026年5月11日（v0.4.16）**
 
 中文：
