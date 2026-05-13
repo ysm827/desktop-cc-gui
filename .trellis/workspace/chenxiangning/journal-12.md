@@ -1796,3 +1796,36 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 432: 修复 Linux AppImage Wayland 库冲突
+
+**Date**: 2026-05-13
+**Task**: 修复 Linux AppImage Wayland 库冲突
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+新增 OpenSpec change 与 AppImage post-process 脚本，在 Linux AppImage 构建后剔除 bundled libwayland-*，release workflow 对修复后的 artifact 重新签名；验证 OpenSpec strict、脚本测试、diff check、typecheck 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c82543d2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

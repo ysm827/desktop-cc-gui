@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-12.md`
-- **Total Sessions**: 431
+- **Total Sessions**: 432
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-12.md` | ~1798 | Active |
+| `journal-12.md` | ~1831 | Active |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
 | `journal-9.md` | ~1977 | Archived |
@@ -40,6 +40,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 432 | 2026-05-13 | 修复 Linux AppImage Wayland 库冲突 | `c82543d2` | `feature/v0.4.17` |
 | 431 | 2026-05-13 | 修复本地 PNG 图片预览加载 | `1c37724c` | `feature/v0.4.17` |
 | 430 | 2026-05-12 | 稳定邮件启用保存测试 | `aad62c59` | `feature/v0.4.17` |
 | 429 | 2026-05-12 | 修复代码块跨行选区锚点 | `6d243be8` | `feature/v0.4.17` |
