@@ -273,3 +273,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 442: 更新 v0.4.17 变更记录
+
+**Date**: 2026-05-13
+**Task**: 更新 v0.4.17 变更记录
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+补充 CHANGELOG.md 中 v0.4.17 的终态 turn 迟到事件隔离、Codex 计划模式状态显示和 Web Service 启动按钮测试稳定性说明。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `31b63e99` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
