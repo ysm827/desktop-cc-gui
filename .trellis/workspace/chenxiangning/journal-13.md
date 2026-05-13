@@ -109,3 +109,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 438: 缩小 composer 输入区提交按钮尺寸
+
+**Date**: 2026-05-13
+**Task**: 缩小 composer 输入区提交按钮尺寸
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+缩小输入区右侧提交/停止圆形按钮本体尺寸，保持 icon 与发光效果不变。
+
+### Main Changes
+
+## 本次完成
+- 单独提交 `391c7524 fix(composer): 缩小输入区提交按钮尺寸`。
+- 调整 `src/features/composer/components/ChatInputBox/styles/buttons.css` 中 `.submit-button` 的按钮本体尺寸。
+- 将右侧提交/停止圆形按钮从 `32px × 32px` 缩小到 `28px × 28px`。
+- 保持 icon 字号、工作态背景图、halo 与发光粒子不变。
+
+## 验证
+- `git diff --check -- src/features/composer/components/ChatInputBox/styles/buttons.css` 通过。
+- 用户确认需求为缩小圆圈按钮本体，不是缩小 icon。
+
+## 范围控制
+- 本次 commit 只包含 composer button CSS 局部样式。
+- 不改变发送/停止交互逻辑。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `391c7524` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
