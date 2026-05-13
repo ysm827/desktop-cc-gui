@@ -1763,3 +1763,36 @@ backend get_git_status 在 non-git workspace 返回稳定空快照；frontend us
 ### Next Steps
 
 - None - task complete
+
+
+## Session 431: 修复本地 PNG 图片预览加载
+
+**Date**: 2026-05-13
+**Task**: 修复本地 PNG 图片预览加载
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+修复文件编辑器图片预览优先使用 readLocalImageDataUrl 读取本地图片，保留 convertFileSrc fallback，并补充加载失败提示与 FileViewPanel 回归测试。验证通过 FileViewPanel.test.tsx 与 npm run typecheck。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1c37724c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

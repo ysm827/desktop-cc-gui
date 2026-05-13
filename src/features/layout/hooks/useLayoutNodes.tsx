@@ -112,6 +112,7 @@ import {
   appendQueuedHandoffBubbleIfNeeded,
   type QueuedHandoffBubble,
 } from "../../threads/utils/queuedHandoffBubble";
+import { isBackgroundRenderGatingEnabled } from "../../threads/utils/realtimePerfFlags";
 import { useWorkspaceSessionActivity } from "../../session-activity/hooks/useWorkspaceSessionActivity";
 import { useClientUiVisibility } from "../../client-ui-visibility/hooks/useClientUiVisibility";
 import type { SessionRadarEntry } from "../../session-activity/hooks/useSessionRadarFeed";
@@ -944,6 +945,15 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     ],
   );
   const deferredComposerLiveInputs = useDeferredValue(composerLiveInputs);
+  const backgroundRenderGatingEnabled = isBackgroundRenderGatingEnabled();
+  const deferredThreadItemsByThreadValue = useDeferredValue(options.threadItemsByThread);
+  const deferredThreadStatusByIdValue = useDeferredValue(options.threadStatusById);
+  const deferredThreadItemsByThread = backgroundRenderGatingEnabled
+    ? deferredThreadItemsByThreadValue
+    : options.threadItemsByThread;
+  const deferredThreadStatusById = backgroundRenderGatingEnabled
+    ? deferredThreadStatusByIdValue
+    : options.threadStatusById;
   const deferredComposerActiveThreadStatus = options.activeThreadId
     ? deferredComposerLiveInputs.threadStatusById[options.activeThreadId] ??
       activeThreadStatus
@@ -1007,9 +1017,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     threads: options.activeWorkspaceId
       ? options.threadsByWorkspace[options.activeWorkspaceId] ?? []
       : [],
-    itemsByThread: options.threadItemsByThread,
+    itemsByThread: deferredThreadItemsByThread,
     threadParentById: options.threadParentById,
-    threadStatusById: options.threadStatusById,
+    threadStatusById: deferredThreadStatusById,
   });
   const isEditorFileMaximized = options.isEditorFileMaximized;
   const onToggleEditorFileMaximized = options.onToggleEditorFileMaximized;
@@ -1651,9 +1661,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   } = useStatusPanelData(options.activeItems, {
     isCodexEngine: isStatusPanelCodexEngine,
     activeThreadId: options.activeThreadId,
-    itemsByThread: options.threadItemsByThread,
+    itemsByThread: deferredThreadItemsByThread,
     threadParentById: options.threadParentById,
-    threadStatusById: options.threadStatusById,
+    threadStatusById: deferredThreadStatusById,
   });
   const hasStatusPanelActivity =
     todoTotal > 0 ||
@@ -2308,9 +2318,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         deletions: options.gitStatus.totalDeletions,
       }}
       workspaceGitDiffs={options.gitDiffs}
-      itemsByThread={options.threadItemsByThread}
+      itemsByThread={deferredThreadItemsByThread}
       threadParentById={options.threadParentById}
-      threadStatusById={options.threadStatusById}
+      threadStatusById={deferredThreadStatusById}
       onOpenDiffPath={handleOpenDiffPath}
       onOpenFilePath={handleOpenDiffFromActivity}
       onSelectSubagent={options.onSelectSubagent}
