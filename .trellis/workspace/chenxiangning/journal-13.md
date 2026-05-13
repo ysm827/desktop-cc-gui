@@ -408,3 +408,52 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 445: Phase 1 OpenSpec 收口归档
+
+**Date**: 2026-05-14
+**Task**: Phase 1 OpenSpec 收口归档
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 本次完成
+
+- 归档 Phase 1 收口集合：`add-cli-one-click-installer`、`optimize-runtime-session-background-scheduling`、`fix-linux-appimage-wayland-library-pruning`、`fix-windows-codex-app-server-wrapper-launch`、`claude-code-mode-progressive-rollout`。
+- 新增 `openspec/docs/phase1-release-closure-2026-05-14.md`，明确 macOS 本机已验证证据、外部平台/manual evidence 的 release qualifier，以及 owner-approved archive waiver 边界。
+- 同步主 specs：新增 `cli-one-click-installer`、`claude-code-access-modes`，更新 remote backend installer parity、realtime scheduling、Linux AppImage pruning、Claude lifecycle 等 specs。
+- 刷新 `openspec/project.md` inventory：active=2、archive=288、specs=252。
+
+## 验证
+
+- `openspec validate --all --strict --no-interactive`：253 passed, 0 failed。
+- `git diff --check`：通过。
+
+## 注意
+
+- Windows、WSL、remote daemon、Linux AppImage、Arch Wayland、live two-session UI profile 没有被伪造成通过；它们被记录为 release qualifier，后续发布宣称对应平台能力前仍需真实验证。
+- 未纳入本次提交的工作区变更属于 `project-memory-refactor` 与相关源码改动，本次记录保持隔离。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9b985edc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
