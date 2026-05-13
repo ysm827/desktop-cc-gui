@@ -28,6 +28,9 @@
 - 修复模型选择同步循环，避免 app shell 与模型选择状态互相回写导致重复更新
 - 修复 realtime turn 完成清算竞态，避免 turn 在完成阶段因事件收口顺序不稳定而出现生命周期状态漂移
 - 修复 pending alias 解析短路兼容问题，避免 realtime 事件映射在别名路径下提前返回并漏掉有效状态更新
+- 修复 queue-fusion 后续 realtime continuation 被误判为中断线程的问题，确保队列融合不会写入 interrupted guard 状态
+- 修复消息发送回调依赖缺失问题，降低长会话发送、续写和实时事件接续时使用旧闭包的风险
+- 优化 Git diff 与 Git history 顶部操作栏悬停隐藏行为，避免鼠标移动时操作入口过早消失
 - 修复代码块跨行选区锚点问题，避免从代码块内拖选到普通文本时选区起点或复制范围漂移
 - 修复本地图片预览加载问题，让文件预览面板可以正确解析并展示本地图片资源，同时补齐加载失败提示
 - 修复 Linux AppImage 在 Arch Linux / Wayland / Mesa 环境下因 bundled `libwayland-*` 冲突导致的启动失败，发布流程会在签名前剔除冲突库并重新打包
@@ -61,6 +64,9 @@ English:
 - Fix a model-selection synchronization loop between the app shell and selected model state
 - Fix a realtime turn-completion settlement race so lifecycle state no longer drifts when completion events arrive in unstable closeout order
 - Fix pending-alias parsing short-circuit compatibility so realtime event mapping does not return early and skip valid state updates on alias-based paths
+- Fix queue-fusion realtime continuations being treated as interrupted threads by keeping queue-fusion out of interrupted guard state
+- Fix missing message-send callback dependencies, reducing stale-closure risk during long-session sends, continuations, and realtime event handoff
+- Refine hover hiding for Git diff and Git history top action bars so action entrypoints do not disappear too early while moving the pointer
 - Fix cross-line selection anchors for code blocks so selections dragging from code into normal text keep the expected start point and copied range
 - Fix local image preview loading so the file preview panel can resolve and display local image assets correctly, with clearer failure copy
 - Fix Linux AppImage startup failures on Arch Linux / Wayland / Mesa by pruning conflicting bundled `libwayland-*` libraries before signing the final release artifact
