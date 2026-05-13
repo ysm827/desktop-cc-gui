@@ -293,8 +293,8 @@
 .message-queue {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 8px;
+  gap: 4px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--input-border);
   background:
     linear-gradient(
@@ -303,7 +303,7 @@
       var(--context-bar-bg) 100%
     );
   border-radius: 15px 15px 0 0;
-  max-height: 152px;
+  max-height: 104px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -313,16 +313,16 @@
 
 .message-queue-item {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto auto;
-  align-items: start;
-  gap: 10px;
-  padding: 10px 12px;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
   background: color-mix(in srgb, var(--input-bg) 70%, var(--context-bar-bg) 30%);
   border: 1px solid var(--input-border);
   border-radius: 12px;
   font-size: 12px;
   color: var(--text-primary);
-  min-height: 44px;
+  min-height: 32px;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -333,12 +333,12 @@
 }
 
 .message-queue-number {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
+  margin-top: 0;
   background: color-mix(in srgb, var(--button-primary) 18%, transparent);
   color: var(--button-primary);
   border-radius: 50%;
@@ -347,20 +347,23 @@
 }
 
 .message-queue-content {
-  display: block;
+  display: flex;
+  align-items: center;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.45;
+  line-height: 1.2;
   color: var(--text-primary);
 }
 
 .message-queue-status {
+  display: flex;
+  align-items: center;
   color: var(--text-muted);
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 1.2;
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -370,7 +373,7 @@
 .message-queue-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
 }
 
@@ -378,9 +381,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  height: 26px;
-  padding: 0 10px;
+  min-width: 42px;
+  height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--input-border) 90%, transparent);
   background: color-mix(in srgb, var(--input-bg) 68%, transparent);
