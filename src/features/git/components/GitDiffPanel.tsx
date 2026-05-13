@@ -1867,8 +1867,8 @@ export function GitDiffPanel({
     ],
   );
   return (
-    <aside className="diff-panel" ref={panelRef}>
-      <div className="git-panel-header">
+    <aside className="diff-panel diff-panel--floating-git-actions" ref={panelRef}>
+      <div className="git-panel-header git-panel-header--hover-actions">
         <div className="git-panel-actions" role="group" aria-label="Git panel">
           {mode === "diff" && (
             <div className="diff-list-view-toggle" role="group" aria-label={t("git.listView")}>

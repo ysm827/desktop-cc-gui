@@ -1,4 +1,7 @@
 .diff-panel {
+  --git-panel-floating-actions-top: 8px;
+  --git-panel-floating-actions-height: 30px;
+  --git-panel-floating-actions-gap: 8px;
   --git-filetree-section-gap: 2px;
   --git-filetree-section-padding: 6px;
   --git-filetree-section-radius: 12px;
@@ -29,6 +32,19 @@
   -webkit-app-region: no-drag;
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.diff-panel--floating-git-actions {
+  transition: padding-top 150ms ease;
+}
+
+.diff-panel--floating-git-actions:hover,
+.diff-panel--floating-git-actions:focus-within {
+  padding-top: calc(
+    var(--git-panel-floating-actions-top) + var(--git-panel-floating-actions-height) +
+      var(--git-panel-floating-actions-gap)
+  );
 }
 
 .diff-panel,
@@ -123,6 +139,52 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.git-panel-header--hover-actions {
+  position: absolute;
+  top: var(--git-panel-floating-actions-top);
+  left: 8px;
+  right: 8px;
+  min-height: var(--git-panel-floating-actions-height);
+  z-index: 5;
+  border-bottom-color: transparent;
+  pointer-events: none;
+}
+
+.git-panel-header--hover-actions .git-panel-actions {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-10px);
+  transition:
+    opacity 150ms ease,
+    transform 170ms ease;
+  z-index: 2;
+}
+
+.diff-panel:hover .git-panel-header--hover-actions .git-panel-actions,
+.git-panel-header--hover-actions:focus-within .git-panel-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.diff-panel:hover .git-panel-header--hover-actions,
+.git-panel-header--hover-actions:focus-within {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diff-panel--floating-git-actions {
+    transition: none;
+  }
+
+  .git-panel-header--hover-actions .git-panel-actions {
+    transform: none;
+    transition: opacity 120ms ease;
+  }
 }
 
 .git-panel-select-trigger {
