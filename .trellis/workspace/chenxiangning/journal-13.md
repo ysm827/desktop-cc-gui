@@ -52,3 +52,60 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 437: 记录 CLI installer 实时日志收口
+
+**Date**: 2026-05-13
+**Task**: 记录 CLI installer 实时日志收口
+**Branch**: `feature/v0.4.17`
+
+### Summary
+
+完成 Codex/Claude Code 一键安装实时日志、remote 事件透传、边界修复与验证门禁收口。
+
+### Main Changes
+
+本次会话完成 OpenSpec change add-cli-one-click-installer 的实现收口，并提交 0b0a57b1。
+
+主要改动：
+- 新增受控 CLI installer backend，限定 Codex / Claude Code 的 npm global @latest 安装与更新策略。
+- 安装执行从一次性 output 改为 spawn + stdout/stderr 逐行读取，发出 run-scoped cli-installer-event。
+- local 与 remote daemon 均支持 installer plan/run；remote daemon 通过现有 notification 通道透传 installer progress。
+- Settings CLI 验证面板增加 install/update 入口、确认计划、实时日志、耗时、最终结果和 post-install doctor 展示。
+- 修复边界：Unicode 日志截断不 panic、空 runId fallback、spawn/read/timeout 错误显式上报、doctor 失败不吞安装结果、plan 请求取消/竞态保护。
+- 补充 zh/en i18n、TS/Rust 类型、OpenSpec delta 和 focused tests。
+
+验证：
+- cargo test --manifest-path src-tauri/Cargo.toml cli_installer
+- npx vitest run src/features/settings/components/settings-view/sections/CodexSection.test.tsx src/services/tauri.test.ts src/services/events.test.ts
+- npm run typecheck
+- npm run check:runtime-contracts
+- node --test scripts/check-large-files.test.mjs
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs
+- npm run check:heavy-test-noise
+- openspec validate --all --strict --no-interactive
+- git diff --check
+
+注意：manual smoke 仍需覆盖 macOS local、Windows native、remote daemon、WSL boundary。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0b0a57b1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

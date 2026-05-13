@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 436
+- **Total Sessions**: 437
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~54 | Active |
+| `journal-13.md` | ~111 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 437 | 2026-05-13 | 记录 CLI installer 实时日志收口 | `0b0a57b1` | `feature/v0.4.17` |
 | 436 | 2026-05-13 | 压缩 composer 消息队列高度 | `fc713308` | `feature/v0.4.17` |
 | 435 | 2026-05-13 | 修复 realtime pending alias 解析短路兼容问题 | `9042308f` | `feature/v0.4.17` |
 | 434 | 2026-05-13 | 修复 realtime turn 完成清算竞态 | `b5d9f2b8` | `feature/v0.4.17` |
