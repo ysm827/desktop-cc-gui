@@ -27,9 +27,11 @@
 - 修复 macOS native 菜单死锁风险，避免动态业务菜单在 native menu 回调中触发阻塞式前端调用
 - 修复模型选择同步循环，避免 app shell 与模型选择状态互相回写导致重复更新
 - 修复 realtime turn 完成清算竞态，避免 turn 在完成阶段因事件收口顺序不稳定而出现生命周期状态漂移
+- 修复终态 turn 迟到事件污染线程的问题，对已完成、失败或取消的 turn 建立终态 fence，避免延迟事件把线程重新拉回运行态
 - 修复 pending alias 解析短路兼容问题，避免 realtime 事件映射在别名路径下提前返回并漏掉有效状态更新
 - 修复 queue-fusion 后续 realtime continuation 被误判为中断线程的问题，确保队列融合不会写入 interrupted guard 状态
 - 修复消息发送回调依赖缺失问题，降低长会话发送、续写和实时事件接续时使用旧闭包的风险
+- 修复 Codex 计划模式状态显示问题，让 mode selector、composer 状态面板和计划模式展示保持一致
 - 优化 Git diff 与 Git history 顶部操作栏悬停隐藏行为，避免鼠标移动时操作入口过早消失
 - 修复代码块跨行选区锚点问题，避免从代码块内拖选到普通文本时选区起点或复制范围漂移
 - 修复本地图片预览加载问题，让文件预览面板可以正确解析并展示本地图片资源，同时补齐加载失败提示
@@ -39,6 +41,7 @@
 - 修复 Claude pending 会话续聊竞态，避免 pending 状态被误判导致续聊或 resume 入口行为不稳定
 - 补齐输入请求卡片交互锚点和菜单测试，降低交互入口缺失或测试覆盖漂移的风险
 - 稳定邮件启用保存测试，降低设置页邮件开关回归测试中的异步状态抖动
+- 稳定 Web 服务启动按钮测试，降低设置页 Web Service 启停入口回归测试中的异步状态抖动
 
 English:
 
@@ -63,9 +66,11 @@ English:
 - Fix macOS native menu deadlock risk by avoiding blocking frontend calls from native menu callbacks
 - Fix a model-selection synchronization loop between the app shell and selected model state
 - Fix a realtime turn-completion settlement race so lifecycle state no longer drifts when completion events arrive in unstable closeout order
+- Fix late terminal-turn events polluting threads by adding a terminal fence for completed, failed, or cancelled turns so delayed events cannot move them back into running state
 - Fix pending-alias parsing short-circuit compatibility so realtime event mapping does not return early and skip valid state updates on alias-based paths
 - Fix queue-fusion realtime continuations being treated as interrupted threads by keeping queue-fusion out of interrupted guard state
 - Fix missing message-send callback dependencies, reducing stale-closure risk during long-session sends, continuations, and realtime event handoff
+- Fix Codex plan-mode state display so the mode selector, composer status panel, and visible plan-mode state stay aligned
 - Refine hover hiding for Git diff and Git history top action bars so action entrypoints do not disappear too early while moving the pointer
 - Fix cross-line selection anchors for code blocks so selections dragging from code into normal text keep the expected start point and copied range
 - Fix local image preview loading so the file preview panel can resolve and display local image assets correctly, with clearer failure copy
@@ -75,6 +80,7 @@ English:
 - Fix a Claude pending-session continuation race that could make resume or follow-up behavior unstable
 - Add missing interaction anchors and menu tests for input-request cards to reduce entrypoint and coverage drift
 - Stabilize the email-enable save test to reduce asynchronous state flakiness in settings regressions
+- Stabilize the Web Service start-button test to reduce asynchronous state flakiness around the settings start/stop entrypoint
 
 ---
 
