@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 443
-- **Last Active**: 2026-05-13
+- **Total Sessions**: 444
+- **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~358 | Active |
+| `journal-13.md` | ~410 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 444 | 2026-05-14 | Phase 1 发布证据收口 | `e5fea4c2` | `feature/v0.4.18` |
 | 443 | 2026-05-13 | 归档 Phase 1 已完成 OpenSpec 变更 | `0ad9a56a` | `feature/v0.4.18` |
 | 442 | 2026-05-13 | 更新 v0.4.17 变更记录 | `31b63e99` | `feature/v0.4.17` |
 | 441 | 2026-05-13 | 修复 realtime 终态 turn 迟到事件门禁 | `b75d2496` | `feature/v0.4.17` |

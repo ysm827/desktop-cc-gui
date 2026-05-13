@@ -356,3 +356,55 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 444: Phase 1 发布证据收口
+
+**Date**: 2026-05-14
+**Task**: Phase 1 发布证据收口
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Summary
+
+- 补齐 Phase 1.2 release evidence：macOS CLI installer smoke、Claude native continuation smoke、runtime scheduling surrogate evidence。
+- 归档 `fix-claude-native-session-continuation-race`，并同步 `claude-fork-session-support`、`claude-thread-session-continuity`、`claude-tui-resume-affordance` 主 specs。
+- 刷新 realtime CPU baseline/acceptance/raw reports，并更新 OpenSpec workspace inventory。
+
+## Verification
+
+- `openspec validate --all --strict --no-interactive` -> 256 passed, 0 failed
+- `npm run typecheck` -> passed
+- focused Vitest for Claude/menu/runtime boundaries -> 123 tests passed
+- `npm run perf:realtime:report` -> acceptance PASS
+- `npm run check:heavy-test-noise` -> 466 test files, act warnings 0, stdout/stderr payload lines 0
+
+## Notes
+
+- `add-cli-one-click-installer` remains open for Windows native, isolated remote daemon, and WSL boundary evidence.
+- `optimize-runtime-session-background-scheduling` remains open for real interactive UI switch profile evidence.
+- Existing uncommitted `openspec/changes/project-memory-refactor/**` edits were not part of this session and were left untouched.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e5fea4c2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
