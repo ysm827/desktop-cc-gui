@@ -1335,8 +1335,8 @@ describe("useThreadMessaging", () => {
     expect(engineInterrupt).toHaveBeenCalledWith("ws-1");
   });
 
-  it("shows fusion-specific stop copy when interrupt is triggered for queue fusion", async () => {
-    const { result, dispatch } = makeHook("codex", {
+  it("shows fusion-specific stop copy without blocking same-thread realtime continuation", async () => {
+    const { result, dispatch, interruptedThreadsRef, pendingInterruptsRef } = makeHook("codex", {
       activeThreadId: "thread-1",
       ensuredThreadId: "thread-1",
       activeTurnIdByThread: { "thread-1": "turn-1" },
@@ -1352,10 +1352,12 @@ describe("useThreadMessaging", () => {
       threadId: "thread-1",
       text: "正在切换到融合回复，等待新的接续事件…",
     });
+    expect(interruptedThreadsRef.current.has("thread-1")).toBe(false);
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
   });
 
   it("keeps the default stop copy for a normal manual interrupt", async () => {
-    const { result, dispatch } = makeHook("codex", {
+    const { result, dispatch, interruptedThreadsRef } = makeHook("codex", {
       activeThreadId: "thread-1",
       ensuredThreadId: "thread-1",
       activeTurnIdByThread: { "thread-1": "turn-1" },
@@ -1371,6 +1373,7 @@ describe("useThreadMessaging", () => {
       threadId: "thread-1",
       text: "会话已停止。",
     });
+    expect(interruptedThreadsRef.current.has("thread-1")).toBe(true);
   });
 
   it("keeps plan handoff interrupts silent while still stopping the active turn", async () => {
