@@ -2090,6 +2090,77 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("preserves last-good Claude rows during startup first-page hydration", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-window",
+            cwd: "/tmp/codex",
+            preview: "Visible live window",
+            updated_at: 8000,
+          },
+        ],
+        nextCursor: "offset:50",
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [
+          {
+            id: "claude:parent-session",
+            name: "父会话",
+            updatedAt: 7600,
+            engineSource: "claude",
+            threadKind: "native",
+          },
+          {
+            id: "claude:child-session",
+            name: "子会话",
+            updatedAt: 7500,
+            engineSource: "claude",
+            threadKind: "native",
+            parentThreadId: "claude:parent-session",
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, {
+        startupHydrationMode: "first-page",
+      });
+    });
+
+    expect(listClaudeSessions).not.toHaveBeenCalled();
+    expectSetThreadsDispatched(dispatch, "ws-1", [
+      {
+        id: "thread-window",
+        name: "Visible live window",
+        updatedAt: 8000,
+        engineSource: "codex",
+      },
+      {
+        id: "claude:parent-session",
+        name: "父会话",
+        updatedAt: 7600,
+        engineSource: "claude",
+      },
+      {
+        id: "claude:child-session",
+        name: "子会话",
+        updatedAt: 7500,
+        engineSource: "claude",
+        parentThreadId: "claude:parent-session",
+      },
+    ]);
+  });
+
   it("keeps known codex threads when local session scan is unavailable and cwd is missing", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
@@ -2194,6 +2265,90 @@ describe("useThreadActions", () => {
         partialSource: "claude-session-error",
         isDegraded: true,
         degradedReason: "last-good-fallback",
+      },
+    ]);
+  });
+
+  it("keeps last-good Claude rows and relationships when Claude native listing fails", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-known",
+            cwd: "/tmp/codex",
+            preview: "Known recovered",
+            updated_at: 7200,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(listClaudeSessions).mockRejectedValue(new Error("native scan failed"));
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [
+          {
+            id: "thread-known",
+            name: "Known old",
+            updatedAt: 7000,
+            engineSource: "codex",
+          },
+          {
+            id: "claude:parent-session",
+            name: "稳定父会话",
+            updatedAt: 6900,
+            engineSource: "claude",
+            threadKind: "native",
+          },
+          {
+            id: "claude:child-session",
+            name: "稳定子会话",
+            updatedAt: 6800,
+            engineSource: "claude",
+            threadKind: "native",
+            parentThreadId: "claude:parent-session",
+          },
+        ],
+      },
+      activeThreadIdByWorkspace: {
+        "ws-1": "thread-known",
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expectSetThreadsDispatched(dispatch, "ws-1", [
+      {
+        id: "thread-known",
+        name: "Known recovered",
+        updatedAt: 7200,
+        engineSource: "codex",
+        partialSource: "claude-session-error",
+        isDegraded: true,
+      },
+      {
+        id: "claude:parent-session",
+        name: "稳定父会话",
+        updatedAt: 6900,
+        engineSource: "claude",
+        partialSource: "claude-session-error",
+        isDegraded: true,
+      },
+      {
+        id: "claude:child-session",
+        name: "稳定子会话",
+        updatedAt: 6800,
+        engineSource: "claude",
+        parentThreadId: "claude:parent-session",
+        partialSource: "claude-session-error",
+        isDegraded: true,
       },
     ]);
   });

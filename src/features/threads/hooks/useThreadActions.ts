@@ -72,7 +72,9 @@ import {
   markThreadSummariesDegraded,
   mergeCodexCatalogSessionSummaries,
   mergeDegradedCodexContinuitySummaries,
+  mergeDegradedClaudeContinuitySummaries,
   mergeGeminiSessionSummaries,
+  mergeThreadSummaryPreservingStableIdentity,
   mergeRecoveredThreadSummaries,
   normalizeGeminiSessionSummaries,
   normalizeThreadListPartialSource,
@@ -83,6 +85,7 @@ import {
   selectReplacementThreadByMessageHistory,
   selectReplacementThreadSummary,
   shouldApplyCodexSidebarContinuity,
+  shouldApplyClaudeSidebarContinuity,
   shouldIncludeWorkspaceThreadEntry,
   shouldReplaceUserInputQueueFromSnapshot,
   withTimeout,
@@ -1802,6 +1805,7 @@ export function useThreadActions({
         let allSummaries: ThreadSummary[] = summaries;
         const mergedById = new Map<string, ThreadSummary>();
         allSummaries.forEach((entry) => mergedById.set(entry.id, entry));
+        const lastGoodThreadSummaries = getLastGoodThreadSummaries(workspace.id);
         const opencodeSessionsPromise = includeOpenCodeSessions && !shouldDeferFullSessionCatalog
           ? withTimeout(
               getOpenCodeSessionListService(workspace.id),
@@ -1855,11 +1859,13 @@ export function useThreadActions({
               }
               const prev = mergedById.get(id);
               const updatedAt = session.updatedAt;
+              const mappedTitle = mappedTitles[id];
+              const customTitle = getCustomName(workspace.id, id);
               const next: ThreadSummary = {
                 id,
                 name:
-                  mappedTitles[id] ||
-                  getCustomName(workspace.id, id) ||
+                  mappedTitle ||
+                  customTitle ||
                   previewThreadName(session.firstMessage, "Claude Session"),
                 updatedAt,
                 sizeBytes: extractThreadSizeBytes(session as Record<string, unknown>),
@@ -1868,7 +1874,7 @@ export function useThreadActions({
                 parentThreadId,
               };
               if (!prev || next.updatedAt >= prev.updatedAt) {
-                mergedById.set(id, next);
+                mergedById.set(id, mergeThreadSummaryPreservingStableIdentity(prev, next));
               }
             },
           );
@@ -2008,6 +2014,13 @@ export function useThreadActions({
         allSummaries = Array.from(mergedById.values()).sort(
           (a, b) => b.updatedAt - a.updatedAt,
         );
+        if (shouldDeferFullSessionCatalog && lastGoodThreadSummaries.length > 0) {
+          allSummaries = mergeDegradedClaudeContinuitySummaries(
+            allSummaries,
+            lastGoodThreadSummaries,
+            hiddenSharedBindingIds,
+          );
+        }
         if (hasFreshGeminiCache && cachedGemini.sessions.length > 0) {
           allSummaries = mergeGeminiSessionSummaries(
             allSummaries,
@@ -2088,10 +2101,17 @@ export function useThreadActions({
             });
           }
         } else if (degradedPartialSource) {
+          if (shouldApplyClaudeSidebarContinuity(degradedPartialSource)) {
+            visibleSummaries = mergeDegradedClaudeContinuitySummaries(
+              visibleSummaries,
+              lastGoodThreadSummaries,
+              hiddenSharedBindingIds,
+            );
+          }
           if (shouldApplyCodexSidebarContinuity(degradedPartialSource)) {
             visibleSummaries = mergeDegradedCodexContinuitySummaries(
               visibleSummaries,
-              getLastGoodThreadSummaries(workspace.id),
+              lastGoodThreadSummaries,
             );
           }
           visibleSummaries = markThreadSummariesDegraded(
