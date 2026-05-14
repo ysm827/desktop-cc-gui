@@ -1075,3 +1075,50 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 460: 优化项目记忆工作台弹窗
+
+**Date**: 2026-05-15
+**Task**: 优化项目记忆工作台弹窗
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 本次收口
+
+- 优化项目记忆工作台弹窗尺寸：更接近全屏，适配大屏和小屏。
+- 移除右侧详情里对话轮次预览的重复展示，只保留横向用户输入 / AI 回复预览。
+- 在弹窗顶部加入工作区下拉选择，复用现有 workspace selection 回调切换项目。
+- 补充 ProjectMemoryPanel 单测覆盖工作区切换和重复预览移除。
+
+## 验证
+
+- `npx vitest run src/features/project-memory/components/ProjectMemoryPanel.test.tsx` 通过，17 tests。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `git diff --check` 通过。
+- `npm run check:large-files` 仍报告既有 `src/features/threads/hooks/useThreadActions.test.tsx` 超 3000 行阈值，非本次改动范围。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0a80561` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

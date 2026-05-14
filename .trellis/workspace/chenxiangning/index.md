@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 459
-- **Last Active**: 2026-05-14
+- **Total Sessions**: 460
+- **Last Active**: 2026-05-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~1077 | Active |
+| `journal-13.md` | ~1124 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 460 | 2026-05-15 | 优化项目记忆工作台弹窗 | `a0a80561` | `feature/v0.4.18` |
 | 459 | 2026-05-14 | 修复项目记忆引用召回完整性 | `022a7fe7` | `feature/v0.4.18` |
 | 458 | 2026-05-14 | 稳定会话创建与 Claude 列表窗口 | `4102b116` | `feature/v0.4.18` |
 | 457 | 2026-05-14 | 修复 Claude 会话侧栏连续性 | `3ce09521` | `feature/v0.4.18` |
