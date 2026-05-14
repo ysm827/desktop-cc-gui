@@ -785,6 +785,7 @@ export function AppShell() {
   const {
     files,
     directories,
+    directoryMetadata,
     gitignoredFiles,
     gitignoredDirectories,
     isLoading: isFilesLoading,
@@ -2117,7 +2118,7 @@ export function AppShell() {
     confirmBranch, confirmClonePrompt, confirmCommit, confirmCustom, confirmRenameWorktreeUpstream, confirmWorktreePrompt, connectWorkspace, createBranch,
     createPrompt, createWorkspaceGroup, debugEntries, debugOpen, debugPanelHeight, deletePrompt, deleteThreadPrompt,
     deleteWorkspaceGroup, deletingWorktreeIds, dictationError, dictationHint, dictationLevel, dictationModel, dictationReady,
-    dictationState, dictationTranscript, diffScrollRequestId, diffSource, directories, dismissErrorToast, dismissUpdate, doctor, claudeDoctor,
+    dictationState, dictationTranscript, diffScrollRequestId, diffSource, directories, directoryMetadata, dismissErrorToast, dismissUpdate, doctor, claudeDoctor,
     editorHighlightTarget, editorNavigationTarget, editorSplitLayout, effectiveModels, effectiveReasoningSupported, effectiveSelectedModel,
     effectiveSelectedModelId, engineModelsAsOptions, engineSelectedModelIdByType, engineStatuses, ensureLaunchTerminal, ensureTerminalWithTitle,
     ensureWorkspaceThreadListLoaded, errorToasts, exitDiffView, expandRightPanel, expandSidebar, filePanelMode,

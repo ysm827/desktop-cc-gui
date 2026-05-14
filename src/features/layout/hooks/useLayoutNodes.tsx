@@ -92,6 +92,7 @@ import type { UpdateState } from "../../update/hooks/useUpdater";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
 import type { TerminalTab } from "../../terminal/hooks/useTerminalTabs";
 import type { ErrorToast } from "../../../services/toasts";
+import type { WorkspaceDirectoryEntry } from "../../../services/tauri";
 import type {
   CodeAnnotationBridgeProps,
   CodeAnnotationDraftInput,
@@ -689,6 +690,7 @@ type LayoutNodesOptions = {
   commands?: CustomCommandOption[];
   files: string[];
   directories: string[];
+  directoryMetadata: WorkspaceDirectoryEntry[];
   gitignoredFiles: Set<string>;
   gitignoredDirectories: Set<string>;
   onInsertComposerText: (text: string) => void;
@@ -2042,6 +2044,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         gitRoot={options.gitRoot}
         files={options.files}
         directories={options.directories}
+        directoryMetadata={options.directoryMetadata}
         isLoading={options.fileTreeLoading}
         loadError={options.fileTreeLoadError}
         filePanelMode={options.filePanelMode}
