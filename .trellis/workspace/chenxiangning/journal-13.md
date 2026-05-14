@@ -1200,3 +1200,43 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 463: 记录 Codex 静默存活验证完成
+
+**Date**: 2026-05-15
+**Task**: 记录 Codex 静默存活验证完成
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次提交只更新 OpenSpec change `harden-codex-silent-turn-liveness` 的 tasks 状态，将 3-session manual scenario 验证项 4.3 标记为完成。
+
+验证：
+- `openspec validate harden-codex-silent-turn-liveness --strict --no-interactive` 通过。
+
+边界：
+- 未提交 `openspec/changes/repair-project-memory-reference-retrieval-integrity/tasks.md` 中的 F1 勾选，因为当前未找到对应的本地 embedding provider proposal，避免记录不实完成状态。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7e605945` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
