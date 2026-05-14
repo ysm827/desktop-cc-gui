@@ -1167,3 +1167,36 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 462: 修复 Claude pending 会话收敛
+
+**Date**: 2026-05-15
+**Task**: 修复 Claude pending 会话收敛
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+修复 issue #529 形态下 Claude pending 线程与真实 session 未及时收敛导致的第二轮空白/阻塞问题。实现 transcript-validated fallback rebind，补充前端和 Rust 回归测试；拆分大测试文件与 Claude history fixture，确保 large-file governance 和 heavy-test-noise sentry 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `005527b1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
