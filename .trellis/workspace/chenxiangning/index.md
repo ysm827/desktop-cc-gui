@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 455
+- **Total Sessions**: 456
 - **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~923 | Active |
+| `journal-13.md` | ~957 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 456 | 2026-05-14 | 收口项目记忆 OpenSpec 变更 | `44b6ebc2` | `feature/v0.4.18` |
 | 455 | 2026-05-14 | Project Memory 本地语义召回骨架 | `506716bc` | `feature/v0.4.18` |
 | 454 | 2026-05-14 | 提案本地记忆语义召回 | `cf9d7bfb` | `feature/v0.4.18` |
 | 453 | 2026-05-14 | 归档记忆引用展示 OpenSpec | `d5399825` | `feature/v0.4.18` |

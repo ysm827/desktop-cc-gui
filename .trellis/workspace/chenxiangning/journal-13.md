@@ -921,3 +921,37 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 456: 收口项目记忆 OpenSpec 变更
+
+**Date**: 2026-05-14
+**Task**: 收口项目记忆 OpenSpec 变更
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+归档并同步项目记忆相关 OpenSpec 变更：project-memory-refactor、project-memory-phase3-usability-reliability、project-memory-retrieval-pack-cleaner、project-memory-local-semantic-retrieval。将后续能力契约同步到主 specs，新增 project-memory-health-review、project-memory-scout-agent、project-memory-retrieval-pack-cleaner、project-memory-local-semantic-retrieval 主 spec，并保留旧 refactor change 为历史归档（skip specs，避免旧 requirement 名称漂移覆盖后续契约）。验证通过：npm run typecheck、npm run lint、openspec validate --specs --strict --no-interactive、openspec validate --changes --strict --no-interactive、git diff --check。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `44b6ebc2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
