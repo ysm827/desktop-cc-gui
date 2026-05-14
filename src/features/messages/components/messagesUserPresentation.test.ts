@@ -73,8 +73,14 @@ describe("resolveUserMessagePresentation", () => {
     });
 
     expect(result.displayText).toBe("继续分析");
-    expect(result.memorySummary?.lines.join("\n")).toContain("[M1]");
-    expect(result.memorySummary?.lines.join("\n")).toContain("[M2]");
+    expect(result.memorySummary?.records?.map((record) => record.displayIndex)).toEqual([
+      "#1",
+      "#2",
+    ]);
+    expect(result.memorySummary?.records?.map((record) => record.index)).toEqual([
+      "[M1]",
+      "[M2]",
+    ]);
   });
 
   it("strips codex mode fallback prefix when collaboration badge mode is enabled", () => {

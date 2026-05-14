@@ -51,8 +51,10 @@ export type ParsedProjectMemoryPackSummary = {
   count: number;
   cleaned: boolean;
   truncated: boolean;
+  cleanedContext: string;
   preview: string;
   lines: string[];
+  rawPayload: string;
   records: Array<{ index: string; memoryId: string; title: string }>;
 };
 
@@ -407,8 +409,10 @@ export function parseProjectMemoryRetrievalPackPrefix(
       count: Number.parseInt(parseAttribute(attributes, "count"), 10) || records.length,
       cleaned: parseAttribute(attributes, "cleaned") === "true",
       truncated: parseAttribute(attributes, "truncated") === "true",
+      cleanedContext,
       preview,
       lines,
+      rawPayload: match[0].trimEnd(),
       records,
     },
     remainingText: normalized.slice(match[0].length).trimStart(),

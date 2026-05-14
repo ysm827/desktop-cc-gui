@@ -376,7 +376,7 @@ describe("useThreadMessaging context injection", () => {
         type: "upsertItem",
         item: expect.objectContaining({
           role: "assistant",
-          text: expect.stringContaining("Memory Reference: querying project memory"),
+          text: expect.stringContaining("threads.memoryReferenceQuerying"),
         }),
       }),
     );
@@ -385,9 +385,26 @@ describe("useThreadMessaging context injection", () => {
         type: "upsertItem",
         item: expect.objectContaining({
           role: "assistant",
-          text: expect.stringContaining("Memory Reference: referenced 1 project memories"),
+          text: expect.stringContaining("threads.memoryReferenceReferenced"),
         }),
       }),
+    );
+    const memoryReferenceSummaryItems = dispatch.mock.calls
+      .map((call) => call[0])
+      .filter((action) =>
+        action?.type === "upsertItem" &&
+        action.item?.role === "assistant" &&
+        typeof action.item.text === "string" &&
+        action.item.text.includes("threads.memoryReference"),
+      )
+      .map((action) => action.item);
+    expect(memoryReferenceSummaryItems).toHaveLength(2);
+    expect(new Set(memoryReferenceSummaryItems.map((item) => item.id)).size).toBe(1);
+    expect(memoryReferenceSummaryItems[0]?.text).toContain(
+      "threads.memoryReferenceQuerying",
+    );
+    expect(memoryReferenceSummaryItems[1]?.text).toContain(
+      "threads.memoryReferenceReferenced",
     );
   });
 
@@ -491,9 +508,26 @@ describe("useThreadMessaging context injection", () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         item: expect.objectContaining({
-          text: expect.stringContaining("Memory Reference: no related project memory found"),
+          text: expect.stringContaining("threads.memoryReferenceNoRelated"),
         }),
       }),
+    );
+    const memoryReferenceSummaryItems = dispatch.mock.calls
+      .map((call) => call[0])
+      .filter((action) =>
+        action?.type === "upsertItem" &&
+        action.item?.role === "assistant" &&
+        typeof action.item.text === "string" &&
+        action.item.text.includes("threads.memoryReference"),
+      )
+      .map((action) => action.item);
+    expect(memoryReferenceSummaryItems).toHaveLength(2);
+    expect(new Set(memoryReferenceSummaryItems.map((item) => item.id)).size).toBe(1);
+    expect(memoryReferenceSummaryItems[0]?.text).toContain(
+      "threads.memoryReferenceQuerying",
+    );
+    expect(memoryReferenceSummaryItems[1]?.text).toContain(
+      "threads.memoryReferenceNoRelated",
     );
     expect(onDebug).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -601,7 +635,7 @@ describe("useThreadMessaging context injection", () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         item: expect.objectContaining({
-          text: expect.stringContaining("Memory Reference: timed out"),
+          text: expect.stringContaining("threads.memoryReferenceTimeout"),
         }),
       }),
     );

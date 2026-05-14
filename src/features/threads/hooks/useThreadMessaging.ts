@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type {
   AccessMode,
@@ -142,6 +143,26 @@ type RunWithCreateSessionLoading = <T>(
 const AGENT_PROMPT_HEADER = "## Agent Role and Instructions";
 const AGENT_PROMPT_NAME_PREFIX = "Agent Name:";
 const AGENT_PROMPT_ICON_PREFIX = "Agent Icon:";
+
+function buildLocalizedMemoryScoutPreviewText(brief: MemoryBrief, t: TFunction) {
+  if (brief.status === "ok") {
+    const titles = brief.items.map((item) => item.title).slice(0, 3).join("；");
+    return t("threads.memoryReferenceReferenced", {
+      count: brief.items.length,
+      titlesSuffix: titles
+        ? t("threads.memoryReferenceTitlesSuffix", { titles })
+        : "",
+    });
+  }
+  if (brief.status === "timeout") {
+    return t("threads.memoryReferenceTimeout");
+  }
+  if (brief.status === "error") {
+    return t("threads.memoryReferenceError");
+  }
+  return t("threads.memoryReferenceNoRelated");
+}
+
 const isClaudePendingThreadAwaitingNativeSession = (
   threadId: string,
   params: {
@@ -523,18 +544,19 @@ export function useThreadMessaging({
         previewText: null,
         disabledReason: null,
       };
+      const memoryScoutSummaryItemId = `memory-scout-context-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
       if (memoryReferenceEnabled) {
         dispatch({
           type: "upsertItem",
           workspaceId: workspace.id,
           threadId,
           item: {
-            id: `memory-scout-querying-${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2, 8)}`,
+            id: memoryScoutSummaryItemId,
             kind: "message",
             role: "assistant",
-            text: `${MEMORY_CONTEXT_SUMMARY_PREFIX}\nMemory Reference: querying project memory...`,
+            text: `${MEMORY_CONTEXT_SUMMARY_PREFIX}\n${t("threads.memoryReferenceQuerying")}`,
           },
           hasCustomName: Boolean(getCustomName(workspace.id, threadId)),
         });
@@ -550,6 +572,10 @@ export function useThreadMessaging({
           brief: memoryBrief,
           startIndex: injectionResult.injectedCount + 1,
         });
+        memoryScoutInjectionResult = {
+          ...memoryScoutInjectionResult,
+          previewText: buildLocalizedMemoryScoutPreviewText(memoryBrief, t),
+        };
         finalText = memoryScoutInjectionResult.finalText;
       }
       let finalImages = [...images];
@@ -661,9 +687,7 @@ export function useThreadMessaging({
           workspaceId: workspace.id,
           threadId,
           item: {
-            id: `memory-scout-context-${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2, 8)}`,
+            id: memoryScoutSummaryItemId,
             kind: "message",
             role: "assistant",
             text: `${MEMORY_CONTEXT_SUMMARY_PREFIX}\n${memoryScoutInjectionResult.previewText}`,

@@ -1117,8 +1117,162 @@ describe("Messages", () => {
     fireEvent.click(toggle);
     await waitFor(() => {
       const content = container.querySelector(".memory-context-summary-content");
-      expect(content?.textContent ?? "").toContain("[M1]");
-      expect(content?.textContent ?? "").toContain("Spring Boot");
+      expect(content?.querySelector(".memory-context-summary-record")).toBeTruthy();
+      expect(content?.querySelector(".memory-context-summary-record-index")?.textContent).toBe(
+        "#1",
+      );
+      expect(content?.textContent ?? "").toContain("项目技术栈");
+      expect(content?.textContent ?? "").not.toContain("Spring Boot");
+      expect(content?.textContent ?? "").not.toContain("Original user input");
+    });
+  });
+
+  it("uses unique display indexes for multiple memory packs and exposes the real sent payload", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "codex-user-memory-pack-detail-1",
+        kind: "message",
+        role: "user",
+        text: [
+          '<project-memory-pack source="manual-selection" count="1" cleaned="false" cleanerStatus="source_records_only" truncated="false">',
+          "Cleaned Context:",
+          "- source records only",
+          "",
+          "Source Records:",
+          "[M1] memoryId=m-manual-1 title=手动选择记忆 recordKind=conversation_turn sourceType=conversation_turn threadId=t-1 turnId=turn-1 engine=codex updatedAt=1",
+          "Original user input:",
+          "手动记忆问题",
+          "Original assistant response:",
+          "手动记忆回答",
+          "",
+          "Instruction:",
+          "Use relevant records as prior project context.",
+          "</project-memory-pack>",
+          "",
+          '<project-memory-pack source="memory-scout" count="1" cleaned="true" cleanerStatus="cleaned" truncated="false">',
+          "Cleaned Context:",
+          "### 自动记忆摘要",
+          "",
+          "- **重点**：自动引用事实",
+          "",
+          "Source Records:",
+          "[M1] memoryId=m-scout-1 title=自动引用记忆 recordKind=conversation_turn sourceType=conversation_turn threadId=t-2 turnId=turn-2 engine=codex updatedAt=2",
+          "Original user input:",
+          "自动记忆问题",
+          "Original assistant response:",
+          "自动记忆回答",
+          "",
+          "Instruction:",
+          "Use relevant records as prior project context.",
+          "</project-memory-pack>",
+          "",
+          "继续分析",
+        ].join("\n"),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-memory-pack-detail"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const toggle = container.querySelector(".memory-context-summary-toggle");
+    expect(toggle).toBeTruthy();
+    if (!toggle) {
+      return;
+    }
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(
+        [...container.querySelectorAll(".memory-context-summary-record-index")].map(
+          (node) => node.textContent,
+        ),
+      ).toEqual(["#1", "#2"]);
+      const cardText = container.querySelector(".memory-context-summary-content")?.textContent ?? "";
+      expect(cardText).toContain("手动选择记忆");
+      expect(cardText).toContain("自动引用记忆");
+      expect(cardText).not.toContain("手动记忆问题");
+      expect(cardText).not.toContain("自动记忆问题");
+    });
+
+    const detailButton = container.querySelector(".memory-context-summary-detail-button");
+    expect(detailButton).toBeTruthy();
+    if (!detailButton) {
+      return;
+    }
+    fireEvent.click(detailButton);
+    await waitFor(() => {
+      const dialog = document.body.querySelector(".memory-context-payload-dialog");
+      expect(dialog?.querySelector(".memory-context-payload-dialog-close")?.textContent).toBe(
+        "×",
+      );
+      expect(
+        dialog?.querySelector(".memory-context-payload-markdown h3")?.textContent,
+      ).toBe("自动记忆摘要");
+      expect(dialog?.querySelector(".memory-context-payload-markdown strong")?.textContent).toBe(
+        "重点",
+      );
+      expect(dialog?.textContent ?? "").toContain(
+        '<project-memory-pack source="manual-selection"',
+      );
+      expect(dialog?.textContent ?? "").toContain(
+        '<project-memory-pack source="memory-scout"',
+      );
+      expect(dialog?.textContent ?? "").toContain("[M1] memoryId=m-manual-1");
+      expect(dialog?.textContent ?? "").toContain("[M1] memoryId=m-scout-1");
+      expect(dialog?.textContent ?? "").toContain("Original user input:");
+    });
+  });
+
+  it("formats legacy markdown memory summaries inside the normalized context card", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "memory-summary-markdown-1",
+        kind: "message",
+        role: "assistant",
+        text: [
+          "【记忆上下文摘要】",
+          "### 项目约束",
+          "",
+          "- 必须保留 Markdown 列表",
+          "- `Memory Reference` 只展示一张卡",
+        ].join("\n"),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-memory-markdown"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const toggle = container.querySelector(".memory-context-summary-toggle");
+    expect(toggle).toBeTruthy();
+    if (!toggle) {
+      return;
+    }
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(container.querySelector(".memory-context-summary-markdown h3")?.textContent).toBe(
+        "项目约束",
+      );
+      expect(container.querySelectorAll(".memory-context-summary-markdown li")).toHaveLength(2);
+      expect(container.querySelector(".memory-context-summary-markdown code")?.textContent).toBe(
+        "Memory Reference",
+      );
     });
   });
 

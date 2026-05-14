@@ -178,6 +178,8 @@ describe("parseProjectMemoryRetrievalPackPrefix", () => {
       index: "[M1]",
       memoryId: "m-1",
     });
+    expect(parsed?.packSummary.cleanedContext).toContain("- source records only");
+    expect(parsed?.packSummary.rawPayload).toContain("<project-memory-pack");
     expect(parsed?.packSummary.lines.join("\n")).toContain("[M1]");
   });
 });
