@@ -564,3 +564,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 448: 完成 Project Memory Phase 3 易用性与可靠性
+
+**Date**: 2026-05-14
+**Task**: 完成 Project Memory Phase 3 易用性与可靠性
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+完成 Project Memory Phase 3：workbench、@@ compact picker、Memory Reference、Scout Brief、健康诊断、关联资源展示与 Codex history 回放。
+
+### Main Changes
+
+## 完成内容
+
+- 完成 `project-memory-phase3-usability-reliability` OpenSpec change 的全部任务并提交代码。
+- Project Memory 面板升级为 workbench：compact list、详情区、quick tags 折叠、来源定位、review/health/diagnostics 入口。
+- Composer 增加 `@@` manual memory compact picker 和 one-shot Memory Reference toggle。
+- 新增 Memory Scout / Memory Brief 只读检索链路，失败/超时不阻断发送。
+- 新增 Project Memory health/review state/diagnostics/reconcile 后端与前端治理入口。
+- 修复 Claude/Codex/Gemini 关联资源展示一致性，Codex remote/local history 保留注入块用于独立资源卡片展示，用户气泡只显示真实输入。
+
+## 验证
+
+- `openspec validate project-memory-phase3-usability-reliability --strict --no-interactive`
+- `git diff --check`
+- `npm run typecheck`
+- `pnpm vitest run src/features/project-memory src/features/composer src/features/threads/hooks/useThreadMessaging.context-injection.test.tsx`
+- `cargo test --manifest-path src-tauri/Cargo.toml project_memory`
+- `node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs && npm run check:heavy-test-noise`
+- `node --test scripts/check-large-files.test.mjs && npm run check:large-files:near-threshold && npm run check:large-files:gate`
+
+## 后续
+
+- 下一阶段继续 `project-memory-retrieval-pack-cleaner`，将当前 Memory Brief 升级为 detailed retrieval pack + restricted cleaner。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e02fa414` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
