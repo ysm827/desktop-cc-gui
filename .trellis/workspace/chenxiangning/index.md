@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 453
+- **Total Sessions**: 454
 - **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~857 | Active |
+| `journal-13.md` | ~890 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 454 | 2026-05-14 | 提案本地记忆语义召回 | `cf9d7bfb` | `feature/v0.4.18` |
 | 453 | 2026-05-14 | 归档记忆引用展示 OpenSpec | `d5399825` | `feature/v0.4.18` |
 | 452 | 2026-05-14 | 统一记忆引用展示与详情 | `d40a974e` | `feature/v0.4.18` |
 | 451 | 2026-05-14 | 加固 Codex 静默会话存活判定 | `b8380037` | `feature/v0.4.18` |

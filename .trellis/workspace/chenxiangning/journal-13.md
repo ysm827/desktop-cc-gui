@@ -855,3 +855,36 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 454: 提案本地记忆语义召回
+
+**Date**: 2026-05-14
+**Task**: 提案本地记忆语义召回
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+创建 OpenSpec change project-memory-local-semantic-retrieval，明确本地 semantic retrieval 的 provider SPI、exact scan、fallback、payload guard、CI 噪声与大文件治理约束。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf9d7bfb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
