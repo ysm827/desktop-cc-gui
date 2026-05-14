@@ -150,6 +150,8 @@ type ThreadActivityStatus = {
   codexCompactionLifecycleState?: "idle" | "compacting" | "completed";
   codexCompactionCompletedAt?: number | null;
   lastTokenUsageUpdatedAt?: number | null;
+  codexSilentSuspectedAt?: number | null;
+  codexSilentSuspectedSource?: string | null;
 };
 
 type GitDiffViewerItem = {
@@ -1591,6 +1593,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       processingStartedAt={activeThreadStatus?.processingStartedAt ?? null}
       lastDurationMs={activeThreadStatus?.lastDurationMs ?? null}
       heartbeatPulse={heartbeatPulseRef.current ?? 0}
+      codexSilentSuspectedAt={activeThreadStatus?.codexSilentSuspectedAt ?? null}
     />
   ), [
     options.activeItems,
@@ -1632,6 +1635,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     activeThreadStatus?.isContextCompacting,
     activeThreadStatus?.processingStartedAt,
     activeThreadStatus?.lastDurationMs,
+    activeThreadStatus?.codexSilentSuspectedAt,
     // heartbeatPulse removed from deps — uses ref to avoid
     // recreating messagesNode on every heartbeat tick
   ]

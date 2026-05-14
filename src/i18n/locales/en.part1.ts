@@ -2356,6 +2356,8 @@ const enPart1 = {
     restoringHistory: "Restoring conversation history…",
     restoringHistoryHint: "Loading the local transcript and session state.",
     generatingResponse: "Generating response...",
+    codexSilentSuspected:
+      "No new Codex output for a while. Still listening for runtime activity...",
     nonStreamingHint:
       "This model may return non-streaming output, or the network may be unreachable. Please wait...",
     proxyBadge: "Proxy",
