@@ -888,3 +888,36 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 455: Project Memory 本地语义召回骨架
+
+**Date**: 2026-05-14
+**Task**: Project Memory 本地语义召回骨架
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+实现 Project Memory 本地语义召回 SPI、deterministic embedding document、exact cosine scan、hybrid rerank 与 Memory Reference lexical fallback；修复 FileTreePanel directoryMetadata 默认新数组导致 heavy-test-noise batch 41 render loop 卡死，并补充前端规范约束。验证通过 typecheck、focused vitest、heavy-test-noise、large-file gates、OpenSpec strict。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `506716bc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
