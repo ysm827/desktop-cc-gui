@@ -27,4 +27,4 @@
 
 ## Deferred Follow-Up
 
-- [ ] F1 [P1][输出: separate proposal][验证: new OpenSpec change] 若要真正上线 vector retrieval，另开本地 embedding provider proposal，评审模型/runtime/包体/跨平台治理，不再用 fake provider 或 lexical fallback 冒充。
+- [x] F1 [P1][输出: separate proposal][验证: new OpenSpec change] 若要真正上线 vector retrieval，另开本地 embedding provider proposal，评审模型/runtime/包体/跨平台治理，不再用 fake provider 或 lexical fallback 冒充。
