@@ -619,3 +619,45 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 449: 文件树大项目渐进式加载
+
+**Date**: 2026-05-14
+**Task**: 文件树大项目渐进式加载
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| OpenSpec | 完成 `improve-progressive-file-tree-loading` proposal/design/specs/tasks 并通过 strict validation |
+| Backend | 为 workspace file listing 和 directory-child listing 增加 `scan_state`、`limit_hit`、`directory_entries`、`child_state`、`has_more` metadata，覆盖 daemon 与普通 Tauri 路径 |
+| Frontend | `useWorkspaceFiles` 归一化 progressive metadata，`FileTreePanel` 支持 ordinary unknown/partial directory 按需展开，并缓存 confirmed empty 目录 |
+| Validation | 通过 `npm run typecheck`、`cargo check --manifest-path src-tauri/Cargo.toml`、`cargo test --manifest-path src-tauri/Cargo.toml workspaces::files::tests::`、focused Vitest 新增行为测试、`openspec validate improve-progressive-file-tree-loading --strict --no-interactive` |
+| Follow-up | 记录 `has_more=true` 的 cursor pagination 后续方向，phase 1 不增加 Load More UI |
+
+**Commit**: `47c24223 feat(file-tree): 支持大项目渐进式加载`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47c24223` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
