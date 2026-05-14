@@ -20,4 +20,4 @@
 
 - [x] 4.1 [P0][depends:3.2][I: OpenSpec change artifacts][O: valid OpenSpec change][V: `openspec validate harden-codex-silent-turn-liveness --strict --no-interactive`] Validate the proposal/design/spec/tasks.
 - [x] 4.2 [P0][depends:3.3][I: affected frontend hook tests][O: focused regression suite][V: run focused Vitest suites for `useThreadEventHandlers` / Codex liveness behavior] Run targeted frontend tests.
-- [ ] 4.3 [P1][depends:4.2][I: manual concurrent Codex scenario][O: manual evidence note][V: three concurrent Codex turns can stay monitorable; frontend-only silence does not quarantine without authoritative settlement] Repeat the 3-session manual scenario after implementation.
+- [x] 4.3 [P1][depends:4.2][I: manual concurrent Codex scenario][O: manual evidence note][V: three concurrent Codex turns can stay monitorable; frontend-only silence does not quarantine without authoritative settlement] Repeat the 3-session manual scenario after implementation.
