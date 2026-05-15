@@ -1490,3 +1490,48 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 469: 归档已验证 OpenSpec 提案
+
+**Date**: 2026-05-15
+**Task**: 归档已验证 OpenSpec 提案
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+归档 8 个已验证 OpenSpec changes，同步主 specs，并刷新 project.md 工作区快照。
+
+### Main Changes
+
+## 本次工作
+
+- 归档 8 个已验证 OpenSpec changes 到 openspec/changes/archive/2026-05-15-*。
+- 将 8 个 changes 的 delta specs 同步进 openspec/specs/** 主规范。
+- 手动语义合并 claude-session-sidebar-state-parity 与 workspace-session-catalog-projection 的重叠 delta，保留 sidebar continuity、title stability、display window 三类契约。
+- 更新 openspec/project.md 快照：active=1、archive=302、main specs=257。
+
+## 验证
+
+- openspec validate --all --strict --no-interactive：258 passed, 0 failed。
+- 归档完整性核对：8 个目标 change 均存在于 archive；未完成的 add-codex-structured-launch-profile 仍保持 active。
+- 一致性脚本 .claude/skills/osp-openspec-sync/scripts/validate-consistency.py 当前仓库不存在，未执行。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `41cf2e8d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
