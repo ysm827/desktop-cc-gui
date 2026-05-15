@@ -1678,3 +1678,36 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 473: 发布前 OpenSpec 文档卫生收口
+
+**Date**: 2026-05-15
+**Task**: 发布前 OpenSpec 文档卫生收口
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+清理发布前 git diff --check 暴露的 OpenSpec 文档尾随空格与 EOF 空行，重跑 diff hygiene 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5bb8ad5b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
