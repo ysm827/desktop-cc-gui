@@ -1,7 +1,9 @@
 # claude-code-first-token-latency Specification
 
 ## Purpose
-TBD - created by archiving change fix-claude-repeat-turn-first-token-latency. Update Purpose after archive.
+
+Define the mature Claude Code first-token latency contract so repeat-turn delays are diagnosed by phase without weakening realtime stream semantics.
+
 ## Requirements
 ### Requirement: Claude Code First Token Latency MUST Be Phase Observable
 
@@ -36,3 +38,22 @@ The system MUST add first-token observability without changing Claude Code strea
 - **THEN** diagnostics MAY report first-token latency
 - **AND** the conversation UI MUST NOT fabricate assistant text or collapse the turn into final-only output
 
+### Requirement: Mature Claude Code Streaming Contract MUST Survive Refactors
+
+Claude Code first-token and stream-json diagnostics are a mature protection layer. Refactors MUST preserve the separation between upstream first-token waiting, backend forwarder latency, frontend render latency, and terminal lifecycle settlement.
+
+#### Scenario: refactor preserves phase ownership
+- **WHEN** developers refactor Claude Code runtime launch, stream-json parsing, backend forwarding, realtime rendering, diagnostics, or lifecycle settlement
+- **THEN** pre-ingress first-token latency MUST remain owned by first-token/startup diagnostics
+- **AND** post-ingress forwarding latency MUST remain owned by backend forwarder diagnostics
+- **AND** frontend visible-output diagnostics MUST only start after assistant text or equivalent visible content ingress exists
+
+#### Scenario: diagnostics cannot become a stream gate
+- **WHEN** first-token diagnostics, runtime logs, context ledger writes, process snapshots, or history reconciliation are changed
+- **THEN** those operations MUST NOT become prerequisites for forwarding the first assistant text delta
+- **AND** they MUST NOT force the UI to wait for final history replay before showing live Claude Code output
+
+#### Scenario: non-text stream evidence protects liveness
+- **WHEN** Claude Code emits valid non-text stream-json activity before assistant text
+- **THEN** the turn MUST remain observably alive without being classified as a frontend text-render stall
+- **AND** stop, retry, timeout, and terminal settlement semantics MUST remain unchanged from the existing stream-json lifecycle contract

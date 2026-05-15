@@ -82,3 +82,21 @@ The Claude Code stream forwarding latency contract MUST only classify delays aft
 - **THEN** the forwarder MUST emit the corresponding app-server event before runtime diagnostics or ledger persistence
 - **AND** this guarantee MUST apply regardless of any earlier first-token latency recorded for the turn
 
+### Requirement: Claude Code Stream Hot Path MUST Remain Mature And Protected
+
+The Claude Code stream hot path is considered mature. Refactors MUST preserve the low-latency rule that inbound realtime engine events are forwarded before diagnostics, ledger persistence, process snapshots, or history reconciliation.
+
+#### Scenario: text reasoning and tool deltas keep the same protected path
+- **WHEN** a refactor touches Claude Code event forwarding, runtime manager integration, process diagnostics, context ledger persistence, or realtime app-server event emission
+- **THEN** `TextDelta`, `ReasoningDelta`, and `ToolOutputDelta` MUST continue using the protected hot path
+- **AND** no per-delta Windows process snapshot, durable ledger write, or full history reconcile MAY be inserted before frontend delivery
+
+#### Scenario: terminal reconciliation stays after live delivery
+- **WHEN** a Claude Code stream reaches terminal completion, interruption, or error
+- **THEN** diagnostics and durable reconciliation MAY run as terminal or checkpoint work
+- **AND** that work MUST NOT retroactively delay already-delivered live deltas or make the final visible assistant content depend on history reload
+
+#### Scenario: performance fixes preserve active work protection
+- **WHEN** engineers optimize away per-delta persistence or expensive diagnostics
+- **THEN** active stream and active turn protection MUST still be renewed through bounded in-memory markers, lease renewal, heartbeat, checkpoint, or equivalent protection
+- **AND** the runtime MUST NOT become evictable while a verified Claude Code turn is still streaming

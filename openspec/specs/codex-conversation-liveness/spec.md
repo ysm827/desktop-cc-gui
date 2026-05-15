@@ -208,3 +208,26 @@ Codex liveness diagnostics MUST preserve the difference between frontend-observe
 - **THEN** diagnostics MUST preserve that the turn was previously suspected
 - **AND** diagnostics SHOULD include the suspected duration when available
 
+### Requirement: Mature Codex Streaming Liveness MUST Survive Refactors
+
+Codex streaming and liveness handling are considered mature. Refactors MUST preserve the separation between realtime progress evidence, frontend suspicion, authoritative terminal settlement, and history reconciliation.
+
+#### Scenario: refactor preserves non-terminal suspicion
+- **WHEN** developers refactor Codex realtime event handling, conversation lifecycle reducers, liveness timers, runtime diagnostics, or history reconciliation
+- **THEN** frontend-observed silence MUST remain a non-terminal `suspected-silent` style state
+- **AND** only authoritative runtime, backend, user stop, or terminal turn evidence MAY settle the active turn
+
+#### Scenario: non-text activity remains progress evidence
+- **WHEN** a Codex turn emits runtime heartbeat, thread status, tool progress, command output, file-change activity, approval state, token usage, request-user-input, or equivalent structured activity
+- **THEN** liveness MUST treat that activity as progress evidence even if assistant text has not changed
+- **AND** refactors MUST NOT regress to a text-delta-only definition of progress
+
+#### Scenario: history reconciliation is not required for live convergence
+- **WHEN** realtime Codex events have enough evidence to update active turn state or visible assistant/tool rows
+- **THEN** the UI MUST converge through the realtime path first
+- **AND** history reconciliation MUST remain a validation or replay aid rather than the only path that clears loading, suspected silence, duplicate assistant rows, or final visible state
+
+#### Scenario: settled turns stay quarantined
+- **WHEN** a Codex turn has settled as stalled, abandoned, interrupted, failed, or completed
+- **THEN** late stale progress for that old turn identity MUST remain quarantined
+- **AND** refactors MUST NOT let stale evidence revive processing state unless a verified successor turn identity is active
