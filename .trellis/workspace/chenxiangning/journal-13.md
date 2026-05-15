@@ -1240,3 +1240,58 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 464: 强化 Claude stream-json 首包存活检测
+
+**Date**: 2026-05-15
+**Task**: 强化 Claude stream-json 首包存活检测
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+修复 Claude stream-json 首包无合法事件时 GUI 可能持续等待的问题，并补充 OpenSpec 与回归测试。
+
+### Main Changes
+
+## 完成内容
+- 针对 Claude CLI stream-json 首包存活问题新增 liveness watchdog。
+- 首个合法 stream event 到达前，如果 stdout/stderr 只有无效 JSON、未知事件或长期无输出，会终止子进程并发出可诊断错误。
+- 增加合法事件类型白名单，避免 `{}` 或 `provider_banner` 这类 JSON 误判为 Claude stream event。
+- timeout 分支避免无限等待 stderr reader。
+- 补充 OpenSpec change：`harden-claude-stream-json-liveness`。
+- 补充 Rust 回归测试覆盖无输出、非 JSON、无 type JSON、未知 type JSON。
+
+## 验证
+- `git diff --check`
+- `cargo test --manifest-path src-tauri/Cargo.toml send_message_ -- --nocapture`
+- `openspec validate harden-claude-stream-json-liveness --strict --no-interactive`
+- `npx vitest run src/features/threads/hooks/useThreadEventHandlers.test.ts`
+- `node --test scripts/check-large-files.test.mjs`
+- `npm run check:large-files:near-threshold`
+- `npm run check:large-files:gate`
+- `node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs`
+- `npm run check:heavy-test-noise`
+
+## 备注
+- 用户后续提供视频显示 Claude 输出存在长静默与块状刷新；该现象初判不由本次首包 watchdog 直接导致。
+- 下一步建议单独实现 debug-only stream latency diagnostic，拆分 `Claude stdout received -> EngineEvent emitted -> frontend rendered`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5aa06c13` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
