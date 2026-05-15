@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 467
+- **Total Sessions**: 468
 - **Last Active**: 2026-05-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~1459 | Active |
+| `journal-13.md` | ~1492 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 468 | 2026-05-15 | 修复提示词增强重复结果 | `2810476b` | `feature/v0.4.18` |
 | 467 | 2026-05-15 | 增强 Prompt Enhancer Claude 失败诊断与兜底 | `541f9058` | `feature/v0.4.18` |
 | 466 | 2026-05-15 | 增强 Claude 首包延迟诊断 | `e4aadd8d` | `feature/v0.4.18` |
 | 465 | 2026-05-15 | 记录 Claude 流式首包延迟诊断 | `c552adb5` | `feature/v0.4.18` |

@@ -1457,3 +1457,36 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 468: 修复提示词增强重复结果
+
+**Date**: 2026-05-15
+**Task**: 修复提示词增强重复结果
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+统一归一化 Prompt Enhancer 的 engine 返回文本，复用 assistant 文本去重逻辑，补充 Claude 与 Codex 重复增强结果回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2810476b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
