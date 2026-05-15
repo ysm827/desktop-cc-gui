@@ -1295,3 +1295,60 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 465: 记录 Claude 流式首包延迟诊断
+
+**Date**: 2026-05-15
+**Task**: 记录 Claude 流式首包延迟诊断
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+提交 Claude Code 流式首包链路 debug-only latency trace 基线，为后续多轮首包慢修复提供可观测性。
+
+### Main Changes
+
+任务目标：
+- 在继续治理 Claude Code 多轮对话偶发首包慢之前，先提交当前已完成的流式 latency trace 基线。
+- 保持后续修复与诊断增强解耦，避免同一批文件叠加导致回溯困难。
+
+主要改动：
+- 为 Claude stream path 补充 debug-only timing trace，默认关闭，不记录 prompt 或正文。
+- 前端 latency diagnostics 增加 app-server-event 侧 timing 采集与边界 guard。
+- 保留既有 Windows streaming 修复：delta 先 emit，runtime sync 后置。
+
+验证结果：
+- git diff --check 通过。
+- npx vitest run src/features/threads/utils/streamLatencyDiagnostics.test.ts 通过：23 passed。
+- cargo test --manifest-path src-tauri/Cargo.toml claude_forwarder -- --nocapture 通过：5 passed。
+- cargo test --manifest-path src-tauri/Cargo.toml buffered_claude_text_delta -- --nocapture 通过。
+- npm run typecheck 通过。
+- npm run lint 通过。
+- node --test scripts/check-large-files.test.mjs 通过。
+- node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs 通过。
+- npm run check:large-files:gate 通过：found=0。
+- npm run check:runtime-contracts 通过。
+- npm run check:heavy-test-noise 通过：474 test files completed，act/stdout/stderr payload noise = 0。
+
+后续事项：
+- 新建 OpenSpec change 专门处理 Claude Code 多轮对话偶发首包慢，先写 proposal，再进入实现。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c552adb5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
