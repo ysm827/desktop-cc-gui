@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-13.md`
-- **Total Sessions**: 471
+- **Total Sessions**: 472
 - **Last Active**: 2026-05-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-13.md` | ~1619 | Active |
+| `journal-13.md` | ~1680 | Active |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
 | `journal-10.md` | ~1985 | Archived |
@@ -41,6 +41,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 472 | 2026-05-15 | 稳定核心运行时与实时契约 | `f4d60742` | `feature/v0.4.18` |
 | 471 | 2026-05-15 | 记录 AppImage Wayland 修复验证 | `1263ee8e` | `feature/v0.4.18` |
 | 470 | 2026-05-15 | 标记成熟流式输出重构契约 | `66a400a2` | `feature/v0.4.18` |
 | 469 | 2026-05-15 | 归档已验证 OpenSpec 提案 | `41cf2e8d` | `feature/v0.4.18` |

@@ -1617,3 +1617,64 @@ OpenSpec fix-claude-sidebar-native-session-continuity：Claude sidebar 在 first
 ### Next Steps
 
 - None - task complete
+
+
+## Session 472: 稳定核心运行时与实时契约
+
+**Date**: 2026-05-15
+**Task**: 稳定核心运行时与实时契约
+**Branch**: `feature/v0.4.18`
+
+### Summary
+
+完成 OpenSpec change stabilize-core-runtime-and-realtime-contracts：补齐 realtime canonical contract、runtime lifecycle 场景测试、AppShell typed boundary、CI/large-file/heavy-test-noise/cross-platform guardrails，并修复 review 发现的 runtime/thread boundary 未接入与 turn/item completion 语义混淆。
+
+### Main Changes
+
+## 本次完成
+
+- 创建并完成 OpenSpec change `stabilize-core-runtime-and-realtime-contracts`，覆盖 P0 runtime/realtime/AppShell 稳定性与 P1 governance guardrails。
+- 补齐 realtime event contract matrix、canonical fixtures、frontend contract tests、Rust EngineEvent mapping coverage。
+- 扩展 runtime lifecycle scenario tests，覆盖 acquire/recover/quarantine/retry/replacement/runtime-ended/lease cleanup。
+- 为 AppShell workspace、composer/search、runtime/thread 建立 typed boundary；review 后将 `RuntimeThreadShellBoundary` 实际接入 `app-shell.tsx`。
+- 将 realtime completion 语义拆分为 `assistantItemCompleted` 与 `turnCompleted`，避免 `item/completed` 与 `turn/completed` 后续在 adapter/codegen 中混淆。
+- 将 heavy-test-noise、large-file governance、Windows/macOS/Linux compatibility 约束纳入 OpenSpec 设计与验证。
+
+## 验证
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`：474 test files completed
+- `npm run perf:realtime:boundary-guard`
+- `npm run doctor:strict`
+- `cargo test --manifest-path src-tauri/Cargo.toml runtime`
+- `node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs`
+- `node --test scripts/check-large-files.test.mjs`
+- `npm run check:large-files:near-threshold`：仅既有 watch warnings
+- `npm run check:large-files:gate`：fail violations 0
+- `npm run check:heavy-test-noise`：477 test files completed，act/stdout/stderr payload lines 为 0
+- `openspec validate stabilize-core-runtime-and-realtime-contracts --strict --no-interactive`
+
+## 后续
+
+- 人工回归重点：Codex streaming、runtime ended/reconnect、workspace/search/thread 跳转、interrupt 后恢复。
+- `app-shell.tsx` 仍保留 `@ts-nocheck`，完整移除应作为后续 AppShell context split change 单独推进。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f4d60742` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
