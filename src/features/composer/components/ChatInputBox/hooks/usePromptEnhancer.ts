@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { engineSendMessageSync } from '../../../../../services/tauri';
 import type { EngineType } from '../../../../../types';
+import { getNormalizedAssistantMessageText } from '../../../../../utils/threadItemsAssistantText';
 
 const PROMPT_ENHANCER_FAILURE_MESSAGE = 'Failed to enhance prompt';
 const PROMPT_ENHANCER_WORKSPACE_MESSAGE = 'Workspace is not ready for prompt enhancement';
@@ -96,6 +97,17 @@ function resolvePromptEnhancerFailureMessage(primaryError: unknown, fallbackErro
   return `Prompt enhancement failed. Claude: ${primaryMessage}. Fallback: ${fallbackMessage}`;
 }
 
+function normalizeEnhancedPromptResponse(text: unknown): string {
+  if (typeof text !== 'string') {
+    return '';
+  }
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return getNormalizedAssistantMessageText(trimmed).trim();
+}
+
 function buildIsolatedSessionId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -143,7 +155,7 @@ async function requestEnhancedPrompt(options: {
     PROMPT_ENHANCER_TIMEOUT_MS,
     PROMPT_ENHANCER_TIMEOUT_MESSAGE,
   );
-  return typeof response.text === 'string' ? response.text.trim() : '';
+  return normalizeEnhancedPromptResponse(response.text);
 }
 
 interface UsePromptEnhancerOptions {

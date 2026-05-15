@@ -69,6 +69,80 @@ describe('usePromptEnhancer', () => {
     expect(sendSync.mock.calls[1]?.[1].model).toBeNull();
   });
 
+  it('normalizes duplicated Claude enhancement text before showing the result', async () => {
+    const sendSync = vi.mocked(engineSendMessageSync);
+    sendSync.mockResolvedValueOnce({
+      engine: 'claude',
+      text: [
+        '请检查 Claude Code 提示词增强是否仍会重复返回同一段信息。',
+        '请给出复现条件、根因判断和最小修复方案。',
+        '',
+        '请检查 Claude Code 提示词增强是否仍会重复返回同一段信息。',
+        '请给出复现条件、根因判断和最小修复方案。',
+      ].join('\n'),
+    });
+
+    const { result } = renderPromptEnhancer({
+      currentProvider: 'claude',
+      draft: '提示词增强返回重复信息，重点看 Claude Code。',
+    });
+
+    act(() => {
+      result.current.handleEnhancePrompt();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isEnhancing).toBe(false);
+      expect(result.current.canUseEnhancedPrompt).toBe(true);
+    });
+
+    expect(result.current.enhancedPrompt).toBe(
+      '请检查 Claude Code 提示词增强是否仍会重复返回同一段信息。请给出复现条件、根因判断和最小修复方案。',
+    );
+    expect(
+      result.current.enhancedPrompt.match(/请检查 Claude Code 提示词增强/g),
+    ).toHaveLength(1);
+    expect(sendSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes duplicated Codex enhancement text before showing the result', async () => {
+    const sendSync = vi.mocked(engineSendMessageSync);
+    sendSync.mockResolvedValueOnce({
+      engine: 'codex',
+      text: [
+        '请检查 Codex 提示词增强是否仍会重复返回同一段信息。',
+        '请给出复现条件、根因判断和最小修复方案。',
+        '',
+        '请检查 Codex 提示词增强是否仍会重复返回同一段信息。',
+        '请给出复现条件、根因判断和最小修复方案。',
+      ].join('\n'),
+    });
+
+    const { result } = renderPromptEnhancer({
+      currentProvider: 'codex',
+      selectedModel: 'gpt-5.1-codex',
+      draft: '提示词增强返回重复信息，重点看 Codex。',
+    });
+
+    act(() => {
+      result.current.handleEnhancePrompt();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isEnhancing).toBe(false);
+      expect(result.current.canUseEnhancedPrompt).toBe(true);
+    });
+
+    expect(result.current.enhancingEngine).toBe('codex');
+    expect(result.current.enhancedPrompt).toBe(
+      '请检查 Codex 提示词增强是否仍会重复返回同一段信息。请给出复现条件、根因判断和最小修复方案。',
+    );
+    expect(result.current.enhancedPrompt.match(/请检查 Codex 提示词增强/g)).toHaveLength(1);
+    expect(sendSync).toHaveBeenCalledTimes(1);
+    expect(sendSync.mock.calls[0]?.[1].engine).toBe('codex');
+    expect(sendSync.mock.calls[0]?.[1].model).toBe('gpt-5.1-codex');
+  });
+
   it('shows both Claude and fallback errors when prompt enhancement cannot recover', async () => {
     const sendSync = vi.mocked(engineSendMessageSync);
     sendSync
